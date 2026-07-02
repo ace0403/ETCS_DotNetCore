@@ -1,0 +1,32 @@
+@using ETCS.Admin.Infrastructure.Auth
+@using ETCS.Shared.Infrastructure.Admin.Master.Students
+@using ETCS.Shared.Infrastructure.Admin.Master.Staff
+@{
+    var schools = ViewBag.Schools switch
+    {
+        IReadOnlyList<SchoolLookupDto> studentSchools => studentSchools.Select(s => (s.Id, s.Name)).ToList(),
+        IReadOnlyList<StaffSchoolLookupDto> staffSchools => staffSchools.Select(s => (s.Id, s.Name)).ToList(),
+        _ => new List<(int Id, string Name)>()
+    };
+
+    var isScoped = User.IsSchoolScoped() && !User.IsAdminRole();
+    if (isScoped)
+    {
+        var allowed = new HashSet<int>(User.GetAssignedSchoolIds());
+        schools = schools.Where(s => allowed.Contains(s.Id)).ToList();
+    }
+
+    var selectedSchoolId = isScoped && schools.Count == 1 ? schools[0].Id : 0;
+}
+<div class="admin-grid-school-filter">
+    <select id="adminGridSchoolFilter" class="form-select" aria-label="Filter by school" @(isScoped && schools.Count == 1 ? "disabled" : "")>
+        @if (!isScoped)
+        {
+            <option value="">All Schools</option>
+        }
+        @foreach (var school in schools)
+        {
+            <option value="@school.Id" selected="@(selectedSchoolId == school.Id)">@school.Name</option>
+        }
+    </select>
+</div>

@@ -1,0 +1,907 @@
+.auth-main .auth-wrapper.v1 .auth-form {
+    background-image: url(../../images/loginback.png);
+}
+
+/* Login page */
+.login-page {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #f3f5f7;
+    color: #1d2630;
+    min-height: 100vh;
+    margin: 0;
+}
+
+.login-shell {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+}
+
+.login-hero {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+}
+
+.login-hero-bg {
+    position: absolute;
+    inset: 0;
+    background: url(../../images/loginback.jpg) center / cover no-repeat;
+}
+
+.login-hero-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(29, 38, 48, 0.88) 0%, rgba(70, 128, 255, 0.72) 100%);
+}
+
+.login-hero-content {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    color: #fff;
+    text-align: center;
+}
+
+.login-hero-logo {
+    max-width: 160px;
+    margin-bottom: 2rem;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.login-hero-title {
+    font-size: clamp(1.75rem, 3vw, 2.25rem);
+    font-weight: 700;
+    margin-bottom: 1rem;
+    letter-spacing: -0.02em;
+}
+
+.login-hero-text {
+    font-size: 1.05rem;
+    line-height: 1.65;
+    margin: 0;
+    opacity: 0.92;
+}
+
+.login-panel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+    background: linear-gradient(180deg, #f8f9fa 0%, #eef2f7 100%);
+}
+
+.login-card {
+    width: 100%;
+    max-width: 420px;
+    background: #fff;
+    border: 1px solid #e8edf3;
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(29, 38, 48, 0.08);
+    padding: 2.25rem 2rem 1.5rem;
+}
+
+.login-card-logo {
+    max-width: 120px;
+    margin-bottom: 1.25rem;
+}
+
+.login-card-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+    color: #1d2630;
+}
+
+.login-card-subtitle {
+    color: #6c757d;
+    font-size: 0.95rem;
+    margin-bottom: 1.75rem;
+}
+
+.login-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #3e4853;
+    margin-bottom: 0.4rem;
+}
+
+.login-input-group {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.login-input-group .login-input-addon {
+    background: #fff;
+    border: 1px solid #d8e0ea;
+    color: #8a97a8;
+    padding: 0 0.9rem;
+    font-size: 1.05rem;
+    line-height: 1;
+}
+
+.login-input-group > .input-group-text.login-input-addon {
+    border-right: 0;
+    border-radius: 10px 0 0 10px;
+}
+
+.login-input-group > .form-control {
+    border: 1px solid #d8e0ea !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-radius: 0 !important;
+    padding: 0.7rem 0.85rem !important;
+    font-size: 0.95rem;
+    background: #fff !important;
+    box-shadow: none !important;
+}
+
+.login-input-group > .form-control:last-child {
+    border-right: 1px solid #d8e0ea !important;
+    border-radius: 0 10px 10px 0 !important;
+}
+
+.login-input-group > .form-control::placeholder {
+    color: #adb5bd;
+}
+
+.login-input-group > .btn.login-password-toggle {
+    border-left: 0;
+    border-radius: 0 10px 10px 0;
+}
+
+.login-input-group > .btn.login-password-toggle:hover,
+.login-input-group > .btn.login-password-toggle:focus {
+    color: #4680ff;
+    background: #fff;
+    box-shadow: none;
+}
+
+.login-input-group:focus-within .login-input-addon,
+.login-input-group:focus-within > .form-control {
+    border-color: #4680ff !important;
+}
+
+.login-input-group:focus-within {
+    box-shadow: 0 0 0 3px rgba(70, 128, 255, 0.15);
+}
+
+.login-submit {
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border-radius: 10px !important;
+    background: #4680ff !important;
+    border-color: #4680ff !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.login-submit:hover {
+    background: #3a6fe0 !important;
+    border-color: #3a6fe0 !important;
+}
+
+.login-submit:active {
+    transform: scale(0.99);
+}
+
+.login-footer {
+    margin: 1.5rem 0 0;
+    font-size: 0.8rem;
+    color: #8a97a8;
+}
+
+.login-form .validation-summary-valid {
+    display: none;
+}
+
+@media (max-width: 992px) {
+    .login-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .login-hero {
+        min-height: 220px;
+        padding: 2rem 1.5rem;
+    }
+
+    .login-hero-logo {
+        max-width: 100px;
+        margin-bottom: 1rem;
+    }
+
+    .login-hero-title {
+        font-size: 1.5rem;
+    }
+
+    .login-hero-text {
+        font-size: 0.95rem;
+    }
+
+    .login-panel {
+        padding: 1.5rem 1rem 2rem;
+        align-items: flex-start;
+    }
+
+    .login-card {
+        padding: 1.75rem 1.25rem 1.25rem;
+    }
+}
+
+.noteParagraph {
+    font-size: 11px;
+}
+
+.redText {
+    color: red;
+}
+
+.accordion__body--text {
+    padding: 1.875rem 1.25rem !important;
+}
+
+.studentInfoTable {
+    margin-top: 8%;
+}
+
+    .studentInfoTable thead th {
+        font-size: 11px;
+    }
+
+.form-group {
+    margin-bottom: 1.3rem;
+}
+
+table.dataTable thead th {
+    font-size: 14px;
+}
+
+.nav-header .logo-abbr {
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+.login {
+    height: 100vh !important;
+}
+
+.remember-check-label {
+    padding-top: 3px;
+}
+
+.paginate_button i {
+    color: white !important;
+}
+
+.dt-container > div {
+    align-items: center;
+}
+
+.btn {
+    border-radius: 10px;
+}
+
+.multiselect-custom {
+    display: flex;
+    flex-direction: column;
+}
+
+    .multiselect-custom .btn-group > button {
+        border: 1px solid #bec8d0;
+        padding: .63rem .75rem;
+        font-size: .875rem;
+        line-height: 1.5;
+        color: #131920;
+        border-radius: 8px !important;
+        transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+        width: 100%;
+        display: block;
+        text-align: start;
+        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round' class='css-i6dzq1'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") right .75rem center/18px 25px no-repeat #fff;
+        font-weight: 400;
+    }
+
+        .multiselect-custom .btn-group > button > span {
+            width: 96%;
+            display: inline-block;
+        }
+
+.multiselect-container {
+    width: 100%;
+    max-height: 250px;
+    overflow: hidden;
+    overflow-y: scroll;
+}
+
+    .multiselect-container > li > a > label {
+        padding: 3px 20px 3px 10px;
+    }
+
+.input-group > .form-control {
+    border-radius: 8px !important;
+}
+
+table.dataTable tbody th, table.dataTable tbody td {
+    padding: .7rem .75rem;
+}
+
+.dt-type-numeric.text-left {
+    text-align: left !important;
+}
+
+.password-with-button {
+    border-radius: 10px 0px 0px 10px !important
+}
+
+.form-check-input {
+    /*margin-top: -4px !important;*/
+}
+
+.admin-form-check-field {
+    min-height: calc(1.5em + 0.75rem + 2px);
+    display: flex;
+    align-items: center;
+    margin-bottom: 0;
+}
+
+.admin-form-check-field .form-check-input {
+    margin-top: 0;
+    float: none;
+}
+
+#toast-container > div:hover {
+    box-shadow: none !important;
+}
+
+div.dt-length {
+    display: none;
+}
+
+div.dt-search {
+    display: none !important;
+}
+
+.admin-grid-search {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 1rem;
+}
+
+.admin-grid-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.admin-grid-toolbar .admin-grid-search {
+    margin-bottom: 0;
+}
+
+.admin-grid-school-filter {
+    width: 100%;
+    max-width: 320px;
+}
+
+.admin-grid-school-filter .form-select {
+    border-radius: 8px;
+}
+
+.admin-grid-search-field {
+    position: relative;
+    width: 100%;
+    max-width: 320px;
+}
+
+.admin-grid-search-field .ti-search {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+    pointer-events: none;
+    font-size: 1rem;
+    z-index: 1;
+}
+
+.admin-grid-search-field input {
+    padding-left: 2.25rem !important;
+    padding-right: 2.25rem !important;
+    border-radius: 8px !important;
+}
+
+.admin-grid-search-clear {
+    display: none;
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    padding: 0;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.admin-grid-search-clear:hover {
+    color: #212529;
+}
+
+.table-fixed {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.w-30 {
+    width: 30%;
+}
+
+.w-7 {
+    width: 7%;
+}
+
+.datatable-selector, .form-select {
+    padding: .6rem 2rem .6rem .75rem !important;
+}
+
+.form-control {
+    padding: .6rem .75rem !important;
+}
+
+.login-page .login-input-group > .form-control {
+    border-radius: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    padding: 0.7rem 0.85rem !important;
+}
+
+.login-page .login-input-group > .form-control:last-child {
+    border-right: 1px solid #d8e0ea !important;
+    border-radius: 0 10px 10px 0 !important;
+}
+
+.login-page .login-input-group:focus-within > .form-control:last-child {
+    border-right-color: #4680ff !important;
+}
+
+.login-page .login-input-group > .input-group-text.login-input-addon {
+    border-radius: 10px 0 0 10px !important;
+}
+
+.login-page .login-input-group > .btn.login-password-toggle {
+    border-radius: 0 10px 10px 0 !important;
+}
+
+.m-h-auto {
+    min-height: auto !important;
+}
+
+.custom-btn {
+    height: 37px !important;
+    padding: 0px 15px;
+}
+
+.spinner-hw{
+    height: 20px;
+    width: 20px;
+}
+
+#dashboard-summary-cards .fa {
+    font-size: 20px;
+}
+
+.field-validation-error,
+.validation-summary-errors {
+    font-size: 0.875rem;
+}
+
+.input-validation-error,
+.form-control.input-validation-error,
+.form-select.input-validation-error {
+    border-color: #dc3545;
+}
+
+
+.multiselect-container > li > a > label {
+    padding-left:10px !important;
+}
+
+ul.multiselect-container {
+    padding-top:5px !important;
+    padding-bottom:5px !important;
+}
+
+/* Theme sets .modal to z-index 1081; SweetAlert2 defaults to 1060 */
+.swal2-container {
+    z-index: 9999 !important;
+}
+
+body .swal2-container {
+    z-index: 9999 !important;
+}
+
+/* DataTable action kebab menu */
+table.dataTable tbody td.admin-action-cell {
+    overflow: visible;
+    white-space: nowrap;
+}
+
+.admin-table-action {
+    display: inline-block;
+}
+
+.admin-table-action .admin-action-toggle {
+    border: 0;
+    background: transparent;
+    color: #5b6b79;
+    padding: 0.2rem 0.45rem;
+    line-height: 1;
+    box-shadow: none;
+    border-radius: 6px;
+}
+
+.admin-table-action .admin-action-toggle:hover,
+.admin-table-action .admin-action-toggle:focus,
+.admin-table-action.show .admin-action-toggle {
+    background: #f3f5f7;
+    color: #1d2630;
+    box-shadow: none;
+}
+
+.admin-table-action .admin-action-toggle .ti {
+    font-size: 1.15rem;
+}
+
+.admin-action-menu {
+    min-width: 150px;
+    padding: 0.4rem 0;
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    margin-top: 0.25rem !important;
+}
+
+.admin-action-menu .dropdown-item {
+    padding: 0.55rem 1rem;
+    font-size: 0.875rem;
+    color: #3e4853;
+    display: flex;
+    align-items: center;
+}
+
+.admin-action-menu .dropdown-item .ti,
+.admin-action-menu .dropdown-item .fa {
+    font-size: 1rem;
+    width: 1.1rem;
+    text-align: center;
+}
+
+.admin-action-menu .dropdown-item:hover,
+.admin-action-menu .dropdown-item:focus {
+    background-color: #f3f5f7;
+    color: #1d2630;
+}
+
+.admin-action-menu .dropdown-item.text-danger {
+    color: #dc3545 !important;
+}
+
+.admin-action-menu .dropdown-item.text-danger:hover,
+.admin-action-menu .dropdown-item.text-danger:focus {
+    background-color: #fff5f5;
+    color: #dc3545 !important;
+}
+
+/* Canteen transactions report */
+.canteen-report-card .canteen-branch-select,
+.canteen-report-card #ddlSchool {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.canteen-report-grid-wrap {
+    position: relative;
+    min-height: 120px;
+}
+
+.canteen-report-grid-wrap.is-loading {
+    pointer-events: none;
+}
+
+.canteen-report-screen-loader {
+    position: fixed;
+    inset: 0;
+    z-index: 1045;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(1px);
+}
+
+.canteen-report-screen-loader.d-none {
+    display: none !important;
+}
+
+body.canteen-report-loading {
+    overflow: hidden;
+}
+
+.canteen-report-loader-card {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 1rem 1.35rem;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 12px 32px rgba(29, 38, 48, 0.12);
+    color: #1d2630;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.canteen-report-loader-card .spinner-border {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-width: 0.2em;
+}
+
+.canteen-report-table {
+    width: 100%;
+    min-width: 1280px;
+    margin-bottom: 0;
+    table-layout: auto;
+}
+
+.canteen-report-card .dt-scroll-body table,
+.canteen-report-card .dt-scroll-headInner table,
+.canteen-report-card .dt-scroll-head table {
+    min-width: 1280px !important;
+}
+
+.canteen-report-card table.dataTable thead th {
+    text-transform: none;
+    letter-spacing: normal;
+    white-space: nowrap;
+}
+
+.canteen-report-table thead th {
+    white-space: nowrap;
+    text-transform: none;
+    letter-spacing: normal;
+    padding: 0.7rem 0.85rem;
+    font-size: 0.8125rem;
+    line-height: 1.25;
+    vertical-align: middle;
+    background-color: #f8f9fa;
+}
+
+.canteen-report-table tbody td {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.875rem;
+}
+
+.canteen-report-table .canteen-branch-cell {
+    max-width: 220px;
+}
+
+.canteen-report-table .canteen-branch-text,
+.canteen-report-table .canteen-cell-ellipsis {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.canteen-report-table .canteen-name-cell {
+    max-width: 180px;
+}
+
+.canteen-report-table .canteen-item-cell {
+    max-width: 200px;
+}
+
+.canteen-report-table-scroll {
+    overflow-x: auto;
+}
+
+#grid_table_wrapper .dt-processing {
+    z-index: 6;
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(29, 38, 48, 0.08);
+    padding: 0.75rem 1rem;
+}
+
+/* Operations dashboard */
+.dashboard-page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.dashboard-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dashboard-range-group .btn {
+    font-size: 0.8125rem;
+    padding: 0.35rem 0.75rem;
+}
+
+.dashboard-custom-dates {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.dashboard-custom-dates .form-control {
+    width: 140px;
+}
+
+.dashboard-school-select {
+    min-width: 180px;
+    max-width: 240px;
+}
+
+.dashboard-kpi-card {
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(29, 38, 48, 0.04);
+    height: 100%;
+}
+
+.dashboard-kpi-label {
+    font-size: 0.8125rem;
+    color: #5b6b79;
+    font-weight: 500;
+}
+
+.dashboard-kpi-value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #1d2630;
+}
+
+.dashboard-kpi-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.dashboard-trend-pill {
+    display: inline-block;
+    margin-top: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+}
+
+.dashboard-trend-up {
+    background: #e6f5ef;
+    color: #2ca87f;
+}
+
+.dashboard-trend-down {
+    background: #fdecec;
+    color: #dc2626;
+}
+
+.dashboard-chart-card {
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(29, 38, 48, 0.04);
+}
+
+.dashboard-chart-empty {
+    text-align: center;
+    color: #5b6b79;
+    padding: 2rem 1rem;
+    margin: 0;
+}
+
+.dashboard-quick-link {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    background: #fff;
+    color: #1d2630;
+    text-decoration: none;
+    height: 100%;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.dashboard-quick-link:hover {
+    border-color: #4680ff;
+    box-shadow: 0 4px 12px rgba(70, 128, 255, 0.12);
+    color: #4680ff;
+}
+
+.dashboard-quick-link i {
+    font-size: 1.25rem;
+    color: #4680ff;
+}
+
+.dashboard-quick-link span {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.dashboard-recent-table thead th {
+    font-size: 0.8125rem;
+    white-space: nowrap;
+}
+
+.dashboard-recent-table tbody td {
+    font-size: 0.8125rem;
+    vertical-align: middle;
+}
+
+#dashboard-type-chart .apexcharts-donut-text,
+#dashboard-type-chart .apexcharts-text.apexcharts-donut-label {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+}
+
+#dashboard-type-chart .apexcharts-donut-text tspan:first-child {
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    fill: #5b6b79 !important;
+}
+
+#dashboard-trend-chart,
+#dashboard-type-chart,
+#dashboard-terminals-chart {
+    min-height: 280px;
+}
+
+#dashboard-trend-chart:empty,
+#dashboard-type-chart:empty,
+#dashboard-terminals-chart:empty {
+    min-height: 0;
+}
+
+@media (max-width: 767.98px) {
+    .dashboard-school-select {
+        width: 100%;
+        max-width: none;
+    }
+
+    .dashboard-custom-dates {
+        width: 100%;
+    }
+
+    .dashboard-custom-dates .form-control {
+        flex: 1;
+        width: auto;
+    }
+}

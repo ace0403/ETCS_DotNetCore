@@ -1,0 +1,51 @@
+@using System.Security.Claims
+@{ Layout = null; }
+<header class="pc-header">
+    <div class="header-wrapper">
+        <div class="me-auto pc-mob-drp">
+            <ul class="list-unstyled">
+                <li class="pc-h-item pc-sidebar-collapse">
+                    <a href="#" class="pc-head-link ms-0" id="sidebar-hide"><i class="ti ti-menu-2"></i></a>
+                </li>
+                <li class="pc-h-item pc-sidebar-popup">
+                    <a href="#" class="pc-head-link ms-0" id="mobile-collapse"><i class="ti ti-menu-2"></i></a>
+                </li>
+            </ul>
+        </div>
+        <div class="ms-auto">
+            <ul class="list-unstyled">
+                <li class="dropdown pc-h-item header-user-profile">
+                    <a class="pc-head-link dropdown-toggle arrow-none me-0" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">
+                        <img src="/images/user/avatar-2.jpg" alt="user-image" class="user-avtar">
+                    </a>
+                    <div class="dropdown-menu dropdown-user-profile dropdown-menu-end pc-h-dropdown">
+                        <div class="dropdown-body">
+                            <div class="d-flex mb-2">
+                                <div class="flex-shrink-0">
+                                    <img src="~/images/user/avatar-2.jpg" alt="user-image" class="user-avtar wid-35" />
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h6 class="mb-1">@User.GetDisplayName()</h6>
+                                    <span class="text-muted small">@User.FindFirstValue(ClaimTypes.Email)</span>
+                                </div>
+                            </div>
+                            <hr class="border-secondary border-opacity-50 mb-1" />
+                            <a href="#" class="dropdown-item d-block" id="btnChangePassword">
+                                <i class="ti ti-lock me-2"></i>Change Password
+                            </a>
+                            <hr class="border-secondary border-opacity-50 mt-1" />
+                            <div class="d-grid">
+                                <a asp-controller="Home" asp-action="Logout" class="btn btn-primary text-white">Logout</a>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+</header>
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" id="changePasswordContainer"></div>
+    </div>
+</div>

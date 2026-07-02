@@ -1,0 +1,12 @@
+-- Reference: legacy ibonus procedure (deploy only if not already present).
+-- Called per cart line from POST /api/pos/purchases/post-lines
+-- Parameters from clsPoss.InsertPosPurchase():
+--   @customerid, @skucode, @amount, @purchasedate, @transid, @ipaddress
+
+-- EXEC spInsertWindposPurchase
+--   @customerid = N'1234567890123456',
+--   @skucode = N'1001',
+--   @amount = N'12.50',
+--   @purchasedate = N'6/9/2026 10:30:00 AM',
+--   @transid = N'112345678901',
+--   @ipaddress = N'192.168.1.10';

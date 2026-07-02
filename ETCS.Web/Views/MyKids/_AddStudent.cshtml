@@ -1,0 +1,92 @@
+@model ETCS.Shared.Infrastructure.Admin.Master.Guardians.GuardianAddStudentRequest
+@using ETCS.Shared.Infrastructure.Admin.Master.Guardians
+@{
+    Layout = null;
+    var grades = ViewBag.Grades as IReadOnlyList<GuardianAddStudentGradeOption> ?? Array.Empty<GuardianAddStudentGradeOption>();
+    var schools = ViewBag.Schools as IReadOnlyList<GuardianAddStudentSchoolOption> ?? Array.Empty<GuardianAddStudentSchoolOption>();
+}
+<form id="frmAddStudent">
+    <input type="hidden" asp-for="GuardianId" />
+    <div class="modal-header">
+        <h5 class="modal-title">Add Child</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <div class="row g-3">
+            <div class="col-md-12">
+                <label asp-for="StudentCardNo" class="form-label"></label>
+                <input asp-for="StudentCardNo" id="txtStudentCardNo" class="form-control" placeholder="Student Card No" />
+                <span asp-validation-for="StudentCardNo" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="FirstName" class="form-label"></label>
+                <input asp-for="FirstName" id="txtFirstName" class="form-control" placeholder="Firstname" />
+                <span asp-validation-for="FirstName" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="LastName" class="form-label"></label>
+                <input asp-for="LastName" id="txtLastName" class="form-control" placeholder="Lastname" />
+                <span asp-validation-for="LastName" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="GradeId" class="form-label">Standard</label>
+                <select asp-for="GradeId" id="ddlGrade" class="form-select">
+                    <option value="">- Select Standard -</option>
+                    @foreach (var grade in grades)
+                    {
+                        <option value="@grade.Id">@grade.Grade</option>
+                    }
+                </select>
+                <span asp-validation-for="GradeId" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Division" class="form-label"></label>
+                <input asp-for="Division" id="txtDivision" class="form-control" placeholder="Division" />
+                <span asp-validation-for="Division" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Gender" class="form-label"></label>
+                <select asp-for="Gender" class="form-select">
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                </select>
+                <span asp-validation-for="Gender" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="SchoolId" class="form-label">School</label>
+                <select asp-for="SchoolId" id="ddlSchool" class="form-select">
+                    <option value="">- Select School -</option>
+                    @foreach (var school in schools)
+                    {
+                        <option value="@school.SchoolId">@school.SchoolName</option>
+                    }
+                </select>
+                <span asp-validation-for="SchoolId" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="DateOfBirth" class="form-label"></label>
+                <input asp-for="DateOfBirth" class="form-control" type="date" placeholder="Date of birth" />
+                <span asp-validation-for="DateOfBirth" class="text-danger"></span>
+            </div>
+            <div class="col-md-6 multiselect-custom">
+                <label asp-for="AllergyItemIds" class="form-label"></label>
+                <select asp-for="AllergyItemIds" asp-items="ViewBag.Allergies" class="form-select ignore-validation" id="AllergyItemIds" multiple data-val="false"></select>
+                <span asp-validation-for="AllergyItemIds" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="DailySpendLimit" class="form-label"></label>
+                <input asp-for="DailySpendLimit" class="form-control" type="number" min="0" step="0.01" placeholder="Daily Spend Limit" />
+                <span asp-validation-for="DailySpendLimit" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="WeeklySpendLimit" class="form-label"></label>
+                <input asp-for="WeeklySpendLimit" class="form-control" type="number" min="0" step="0.01" placeholder="Weekly Spend Limit" />
+                <span asp-validation-for="WeeklySpendLimit" class="text-danger"></span>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btnAddStudentSave">Save</button>
+    </div>
+</form>

@@ -1,0 +1,105 @@
+@model ETCS.Web.Models.AlaCartePageViewModel
+@{
+    ViewData["Title"] = "Ala-Carte";
+}
+<div class="ala-carte-page">
+    <div class="ala-carte-hero">
+        <div>
+            <h2 class="ala-carte-page-title mb-1">Ala-Carte</h2>
+            <p class="ala-carte-page-subtitle mb-0">Order individual meal items for your child</p>
+        </div>
+        <div class="ala-carte-hero-icon" aria-hidden="true">
+            <i class="ti ti-tools-kitchen-2"></i>
+        </div>
+    </div>
+
+    <form id="frmAlaCarte" class="card ala-carte-filters-card shadow-sm border-0 mb-3">
+        <div class="card-body">
+            <input type="hidden" asp-for="MealDate" id="MealDate" />
+            <div class="row g-3 align-items-end">
+                <div class="col-md-6">
+                    <label asp-for="StudentId" class="form-label ala-carte-label">
+                        <i class="ti ti-user-heart"></i> Select Child
+                    </label>
+                    <select asp-for="StudentId" class="form-select ala-carte-select" id="StudentId">
+                        @foreach (var child in Model.Children)
+                        {
+                            <option value="@child.Id">@child.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Duration" class="form-label ala-carte-label">
+                        <i class="ti ti-calendar-stats"></i> Select Duration
+                    </label>
+                    <select asp-for="Duration" asp-items="Model.DurationList" class="form-select ala-carte-select" id="Duration"></select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label ala-carte-label mb-2">
+                        <i class="ti ti-calendar-event"></i> Pick a Date
+                    </label>
+                    <div class="ala-carte-date-strip">
+                        <button type="button" id="prev-button" class="ala-carte-date-nav-btn" aria-label="Previous dates">
+                            <i class="ti ti-chevron-left"></i>
+                        </button>
+                        <div class="swiper ala-carte-swiper">
+                            <div class="swiper-wrapper" id="date-container"></div>
+                        </div>
+                        <button type="button" id="next-button" class="ala-carte-date-nav-btn" aria-label="Next dates">
+                            <i class="ti ti-chevron-right"></i>
+                        </button>
+                    </div>
+                    <div class="ala-carte-selected-date mt-2" id="alaCarteSelectedDate" hidden>
+                        <i class="ti ti-calendar-check"></i>
+                        <span>Viewing menu for <strong id="alaCarteSelectedDateText"></strong></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div class="card ala-carte-menu-card shadow-sm border-0">
+        <div class="card-body p-0" id="div-meallist">
+            <div class="ala-carte-empty-state">
+                <div class="ala-carte-empty-icon">
+                    <i class="ti ti-calendar-search"></i>
+                </div>
+                <h5>Choose a date above</h5>
+                <p class="text-muted mb-0">Meals for the selected day will appear here.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="summary_div"></div>
+
+    <div class="ala-carte-order-bar ala-carte-page-order-bar" id="alaCarteOrderBar" hidden>
+        <div class="ala-carte-order-bar-inner ala-carte-page-order-bar-inner">
+            <div class="ala-carte-order-meta">
+                <span class="ala-carte-order-count" id="alaCarteSelectionCount">0 items</span>
+                <span class="ala-carte-order-hint">Tap meals to add or remove</span>
+            </div>
+            <button type="button" class="btn btn-primary ala-carte-place-btn ala-carte-place-order-btn" id="btnPlaceOrder">
+                <i class="ti ti-shopping-cart me-1"></i> Place Order
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="alaCartePageOverlay" class="ala-carte-page-overlay" hidden aria-live="polite" aria-busy="true">
+    <div class="ala-carte-page-overlay-card">
+        <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+        <span class="ala-carte-page-overlay-text" id="alaCartePageOverlayText">Please wait...</span>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.css" />
+    <link href="~/css/custom/date-swiper.css" rel="stylesheet" />
+    <link href="~/css/custom/ala-carte.css" rel="stylesheet" />
+}
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.js"></script>
+    <script src="~/js/custom/guid.js"></script>
+    <script src="~/js/custom/ala-carte.js"></script>
+}

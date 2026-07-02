@@ -1,0 +1,38 @@
+@{ Layout = null; }
+<nav class="pc-sidebar">
+    <div class="navbar-wrapper pt-2">
+        <div class="m-header mt-3 mb-3 d-flex justify-content-center">
+            <a asp-controller="Dashboard" asp-action="Index" class="b-brand text-primary">
+                <img src="~/images/logo.png" width="120" class="img-fluid logo-lg" alt="ETCS" />
+            </a>
+        </div>
+        <div class="navbar-content">
+            <ul class="pc-navbar">
+                <li class="pc-item">
+                    <a asp-controller="Dashboard" asp-action="Index" class="pc-link">
+                        <span class="pc-micon"><i class="ti ti-dashboard"></i></span>
+                        <span class="pc-mtext">Dashboard</span>
+                    </a>
+                </li>
+                <li class="pc-item">
+                    <a asp-controller="MyKids" asp-action="Index" class="pc-link">
+                        <span class="pc-micon"><i class="ti ti-users"></i></span>
+                        <span class="pc-mtext">My Kids</span>
+                    </a>
+                </li>
+                <li class="pc-item">
+                    <a asp-controller="AlaCarte" asp-action="Index" class="pc-link">
+                        <span class="pc-micon"><i class="ti ti-tools-kitchen-2"></i></span>
+                        <span class="pc-mtext">Ala-Carte</span>
+                    </a>
+                </li>
+                <li class="pc-item">
+                    <a asp-controller="MealCombo" asp-action="Index" class="pc-link">
+                        <span class="pc-micon"><i class="ti ti-package"></i></span>
+                        <span class="pc-mtext">Meal Combo</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>

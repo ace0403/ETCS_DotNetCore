@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WSDL:definitions xmlns:ns1="posServer" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/" xmlns:DIME="http://schemas.xmlsoap.org/ws/2002/04/dime/wsdl/" xmlns:SOAP="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:MIME="http://schemas.xmlsoap.org/wsdl/mime/" xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:tns="posServer" name="iBonusPOS" targetNamespace="posServer" xmlns:WSDL="http://schemas.xmlsoap.org/wsdl/">
+  <WSDL:types>
+    <xsd:schema xmlns="http://www.w3.org/2001/XMLSchema" attributeFormDefault="unqualified" elementFormDefault="unqualified" targetNamespace="posServer">
+      <xsd:import schemaLocation="http://schemas.xmlsoap.org/soap/encoding/" namespace="http://schemas.xmlsoap.org/soap/encoding/" />
+      <xsd:complexType name="SOAPPOSResult">
+        <xsd:sequence>
+          <xsd:element minOccurs="1" maxOccurs="1" name="posResult" type="xsd:unsignedShort" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="sequenceNo" type="xsd:unsignedShort" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="cardID" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="0" maxOccurs="1" name="customerID" nillable="true" type="xsd:string" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="balPrepaidCN" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="balBonus" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="amountPrepaidCN" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="amountBonus" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="accSpendingCN" type="xsd:unsignedLong" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="quickReloadCN" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dob" type="xsd:unsignedLong" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="expiryDate" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="insufficientCN" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="refCode" type="xsd:unsignedShort" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="cardSN" type="xsd:unsignedLong" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="branchCode" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="terminalCode" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="staffID" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="0" maxOccurs="1" name="replyChallenge" nillable="true" type="xsd:string" />
+          <xsd:element minOccurs="0" maxOccurs="1" name="terminalSN" nillable="true" type="xsd:string" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dwCat1Bal" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dwCat1Expiry" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dwCat2Bal" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dwCat2Expiry" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dwCat3Bal" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dwCat3Expiry" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dwCat4Bal" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dwCat4Expiry" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dwCat5Bal" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dwCat5Expiry" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dwCat6Bal" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dwCat6Expiry" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dwCat7Bal" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dwCat7Expiry" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dwCat8Bal" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dwCat8Expiry" type="xsd:unsignedInt" />
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="SOAPPOSRequest">
+        <xsd:sequence>
+          <xsd:element minOccurs="1" maxOccurs="1" name="version" type="xsd:unsignedShort" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="posType" type="xsd:unsignedShort" />
+          <xsd:element minOccurs="0" maxOccurs="1" name="transactionID" nillable="true" type="xsd:string" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="sequenceNo" type="xsd:unsignedShort" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="amountCN" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="quickReloadCN" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="cardID" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="bonusPoint" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="0" maxOccurs="1" name="customerID" nillable="true" type="xsd:string" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="dob" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="staffID" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="refCode" type="xsd:unsignedShort" />
+          <xsd:element minOccurs="0" maxOccurs="1" name="description" nillable="true" type="xsd:string" />
+          <xsd:element minOccurs="0" maxOccurs="1" name="challenge" nillable="true" type="xsd:string" />
+          <xsd:element minOccurs="0" maxOccurs="1" name="terminalSN" nillable="true" type="xsd:string" />
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="Item">
+        <xsd:sequence>
+          <xsd:element minOccurs="0" maxOccurs="1" name="description" nillable="true" type="xsd:string" />
+          <xsd:element minOccurs="0" maxOccurs="1" name="amountBonus" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="0" maxOccurs="1" name="balPrepaidCN" type="xsd:unsignedInt" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="quantity" type="xsd:unsignedShort" />
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="Items">
+        <xsd:sequence>
+          <xsd:element minOccurs="1" maxOccurs="10" name="productItems" nillable="true" type="tns:Item" />
+          <xsd:element minOccurs="1" maxOccurs="1" name="itemCount" type="xsd:int" />
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="SOAPPOSResultResponse">
+        <xsd:sequence>
+          <xsd:element minOccurs="0" maxOccurs="1" name="return" nillable="true" type="tns:SOAPPOSResult" />
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:element name="posServiceRoutine">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element minOccurs="0" maxOccurs="1" name="posRequest" nillable="true" type="tns:SOAPPOSRequest" />
+            <xsd:element minOccurs="0" maxOccurs="1" name="items" nillable="true" type="tns:Items" />
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+      <xsd:element name="posServiceRoutineResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element minOccurs="1" maxOccurs="1" name="posResult" type="tns:SOAPPOSResultResponse" />
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+    </xsd:schema>
+  </WSDL:types>
+  <WSDL:message name="posServiceRoutineRequest">
+    <WSDL:part name="parameters" element="tns:posServiceRoutine" />
+  </WSDL:message>
+  <WSDL:message name="posServiceRoutineResponse">
+    <WSDL:part name="parameters" element="tns:posServiceRoutineResponse" />
+  </WSDL:message>
+  <WSDL:portType name="iBonusPOSPortType">
+    <WSDL:operation name="posServiceRoutine">
+      <documentation>Service definition of function ns1__posServiceRoutine</documentation>
+      <WSDL:input message="tns:posServiceRoutineRequest" />
+      <WSDL:output message="tns:posServiceRoutineResponse" />
+    </WSDL:operation>
+  </WSDL:portType>
+  <WSDL:binding name="iBonusPOS" type="tns:iBonusPOSPortType">
+    <SOAP:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <WSDL:operation name="posServiceRoutine">
+      <SOAP:operation soapAction="" />
+      <WSDL:input>
+        <SOAP:body use="literal" parts="parameters" />
+      </WSDL:input>
+      <WSDL:output>
+        <SOAP:body use="literal" parts="parameters" />
+      </WSDL:output>
+    </WSDL:operation>
+  </WSDL:binding>
+  <WSDL:service name="iBonusPOS">
+    <documentation>gSOAP 2.8.2 generated service definition</documentation>
+    <WSDL:port name="iBonusPOS" binding="tns:iBonusPOS">
+      <SOAP:address location="http://www.ibonus.net/webservices/pos" />
+    </WSDL:port>
+  </WSDL:service>
+</WSDL:definitions>

@@ -1,0 +1,8 @@
+@using ETCS.Admin.Infrastructure.Auth
+@{
+    var moduleKey = ViewBag.AdminModuleKey as string ?? "";
+}
+@if (string.IsNullOrWhiteSpace(moduleKey) || AdminPermissionViewHelper.CanAdd(User, moduleKey))
+{
+    <button class="btn btn-outline-primary" onclick="@(ViewBag.AdminAddOnClick ?? "loadData(0)")"><i class="ti ti-plus"></i> @(ViewBag.AdminAddLabel ?? "Add")</button>
+}

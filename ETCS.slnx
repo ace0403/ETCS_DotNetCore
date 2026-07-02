@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="ETCS.Admin/ETCS.Admin.csproj" Id="943499f7-4a84-4630-ba6a-36cf9661ffdd" />
+  <Project Path="ETCS.API/ETCS.API.csproj" />
+  <Project Path="ETCS.PaymentGateway/ETCS.PaymentGateway.csproj" />
+  <Project Path="ETCS.Shared/ETCS.Shared.csproj" />
+  <Project Path="ETCS.Web/ETCS.Web.csproj" />
+  <Project Path="ETCS.Pos.Web/ETCS.Pos.Web.csproj" />
+  <Project Path="ETCS.Pos.Bridge/ETCS.Pos.Bridge.csproj" />
+</Solution>

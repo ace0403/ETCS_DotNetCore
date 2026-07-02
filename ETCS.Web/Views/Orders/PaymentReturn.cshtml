@@ -1,0 +1,156 @@
+@model ETCS.Web.Models.OrderPaymentReturnViewModel
+@using ETCS.Shared.Enumeration
+@inject Microsoft.Extensions.Options.IOptions<ETCS.Web.Options.WebOptions> WebOptions
+@{
+    ViewData["Title"] = "Payment Result";
+    var currency = WebOptions.Value.DisplayCurrency;
+    var isAlaCarte = Model.OrderTypeId == (int)TransactionTypeEnum.A_La_Carte;
+    var isCombo = Model.OrderTypeId == (int)TransactionTypeEnum.MealOrder;
+    var hasAlaCarteSummary = Model.IsSuccess && Model.AlaCarteSummary is { SelectedMeals.Count: > 0 };
+    var hasComboSummary = Model.IsSuccess && Model.ComboSummary is { SelectedPackages.Count: > 0 };
+    var hasSummary = hasAlaCarteSummary || hasComboSummary;
+    var backController = isCombo ? "MealCombo" : "AlaCarte";
+    var backLabel = isCombo ? "Back to Meal Combo" : "Back to Ala-Carte";
+    var backIcon = isCombo ? "ti-package" : "ti-tools-kitchen-2";
+}
+<div id="paymentReturnOverlay" class="ala-carte-page-overlay" aria-live="polite" aria-busy="true">
+    <div class="ala-carte-page-overlay-card">
+        <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+        <span class="ala-carte-page-overlay-text">Completing your order...</span>
+    </div>
+</div>
+
+@if (hasSummary)
+{
+    <div class="ala-carte-receipt-page">
+        <div class="ala-carte-receipt-success-banner">
+            <div class="ala-carte-receipt-success-icon" aria-hidden="true">
+                <i class="ti ti-circle-check"></i>
+            </div>
+            <div>
+                <h2 class="ala-carte-receipt-success-title mb-1">Order placed successfully</h2>
+                <p class="ala-carte-receipt-success-text mb-0">@Model.Message</p>
+            </div>
+        </div>
+
+        <div class="card ala-carte-receipt-card shadow-sm border-0">
+            <div class="ala-carte-summary-header ala-carte-receipt-header">
+                <div class="ala-carte-summary-header-text">
+                    <div class="ala-carte-summary-title-row">
+                        <span class="ala-carte-summary-icon" aria-hidden="true">
+                            <i class="ti ti-receipt-2"></i>
+                        </span>
+                        <h5 class="mb-0">Order Summary</h5>
+                    </div>
+                    @if (hasAlaCarteSummary)
+                    {
+                        var summary = Model.AlaCarteSummary!;
+                        var childLabel = string.IsNullOrWhiteSpace(summary.StudentName) ? "your child" : summary.StudentName;
+                        <p class="ala-carte-summary-meta mb-0 ps-1">
+                            @summary.ItemCount @(summary.ItemCount == 1 ? "item" : "items")
+                            · @summary.DayCount @(summary.DayCount == 1 ? "day" : "days")
+                            · for @childLabel
+                        </p>
+                    }
+                    else if (hasComboSummary)
+                    {
+                        var summary = Model.ComboSummary!;
+                        var childLabel = string.IsNullOrWhiteSpace(summary.StudentName) ? "your child" : summary.StudentName;
+                        <p class="ala-carte-summary-meta mb-0 ps-1">
+                            @summary.ItemCount @(summary.ItemCount == 1 ? "combo" : "combos")
+                            · @summary.DayCount @(summary.DayCount == 1 ? "day" : "days")
+                            · for @childLabel
+                        </p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.OrderId))
+                    {
+                        <p class="ala-carte-receipt-order-ref mb-0 ps-1">Order ref: @Model.OrderId</p>
+                    }
+                </div>
+            </div>
+            <div class="ala-carte-summary-body ala-carte-receipt-body">
+                @if (hasAlaCarteSummary)
+                {
+                    ViewData["ShowPaymentNote"] = false;
+                    <partial name="~/Views/AlaCarte/_OrderSummaryDetails.cshtml" model="Model.AlaCarteSummary" />
+                }
+                else if (hasComboSummary)
+                {
+                    <partial name="~/Views/MealCombo/_OrderSummaryDetails.cshtml" model="Model.ComboSummary" />
+                }
+            </div>
+            <div class="ala-carte-summary-footer ala-carte-receipt-footer">
+                <div class="ala-carte-summary-footer-inner">
+                    <div class="ala-carte-summary-total-block">
+                        <span class="ala-carte-summary-total-label">Order total</span>
+                        <span class="ala-carte-summary-total-value">
+                            @currency @(hasAlaCarteSummary ? Model.AlaCarteSummary!.OrderAmount.ToString("0.00") : Model.ComboSummary!.OrderAmount.ToString("0.00"))
+                        </span>
+                    </div>
+                    <div class="ala-carte-summary-actions">
+                        <a asp-controller="@backController" asp-action="Index" class="btn btn-primary ala-carte-place-btn">
+                            <i class="ti @backIcon me-1"></i> @backLabel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="page-header">
+        <h2 class="mb-1">Payment Result</h2>
+    </div>
+    <div class="card">
+        <div class="card-body text-center py-5">
+            @if (Model.IsSuccess)
+            {
+                <i class="ti ti-circle-check text-success mb-3" style="font-size:3rem;"></i>
+                <h4 class="text-success">Order completed successfully</h4>
+            }
+            else if (Model.IsPending)
+            {
+                <i class="ti ti-clock text-warning mb-3" style="font-size:3rem;"></i>
+                <h4 class="text-warning">Payment is still processing</h4>
+            }
+            else
+            {
+                <i class="ti ti-circle-x text-danger mb-3" style="font-size:3rem;"></i>
+                <h4 class="text-danger">Payment could not be completed</h4>
+            }
+            <p class="text-muted mt-3 mb-4">@Model.Message</p>
+            @if (!string.IsNullOrWhiteSpace(Model.OrderId))
+            {
+                <p class="small text-muted">Order: @Model.OrderId</p>
+            }
+            <a asp-controller="@backController" asp-action="Index" class="btn btn-primary">@backLabel</a>
+        </div>
+    </div>
+}
+
+@section Styles {
+    <link href="~/css/custom/ala-carte.css" rel="stylesheet" />
+    <link href="~/css/custom/meal-combo.css" rel="stylesheet" />
+}
+@section Scripts {
+    <script>
+        $(function () {
+            $('#paymentReturnOverlay').attr('hidden', 'hidden');
+            $('body').removeClass('ala-carte-overlay-open');
+
+            @if (Model.IsSuccess)
+            {
+                <text>toastMsg('Your order was placed successfully.', true);</text>
+            }
+            else if (Model.IsPending)
+            {
+                <text>toastMsg('Payment is still processing. Please check back shortly.', false, 'Processing');</text>
+            }
+            else
+            {
+                <text>toastMsg('@Html.Raw(Model.Message.Replace("'", "\\'"))', false);</text>
+            }
+        });
+    </script>
+}

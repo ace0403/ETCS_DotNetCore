@@ -1,0 +1,193 @@
+@{ Layout = null; }
+@using ETCS.Admin.Infrastructure.Auth
+<nav class="pc-sidebar">
+    <div class="navbar-wrapper pt-2">
+        <div class="m-header mt-3 mb-3 d-flex justify-content-center">
+            <a asp-controller="Dashboard" asp-action="Index" class="b-brand text-primary">
+                <img src="~/images/logo.png" width="120" class="img-fluid logo-lg" alt="ETCS" />
+            </a>
+        </div>
+        <div class="navbar-content">
+            <ul class="pc-navbar">
+                @if (AdminPermissionViewHelper.CanView(User, "Dashboard"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="Dashboard" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-dashboard"></i></span>
+                            <span class="pc-mtext">Dashboard</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "School")
+                    || AdminPermissionViewHelper.CanView(User, "Guardian")
+                    || AdminPermissionViewHelper.CanView(User, "Student")
+                    || AdminPermissionViewHelper.CanView(User, "Staff")
+                    || AdminPermissionViewHelper.CanView(User, "EmailTemplate"))
+                {
+                    <li class="pc-item pc-caption"><label>Master</label></li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "School"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="School" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-building"></i></span>
+                            <span class="pc-mtext">Manage Schools</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Guardian"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="Guardian" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-users"></i></span>
+                            <span class="pc-mtext">Manage Parents</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Student"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="Student" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-school"></i></span>
+                            <span class="pc-mtext">Manage Students</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Staff"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="Staff" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-user"></i></span>
+                            <span class="pc-mtext">Manage Staff</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "EmailTemplate"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="EmailTemplate" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-mail"></i></span>
+                            <span class="pc-mtext">Email Templates</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Category")
+                    || AdminPermissionViewHelper.CanView(User, "Ingredient")
+                    || AdminPermissionViewHelper.CanView(User, "MealItem")
+                    || AdminPermissionViewHelper.CanView(User, "MealCombo")
+                    || AdminPermissionViewHelper.CanView(User, "MealServingPeriod"))
+                {
+                    <li class="pc-item pc-caption"><label>Inventory</label></li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Category"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="Category" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-typography"></i></span>
+                            <span class="pc-mtext">Menu Category</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Ingredient"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="Ingredient" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-leaf"></i></span>
+                            <span class="pc-mtext">Ingredients</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "MealItem"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="MealItem" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-tools-kitchen-2"></i></span>
+                            <span class="pc-mtext">Item Master</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "MealCombo"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="MealCombo" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-package"></i></span>
+                            <span class="pc-mtext">Meal Combo</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "MealServingPeriod"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="MealServingPeriod" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-clock"></i></span>
+                            <span class="pc-mtext">Serving Period</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Report.CanteenTransactions")
+                    || AdminPermissionViewHelper.CanView(User, "Report.AdminTransaction")
+                    || AdminPermissionViewHelper.CanView(User, "Report.TerminalSalesSummary")
+                    || AdminPermissionViewHelper.CanView(User, "Report.MealOrdersMealDb")
+                    || AdminPermissionViewHelper.CanView(User, "Report.MealOrders"))
+                {
+                    <li class="pc-item pc-caption"><label>Reports</label></li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Report.CanteenTransactions"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="Report" asp-action="CanteenTransactions" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-report"></i></span>
+                            <span class="pc-mtext">Canteen Transactions</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Report.AdminTransaction"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="Report" asp-action="AdminTransaction" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-report-analytics"></i></span>
+                            <span class="pc-mtext">Report on Transactions</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Report.TerminalSalesSummary"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="Report" asp-action="TerminalSalesSummary" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-device-desktop-analytics"></i></span>
+                            <span class="pc-mtext">Terminal Sales Summary</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Report.MealOrdersMealDb"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="Report" asp-action="MealOrdersMealDb" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-clipboard-list"></i></span>
+                            <span class="pc-mtext">Meal Order Report <small class="text-red-600"><i>(NEW)</i></small></span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Report.MealOrders"))
+                {
+                    <li class="pc-item mb-5">
+                        <a asp-controller="Report" asp-action="MealOrders" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-clipboard-list"></i></span>
+                            <span class="pc-mtext">Meal Order Report <small class="text-red-600"><i>(OLD)</i></small></span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Role"))
+                {
+                    <li class="pc-item pc-caption"><label>Settings</label></li>
+                    <li class="pc-item mb-5">
+                        <a asp-controller="Role" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-shield-lock"></i></span>
+                            <span class="pc-mtext">Manage Roles</span>
+                        </a>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</nav>

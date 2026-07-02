@@ -1,0 +1,285 @@
+@model IReadOnlyList<ETCS.Web.Models.MealComboPackageTypeGroup>
+
+@using ETCS.Web.Infrastructure.AlaCarte
+@using ETCS.Shared.Media
+
+@inject Microsoft.Extensions.Options.IOptions<ETCS.Web.Options.WebOptions> WebOptions
+@inject MealImageUrlBuilder ImageUrlBuilder
+
+@{
+
+    Layout = null;
+
+    var currency = WebOptions.Value.DisplayCurrency;
+
+    var selectedMealDate = ViewData["SelectedMealDate"]?.ToString() ?? string.Empty;
+
+    var selectedMealDateDisplay = ViewData["SelectedMealDateDisplay"]?.ToString() ?? string.Empty;
+
+}
+
+
+
+@if (Model != null && Model.Count > 0)
+
+{
+
+    <div class="ala-carte-menu-inner meal-combo-menu-inner">
+
+        <div class="ala-carte-menu-header text-center">
+
+            <p class="ala-carte-section-title mb-1">Meal Combos</p>
+
+            <h2 class="ala-carte-heading mb-0">Choose Your Package</h2>
+
+            <p class="ala-carte-menu-hint">Tap a combo card to add it to your order</p>
+
+            @if (!string.IsNullOrWhiteSpace(selectedMealDateDisplay))
+
+            {
+
+                <p class="ala-carte-menu-date mb-0">
+
+                    <i class="ti ti-calendar-event"></i> @selectedMealDateDisplay
+
+                </p>
+
+            }
+
+        </div>
+
+
+
+        <div class="ala-carte-tabs-wrap">
+
+            <ul class="nav nav-pills ala-carte-meal-tabs" role="tablist">
+
+                @for (var index = 0; index < Model.Count; index++)
+
+                {
+
+                    var item = Model[index];
+
+                    if (item.Packages.Count == 0) { continue; }
+
+                    var cssClass = index == 0 ? "active" : string.Empty;
+
+                    <li class="nav-item" role="presentation">
+
+                        <button class="nav-link ala-carte-meal-tab @cssClass" id="combo-tab-@item.MealTypeId" data-bs-toggle="pill"
+
+                                data-bs-target="#combo-item-@item.MealTypeId" type="button" role="tab">
+
+                            <span class="ala-carte-tab-icon-wrap">
+
+                                <i class="fa @item.MealCssClass ala-carte-tab-icon"></i>
+
+                            </span>
+
+                            <span class="ala-carte-tab-label">@(string.IsNullOrWhiteSpace(item.MealTypeName) ? "Meals" : item.MealTypeName)</span>
+
+                        </button>
+
+                    </li>
+
+                }
+
+            </ul>
+
+        </div>
+
+
+
+        <div class="tab-content ala-carte-tab-content" id="div_meal">
+
+            @for (var index = 0; index < Model.Count; index++)
+
+            {
+
+                var mItem = Model[index];
+
+                if (mItem.Packages.Count == 0) { continue; }
+
+                var cssClass = index == 0 ? "show active" : string.Empty;
+
+                <div id="combo-item-@mItem.MealTypeId" class="tab-pane fade @cssClass" role="tabpanel">
+
+                    <div class="meal-combo-item-list">
+
+                        @foreach (var item in mItem.Packages)
+
+                        {
+
+                            var thumbnailPath = ImageUrlBuilder.GetThumbnailPath(MealImageKind.MealCombo, item.ImageName);
+                            var defaultPath = MealImagePaths.MealComboDefaultThumbnail;
+
+                            var allergiesName = AlaCarteAllergenHelper.ParseAllergenNames(item.StudentAllergies);
+
+                            var isAllergyItem = AlaCarteAllergenHelper.HasAllergens(item.StudentAllergies);
+
+
+
+                            <div class="meal-combo-package-item meal-item" role="button" tabindex="0" aria-pressed="false">
+
+                                <div class="meal-combo-package-media">
+
+                                    <img src="@thumbnailPath"
+
+                                         onerror="this.onerror=null;this.src='@defaultPath';"
+
+                                         alt="@item.PackageName"
+
+                                         class="meal-combo-package-thumb" />
+
+                                    <span class="ala-carte-select-badge" aria-hidden="true">
+
+                                        <i class="ti ti-plus ala-carte-badge-add"></i>
+
+                                        <i class="ti ti-check ala-carte-badge-check"></i>
+
+                                    </span>
+
+                                </div>
+
+
+
+                                <div class="meal-combo-package-body">
+
+                                    <div class="meal-combo-package-title-row">
+
+                                        <div class="meal-combo-package-title-wrap">
+
+                                            <h6 class="meal-combo-package-name">
+
+                                                @item.PackageName
+
+                                                <input type="checkbox" class="d-none" value="@item.Id" />
+
+                                            </h6>
+
+                                            @if (!string.IsNullOrWhiteSpace(item.ItemsName))
+
+                                            {
+
+                                                <p class="meal-combo-includes" title="@item.ItemsName">
+
+                                                    <i class="ti ti-list-details"></i>
+
+                                                    <span><strong>Includes:</strong> @item.ItemsName</span>
+
+                                                </p>
+
+                                            }
+
+                                            @if (!string.IsNullOrWhiteSpace(item.Detail))
+
+                                            {
+
+                                                <p class="meal-combo-detail">@item.Detail</p>
+
+                                            }
+
+                                        </div>
+
+                                        <div class="ala-carte-price-block">
+
+                                            <span class="ala-carte-price-label">Price</span>
+
+                                            <span class="ala-carte-price">@currency @item.TotalPrice.ToString("0.00")</span>
+
+                                        </div>
+
+                                    </div>
+
+
+
+                                    <input type="hidden" class="meal-item-date" value="@selectedMealDate" />
+
+                                    <input type="hidden" class="is-allergen-item" value="@(isAllergyItem ? "true" : "false")" />
+
+                                    <input type="hidden" class="allergies-name" value="@allergiesName" />
+
+                                    <input type="hidden" class="item-price" value="@item.TotalPrice" />
+
+
+
+                                    @if (item.NutritionList.Count > 0)
+
+                                    {
+
+                                        <div class="ala-carte-nutrition">
+
+                                            @foreach (var nutrition in item.NutritionList)
+
+                                            {
+
+                                                <span class="ala-carte-nutrition-chip">
+
+                                                    <i class="fa @nutrition.ClassName"></i>
+
+                                                    <span>@nutrition.NutritionName</span>
+
+                                                    <strong>@nutrition.MeasureValue.ToString("0.0") @nutrition.MeasureTypeName</strong>
+
+                                                </span>
+
+                                            }
+
+                                        </div>
+
+                                    }
+
+
+
+                                    @if (!string.IsNullOrWhiteSpace(allergiesName))
+
+                                    {
+
+                                        <div class="ala-carte-allergens">
+
+                                            <i class="ti ti-alert-triangle"></i>
+
+                                            <span><strong>Allergens:</strong> @allergiesName</span>
+
+                                        </div>
+
+                                    }
+
+                                </div>
+
+                            </div>
+
+                        }
+
+                    </div>
+
+                </div>
+
+            }
+
+        </div>
+
+    </div>
+
+}
+
+else
+
+{
+
+    <div class="ala-carte-empty-state">
+
+        <div class="ala-carte-empty-icon">
+
+            <i class="ti ti-mood-empty"></i>
+
+        </div>
+
+        <h5>No combos available</h5>
+
+        <p class="text-muted mb-0">Try another date or child.</p>
+
+    </div>
+
+}
+

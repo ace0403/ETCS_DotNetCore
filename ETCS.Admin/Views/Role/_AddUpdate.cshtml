@@ -1,0 +1,77 @@
+@model ETCS.Shared.Infrastructure.Admin.Security.AdminRoleDetailDto
+@{
+    Layout = null;
+    var isSuperAdmin = Model.IsSuperAdmin;
+    var isNew = Model.RoleId <= 0;
+    var groups = Model.Permissions
+        .GroupBy(p => p.GroupName)
+        .OrderBy(g => g.Min(x => x.ModuleId));
+}
+<form id="frmRole">
+    <div class="modal-header">
+        <h5 class="modal-title">@(isNew ? "Add" : "Edit") Role</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <input type="hidden" id="hdnRoleId" value="@Model.RoleId" />
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label class="form-label" for="txtRoleName">Role Name</label>
+                <input type="text" id="txtRoleName" class="form-control" value="@Model.RoleName" @(isSuperAdmin ? "readonly" : "") maxlength="100" />
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+                <div class="form-check mb-2">
+                    <input type="checkbox" class="form-check-input" id="chkIsActive" @(Model.IsActive ? "checked" : "") />
+                    <label class="form-check-label" for="chkIsActive">Active</label>
+                </div>
+            </div>
+        </div>
+        @if (isSuperAdmin)
+        {
+            <div class="alert alert-info py-2">The Admin role has full access to all modules. Permissions cannot be changed.</div>
+        }
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle mb-0" id="tblPermissions">
+                <thead class="table-light">
+                    <tr>
+                        <th>Module</th>
+                        <th class="text-center" style="width:70px">View</th>
+                        <th class="text-center" style="width:70px">Add</th>
+                        <th class="text-center" style="width:70px">Edit</th>
+                        <th class="text-center" style="width:70px">Delete</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var group in groups)
+                    {
+                        <tr class="table-secondary">
+                            <td colspan="5"><strong>@group.Key</strong></td>
+                        </tr>
+                        @foreach (var row in group)
+                        {
+                            <tr data-module-id="@row.ModuleId">
+                                <td>@row.DisplayName</td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input perm-view" @(row.CanView ? "checked" : "") @(isSuperAdmin ? "disabled" : "") />
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input perm-add" @(row.CanAdd ? "checked" : "") @(isSuperAdmin ? "disabled" : "") />
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input perm-edit" @(row.CanEdit ? "checked" : "") @(isSuperAdmin ? "disabled" : "") />
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input perm-delete" @(row.CanDelete ? "checked" : "") @(isSuperAdmin ? "disabled" : "") />
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="btnSaveRole" class="btn btn-primary">Save</button>
+    </div>
+</form>

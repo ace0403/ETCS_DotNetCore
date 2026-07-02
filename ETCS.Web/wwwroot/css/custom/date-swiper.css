@@ -1,0 +1,59 @@
+.ala-carte-swiper,
+.swiper {
+    width: 100%;
+}
+
+.ala-carte-swiper .swiper-slide,
+.swiper-slide {
+    text-align: center;
+    border: 2px solid #e8edf3;
+    padding: 0.55rem 0.35rem;
+    width: 76px !important;
+    border-radius: 12px;
+    height: auto !important;
+    cursor: pointer;
+    background: #fff;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.ala-carte-swiper .swiper-slide:hover,
+.swiper-slide:hover {
+    border-color: rgba(254, 161, 22, 0.45);
+    transform: translateY(-1px);
+}
+
+.ala-carte-swiper .swiper-slide.selected,
+.swiper-slide.selected {
+    background: linear-gradient(180deg, #fea116 0%, #e8920f 100%) !important;
+    color: #fff !important;
+    border-color: #fea116 !important;
+    box-shadow: 0 8px 18px rgba(254, 161, 22, 0.28);
+}
+
+.ala-carte-swiper .swiper-slide.selected .date-day,
+.ala-carte-swiper .swiper-slide.selected .date-number,
+.swiper-slide.selected .date-day,
+.swiper-slide.selected .date-number {
+    color: #fff !important;
+}
+
+.ala-carte-swiper .swiper-slide .date-day,
+.swiper-slide .date-day {
+    font-weight: 700;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    opacity: 0.9;
+}
+
+.ala-carte-swiper .swiper-slide .date-number,
+.swiper-slide .date-number {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-top: 0.15rem;
+}
+
+.flex-center {
+    display: flex;
+    justify-content: center;
+}

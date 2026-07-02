@@ -1,0 +1,83 @@
+@model PosCartViewModel
+@{
+    var itemCount = Model.Items.Sum(i => i.Quantity);
+}
+
+<header class="pos-order-header">
+    <h2>Order Details</h2>
+    <button type="button" id="btnClear" class="pos-order-menu" title="Clear cart" aria-label="Clear cart">&#8942;</button>
+</header>
+
+<div class="pos-order-list" id="cartLines">
+    @if (Model.Items.Count == 0)
+    {
+        <div class="pos-order-empty">
+            <p>No items selected</p>
+            <span>Tap + on a product to add it to the order</span>
+        </div>
+    }
+    else
+    {
+        @foreach (var item in Model.Items)
+        {
+            <article class="pos-order-item" data-item-id="@item.ItemId">
+                <div class="pos-order-item-top">
+                    @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
+                    {
+                        <img src="@item.ImageUrl" alt="" class="pos-order-thumb" />
+                    }
+                    else
+                    {
+                        <div class="pos-order-thumb pos-order-thumb--placeholder" aria-hidden="true"></div>
+                    }
+                    <div class="pos-order-item-info">
+                        <h3>@item.ItemName</h3>
+                        <p>AED @item.Price.ToString("N2") each</p>
+                    </div>
+                    <div class="pos-qty-control">
+                        <button type="button" class="pos-qty-btn" data-qty-action="decrease" data-item-id="@item.ItemId" aria-label="Decrease quantity">&#8722;</button>
+                        <span class="pos-qty-value">@item.Quantity</span>
+                        <button type="button" class="pos-qty-btn pos-qty-btn--accent" data-qty-action="increase" data-item-id="@item.ItemId" aria-label="Increase quantity">+</button>
+                    </div>
+                </div>
+                <div class="pos-order-item-bottom">
+                    <div class="pos-order-field pos-order-field--wide">
+                        <label>Line total</label>
+                        <span>AED @item.LineTotal.ToString("N2")</span>
+                    </div>
+                </div>
+            </article>
+        }
+    }
+</div>
+
+<div class="pos-order-summary">
+    <div class="pos-summary-row"><span>Subtotal</span><span id="cartSubtotal">AED @Model.SubTotal.ToString("N2")</span></div>
+    <div class="pos-summary-row pos-summary-row--input">
+        <label for="txtDiscountPercent">Discount %</label>
+        <input type="number" class="pos-discount-input" id="txtDiscountPercent" min="0" max="100" step="1"
+               value="@Model.DiscountPercent.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+    </div>
+    <div class="pos-summary-row"><span>Discount amount</span><span id="cartDiscount">AED @Model.DiscountAmount.ToString("N2")</span></div>
+    <div class="pos-summary-row"><span>VAT (@Model.VatPercent%)</span><span id="cartVat">AED @Model.VatAmount.ToString("N2")</span></div>
+</div>
+
+<footer class="pos-checkout-bar">
+    <div class="pos-checkout-meta">
+        <span id="cartItemCount">@itemCount item@(itemCount == 1 ? "" : "s") selected</span>
+        <div class="pos-checkout-total">
+            <small>Total</small>
+            <strong id="cartTotal">AED @Model.GrandTotal.ToString("N2")</strong>
+        </div>
+    </div>
+    <button type="button" id="btnPay" class="pos-checkout-go" title="Pay with iBonus" aria-label="Pay with iBonus">
+        <span>&#8594;</span>
+    </button>
+</footer>
+
+<div class="pos-order-secondary">
+    <button type="button" id="btnUndo" class="pos-secondary-btn">Undo last</button>
+</div>
+
+<input type="hidden" id="hdnDiscountPercent" value="@Model.DiscountPercent.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+<input type="hidden" id="hdnVatPercent" value="@Model.VatPercent.ToString(System.Globalization.CultureInfo.InvariantCulture)" />

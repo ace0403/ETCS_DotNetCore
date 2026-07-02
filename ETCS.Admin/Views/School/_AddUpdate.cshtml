@@ -1,0 +1,71 @@
+@model ETCS.Shared.Infrastructure.Admin.Master.Schools.SchoolSaveRequest
+@using ETCS.Shared.Infrastructure.Admin.Master.Schools
+@{
+    Layout = null;
+    var countries = ViewBag.Countries as IReadOnlyList<SchoolCountryLookupDto> ?? Array.Empty<SchoolCountryLookupDto>();
+}
+<form id="frmSchool" enctype="multipart/form-data">
+    <div class="modal-header">
+        <h5 class="modal-title">@(Model.Id > 0 ? "Edit" : "Add") School</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <input type="hidden" asp-for="Id" />
+        <input type="hidden" asp-for="LogoFileName" />
+        <input type="hidden" asp-for="PdfPath" />
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <label asp-for="CountryId" class="form-label"></label>
+                <select asp-for="CountryId" class="form-select">
+                    <option value="">- Select -</option>
+                    @foreach (var country in countries)
+                    {
+                        <option value="@country.Id">@country.Name</option>
+                    }
+                </select>
+                <span asp-validation-for="CountryId" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6">
+                <label asp-for="Code" class="form-label"></label>
+                <input asp-for="Code" class="form-control" placeholder="School Code" />
+                <span asp-validation-for="Code" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" placeholder="School Name" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6">
+                <label asp-for="MinimumTopupAmount" class="form-label"></label>
+                <input asp-for="MinimumTopupAmount" class="form-control" type="number" step="0.01" placeholder="Minimum Topup" />
+                <span asp-validation-for="MinimumTopupAmount" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6">
+                <label class="form-label">School Logo</label>
+                <input type="file" name="logoFile" class="form-control" accept="image/*" />
+                @if (!string.IsNullOrWhiteSpace(Model.LogoFileName))
+                {
+                    <small class="text-muted d-block mt-1">Current: @Model.LogoFileName</small>
+                }
+            </div>
+            <div class="col-12 col-md-6">
+                <label class="form-label">User guide</label>
+                <input type="file" name="userGuideFile" class="form-control" accept=".pdf,application/pdf" />
+                @if (!string.IsNullOrWhiteSpace(Model.PdfPath))
+                {
+                    <small class="text-muted d-block mt-1">Current: @Model.PdfPath</small>
+                }
+            </div>
+            <div class="col-12 col-md-6">
+                <div class="form-check pt-1">
+                    <input asp-for="HasEmailNotification" class="form-check-input" />
+                    <label asp-for="HasEmailNotification" class="form-check-label"></label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="btnSave">Save</button>
+    </div>
+</form>

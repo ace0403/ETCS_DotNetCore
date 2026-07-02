@@ -1,0 +1,90 @@
+@model ETCS.Web.Models.MealComboSummaryViewModel
+@using ETCS.Shared.Media
+@inject Microsoft.Extensions.Options.IOptions<ETCS.Web.Options.WebOptions> WebOptions
+@inject MealImageUrlBuilder ImageUrlBuilder
+@{
+    var currency = WebOptions.Value.DisplayCurrency;
+    var showPaymentNote = ViewData["ShowPaymentNote"] as bool? ?? false;
+}
+@if (Model.SelectedPackages.Count > 0)
+{
+    var grouped = Model.SelectedPackages.GroupBy(x => x.MealDate.Date).OrderBy(g => g.Key).ToList();
+    <div class="ala-carte-summary-dates-wrap">
+        <ul class="nav ala-carte-summary-date-tabs" role="tablist">
+            @for (var i = 0; i < grouped.Count; i++)
+            {
+                var group = grouped[i];
+                var activeClass = i == 0 ? "active" : string.Empty;
+                var itemCount = group.Count();
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link ala-carte-summary-date-tab @activeClass"
+                            id="combo-summary-tab-@i"
+                            data-bs-toggle="tab"
+                            data-bs-target="#combo-summary-date-@i"
+                            type="button"
+                            role="tab">
+                        <span class="date-day">@group.Key.ToString("ddd").ToUpperInvariant()</span>
+                        <span class="date-number">@group.Key.ToString("dd")/@group.Key.ToString("MM")</span>
+                        <span class="date-count">@itemCount</span>
+                    </button>
+                </li>
+            }
+        </ul>
+    </div>
+    <div class="tab-content ala-carte-summary-tab-content">
+        @for (var i = 0; i < grouped.Count; i++)
+        {
+            var group = grouped[i];
+            var activeClass = i == 0 ? "show active" : string.Empty;
+            var subtotal = group.Sum(x => x.Price);
+            <div class="tab-pane fade @activeClass" id="combo-summary-date-@i" role="tabpanel">
+                <div class="ala-carte-summary-item-list meal-combo-summary-list">
+                    @foreach (var item in group)
+                    {
+                        var thumbnailPath = ImageUrlBuilder.GetThumbnailPath(MealImageKind.MealCombo, item.ImageName);
+                        var defaultPath = MealImagePaths.MealComboDefaultThumbnail;
+                        var mealType = string.IsNullOrWhiteSpace(item.MealTypeName) ? "Combo" : item.MealTypeName;
+
+                        <div class="ala-carte-summary-item meal-combo-summary-item meal-item">
+                            <img src="@thumbnailPath"
+                                 alt="@item.PackageName"
+                                 class="ala-carte-summary-thumb"
+                                 onerror="this.onerror=null;this.src='@defaultPath';" />
+                            <div class="ala-carte-summary-item-body">
+                                <div class="ala-carte-summary-item-top">
+                                    <h6 class="ala-carte-summary-item-name">@item.PackageName</h6>
+                                    <span class="ala-carte-price">@currency @item.Price.ToString("0.00")</span>
+                                </div>
+                                <span class="ala-carte-summary-meal-type">@mealType</span>
+                                @if (!string.IsNullOrWhiteSpace(item.ItemsName))
+                                {
+                                    <p class="meal-combo-summary-includes mb-0">Includes: @item.ItemsName</p>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="ala-carte-summary-subtotal">
+                    <span>Subtotal (@group.Key.ToString("dddd, dd MMM"))</span>
+                    <strong>@currency @subtotal.ToString("0.00")</strong>
+                </div>
+            </div>
+        }
+    </div>
+    @if (showPaymentNote)
+    {
+        <p class="ala-carte-summary-payment-note mb-0">
+            <i class="ti ti-lock"></i> You will be redirected to our secure payment gateway to complete your order.
+        </p>
+    }
+}
+else
+{
+    <div class="ala-carte-empty-state py-4">
+        <div class="ala-carte-empty-icon">
+            <i class="ti ti-shopping-cart-off"></i>
+        </div>
+        <h5>No combos selected</h5>
+        <p class="text-muted mb-0">Go back and tap combos to add them to your order.</p>
+    </div>
+}

@@ -1,0 +1,20 @@
+@{
+    var msg = Context.Request.Query["msg"].FirstOrDefault()?.ToLowerInvariant();
+    var success = false;
+    var text = "";
+    if (msg == "login-success") { success = true; text = "You are successfully logged in."; }
+    else if (msg == "login-failed") { text = "Invalid username or password."; }
+    else if (msg == "logout-success") { success = true; text = "You have been logged out."; }
+    else if (msg == "unauthorize") { text = "Please sign in to continue."; }
+}
+<script>
+    $(function () {
+        var message = '@text';
+        if (message) {
+            toastMsg(message, @success.ToString().ToLowerInvariant());
+        }
+        if (window.location.href.indexOf('?') > -1) {
+            history.replaceState('', document.title, removeURLParameter(window.location.href, 'msg'));
+        }
+    });
+</script>

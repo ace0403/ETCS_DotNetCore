@@ -1,0 +1,35 @@
+@model ETCS.Shared.Infrastructure.Admin.Inventory.Categories.CategorySaveRequest
+@{
+    Layout = null;
+}
+<form id="frmCategory">
+    <div class="modal-header">
+        <h5 class="modal-title">@(Model.Id > 0 ? "Edit" : "Add") Category</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <input type="hidden" asp-for="Id" />
+        <div class="row g-3">
+            <div class="col-12">
+                <label asp-for="CategoryName" class="form-label"></label>
+                <input asp-for="CategoryName" class="form-control" placeholder="Category Name" />
+                <span asp-validation-for="CategoryName" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6">
+                <label asp-for="SortOrder" class="form-label"></label>
+                <input asp-for="SortOrder" class="form-control" type="number" min="0" />
+                <span asp-validation-for="SortOrder" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6 d-flex align-items-end">
+                <div class="form-check mb-2">
+                    <input asp-for="IsActive" class="form-check-input" />
+                    <label asp-for="IsActive" class="form-check-label"></label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="btnSave" class="btn btn-primary">Save</button>
+    </div>
+</form>

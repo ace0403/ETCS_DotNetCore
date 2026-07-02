@@ -1,0 +1,108 @@
+@model ETCS.Shared.Infrastructure.Admin.Master.Students.StudentAdminSaveRequest
+@using ETCS.Shared.Infrastructure.Admin.Master.Students
+@{
+    Layout = null;
+    var isEdit = Model.UserId > 0;
+    var grades = ViewBag.Grades as IReadOnlyList<GradeLookupDto> ?? Array.Empty<GradeLookupDto>();
+    var schools = ViewBag.Schools as IReadOnlyList<SchoolLookupDto> ?? Array.Empty<SchoolLookupDto>();
+}
+<form id="frmStudent">
+    <input type="hidden" asp-for="UserId" />
+    @if (isEdit)
+    {
+        <input type="hidden" asp-for="GuardianId" />
+        <input type="hidden" asp-for="IsActive" />
+    }
+    <div class="modal-header">
+        <h5 class="modal-title">@(isEdit ? "Edit Student" : "Add Student")</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <div class="row g-3">
+            @if (!isEdit)
+            {
+                <div class="col-md-12">
+                    <label asp-for="GuardianId" class="form-label">Parent</label>
+                    <select asp-for="GuardianId" class="form-select" asp-items="ViewBag.Guardians">
+                        <option value="">- Select Parent -</option>
+                    </select>
+                    <span asp-validation-for="GuardianId" class="text-danger"></span>
+                </div>
+            }
+            <div class="col-md-12">
+                <label asp-for="StudCode" class="form-label"></label>
+                <input asp-for="StudCode" class="form-control" maxlength="50" placeholder="Student Card No" />
+                <span asp-validation-for="StudCode" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="FirstName" class="form-label"></label>
+                <input asp-for="FirstName" class="form-control" maxlength="50" placeholder="Firstname" />
+                <span asp-validation-for="FirstName" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="LastName" class="form-label"></label>
+                <input asp-for="LastName" class="form-control" maxlength="50" placeholder="Lastname" />
+                <span asp-validation-for="LastName" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="GradeId" class="form-label">Standard</label>
+                <select asp-for="GradeId" class="form-select">
+                    <option value="">- Select Standard -</option>
+                    @foreach (var grade in grades)
+                    {
+                        <option value="@grade.Id">@grade.Grade</option>
+                    }
+                </select>
+                <span asp-validation-for="GradeId" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Division" class="form-label"></label>
+                <input asp-for="Division" class="form-control" maxlength="128" placeholder="Division" />
+                <span asp-validation-for="Division" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Gender" class="form-label"></label>
+                <select asp-for="Gender" class="form-select">
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                </select>
+                <span asp-validation-for="Gender" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="SchoolId" class="form-label">School</label>
+                <select asp-for="SchoolId" class="form-select">
+                    <option value="">- Select School -</option>
+                    @foreach (var school in schools)
+                    {
+                        <option value="@school.Id">@school.Name</option>
+                    }
+                </select>
+                <span asp-validation-for="SchoolId" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="DateOfBirth" class="form-label"></label>
+                <input asp-for="DateOfBirth" class="form-control" type="date" placeholder="Date of birth" />
+                <span asp-validation-for="DateOfBirth" class="text-danger"></span>
+            </div>
+            <div class="col-md-6 multiselect-custom">
+                <label asp-for="AllergyItemIds" class="form-label"></label>
+                <select asp-for="AllergyItemIds" asp-items="ViewBag.Allergies" class="form-select ignore-validation" id="AllergyItemIds" multiple data-val="false"></select>
+                <span asp-validation-for="AllergyItemIds" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="DailySpendLimit" class="form-label"></label>
+                <input asp-for="DailySpendLimit" class="form-control" type="number" min="0" step="0.01" placeholder="Daily Spend Limit" />
+                <span asp-validation-for="DailySpendLimit" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="WeeklySpendLimit" class="form-label"></label>
+                <input asp-for="WeeklySpendLimit" class="form-control" type="number" min="0" step="0.01" placeholder="Weekly Spend Limit" />
+                <span asp-validation-for="WeeklySpendLimit" class="text-danger"></span>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btnSave">Save</button>
+    </div>
+</form>

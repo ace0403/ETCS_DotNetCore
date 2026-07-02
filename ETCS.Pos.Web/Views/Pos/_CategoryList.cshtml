@@ -1,0 +1,22 @@
+@model IReadOnlyList<PosCategoryDto>
+@if (Model.Count == 0)
+{
+    <p class="pos-categories-placeholder">No categories available.</p>
+}
+else
+{
+    <div class="pos-pills" role="tablist" aria-label="Menu categories">
+        @for (var i = 0; i < Model.Count; i++)
+        {
+            var category = Model[i];
+            var isActive = i == 0;
+            <button type="button"
+                    class="pos-category-item @(isActive ? "is-active" : "")"
+                    data-category-id="@category.CategoryId"
+                    role="tab"
+                    aria-selected="@(isActive ? "true" : "false")">
+                @category.CategoryName
+            </button>
+        }
+    </div>
+}

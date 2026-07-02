@@ -1,0 +1,94 @@
+﻿@model ETCS.Web.Models.ParentLoginRequest
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - ETCS</title>
+    <link rel="icon" href="~/favicon.ico" type="image/svg+xml" />
+    <link rel="stylesheet" href="~/fonts/inter/inter.css" />
+    <link rel="stylesheet" href="~/fonts/tabler-icons.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/toastr.min.css" />
+    <link rel="stylesheet" href="~/css/custom/dev-style.css" />
+</head>
+<body class="login-page">
+    <div class="login-shell">
+        <section class="login-hero" aria-hidden="true">
+            <div class="login-hero-bg"></div>
+            <div class="login-hero-content">
+                <img src="~/images/logo.png" alt="ETCS" class="login-hero-logo" />
+                <h1 class="login-hero-title">ETCS Portal</h1>
+                <p class="login-hero-text">View balances, meal orders, and student activity from one secure dashboard.</p>
+            </div>
+        </section>
+
+        <section class="login-panel">
+            <div class="login-card">
+                <div class="login-card-header text-center">
+                    <img src="~/images/logo.png" alt="ETCS" class="login-card-logo" />
+                    <h2 class="login-card-title">Welcome back</h2>
+                    <p class="login-card-subtitle">Sign in to continue to ETCS</p>
+                </div>
+
+                <form asp-action="Index" method="post" class="login-form">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="Username" class="form-label login-label">Username</label>
+                        <div class="input-group login-input-group">
+                            <span class="input-group-text login-input-addon"><i class="ti ti-user"></i></span>
+                            <input asp-for="Username" class="form-control" placeholder="Enter your username" autocomplete="username" />
+                        </div>
+                        <span asp-validation-for="Username" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="Password" class="form-label login-label">Password</label>
+                        <div class="input-group login-input-group">
+                            <span class="input-group-text login-input-addon"><i class="ti ti-lock"></i></span>
+                            <input asp-for="Password" id="loginPassword" class="form-control" placeholder="Enter your password" autocomplete="current-password" />
+                            <button type="button" class="btn login-input-addon login-password-toggle" id="btnTogglePassword" aria-label="Show password" title="Show password">
+                                <i class="ti ti-eye"></i>
+                            </button>
+                        </div>
+                        <span asp-validation-for="Password" class="text-danger small"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary login-submit w-100">
+                        <span>Sign in</span>
+                        <i class="ti ti-arrow-right ms-1"></i>
+                    </button>
+                </form>
+
+                <p class="login-footer text-center">&copy; @DateTime.Now.Year ETCS. All rights reserved.</p>
+            </div>
+        </section>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="~/js/toastr.min.js"></script>
+    <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js"></script>
+    <script src="~/js/custom/siteurl.js"></script>
+    <script src="~/js/custom/common.js"></script>
+    <script>
+        $(function () {
+            initAdminFormValidation('.login-form');
+
+            $('#btnTogglePassword').on('click', function () {
+                var $input = $('#loginPassword');
+                var $icon = $(this).find('i');
+                var isPassword = $input.attr('type') === 'password';
+                $input.attr('type', isPassword ? 'text' : 'password');
+                $icon.toggleClass('ti-eye ti-eye-off');
+                $(this).attr('aria-label', isPassword ? 'Hide password' : 'Show password')
+                    .attr('title', isPassword ? 'Hide password' : 'Show password');
+            });
+        });
+    </script>
+    <partial name="_CommonMessages" />
+</body>
+</html>

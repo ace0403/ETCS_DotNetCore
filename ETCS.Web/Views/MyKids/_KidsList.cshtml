@@ -1,0 +1,40 @@
+@model ETCS.Shared.Infrastructure.Admin.Master.Guardians.GuardianChildrenViewModel
+@{ Layout = null; }
+@if (Model.Children.Count == 0)
+{
+    <p class="text-muted mb-0">No children linked to your account yet. Click <strong>Add Child</strong> to get started.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered mb-0">
+            <thead>
+                <tr>
+                    <th class="text-center" style="width:70px"></th>
+                    <th>Name</th>
+                    <th>Card No</th>
+                    <th>Std</th>
+                    <th>School</th>
+                    <th class="text-end">Balance</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var child in Model.Children)
+                {
+                    <tr>
+                        <td class="text-center text-nowrap">
+                            <a href="javascript:;" onclick="openEditKid(@child.UserId)" title="Edit"><i class="ti ti-edit"></i></a>
+                        </td>
+                        <td>@child.Name</td>
+                        <td>@child.CardNo</td>
+                        <td>@child.Std</td>
+                        <td>@child.SchoolName</td>
+                        <td class="text-end">@child.Balance.ToString("0.00")</td>
+                        <td>@child.Status</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

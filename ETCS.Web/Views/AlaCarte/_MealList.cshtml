@@ -1,0 +1,137 @@
+@model IReadOnlyList<ETCS.Web.Models.AlaCarteMealTypeGroup>
+@using ETCS.Web.Infrastructure.AlaCarte
+@using ETCS.Shared.Media
+@inject Microsoft.Extensions.Options.IOptions<ETCS.Web.Options.WebOptions> WebOptions
+@inject MealImageUrlBuilder ImageUrlBuilder
+@{
+    Layout = null;
+    var currency = WebOptions.Value.DisplayCurrency;
+    var selectedMealDate = ViewData["SelectedMealDate"]?.ToString() ?? string.Empty;
+    var selectedMealDateDisplay = ViewData["SelectedMealDateDisplay"]?.ToString() ?? string.Empty;
+}
+
+@if (Model != null && Model.Count > 0)
+{
+    <div class="ala-carte-menu-inner">
+        <div class="ala-carte-menu-header text-center">
+            <p class="ala-carte-section-title mb-1">Food Menu</p>
+            <h2 class="ala-carte-heading mb-0">Order Your Favorites</h2>
+            <p class="ala-carte-menu-hint">Tap a meal card to add it to your order</p>
+            @if (!string.IsNullOrWhiteSpace(selectedMealDateDisplay))
+            {
+                <p class="ala-carte-menu-date mb-0">
+                    <i class="ti ti-calendar-event"></i> @selectedMealDateDisplay
+                </p>
+            }
+        </div>
+
+        <div class="ala-carte-tabs-wrap">
+            <ul class="nav nav-pills ala-carte-meal-tabs" role="tablist">
+                @for (var index = 0; index < Model.Count; index++)
+                {
+                    var item = Model[index];
+                    if (item.MealItems.Count == 0) { continue; }
+                    var cssClass = index == 0 ? "active" : string.Empty;
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link ala-carte-meal-tab @cssClass" id="meal-tab-@item.MealTypeId" data-bs-toggle="pill"
+                                data-bs-target="#meal-item-@item.MealTypeId" type="button" role="tab">
+                            <span class="ala-carte-tab-icon-wrap">
+                                <i class="fa @item.MealCssClass ala-carte-tab-icon"></i>
+                            </span>
+                            <span class="ala-carte-tab-label">@(string.IsNullOrWhiteSpace(item.MealTypeName) ? "Meals" : item.MealTypeName)</span>
+                        </button>
+                    </li>
+                }
+            </ul>
+        </div>
+
+        <div class="tab-content ala-carte-tab-content" id="div_meal">
+            @for (var index = 0; index < Model.Count; index++)
+            {
+                var mItem = Model[index];
+                if (mItem.MealItems.Count == 0) { continue; }
+                var cssClass = index == 0 ? "show active" : string.Empty;
+                <div id="meal-item-@mItem.MealTypeId" class="tab-pane fade @cssClass" role="tabpanel">
+                    <div class="ala-carte-item-list">
+                        @foreach (var item in mItem.MealItems)
+                        {
+                            var thumbnailPath = ImageUrlBuilder.GetThumbnailPath(MealImageKind.MealItem, item.ImageName);
+                            var defaultPath = MealImagePaths.MealItemDefaultThumbnail;
+                            var allergiesName = AlaCarteAllergenHelper.ParseAllergenNames(item.StudentAllergies);
+                            var isAllergyItem = AlaCarteAllergenHelper.HasAllergens(item.StudentAllergies);
+
+                            <div class="ala-carte-meal-item meal-item" role="button" tabindex="0" aria-pressed="false">
+                                <div class="ala-carte-meal-media">
+                                    <img src="@thumbnailPath"
+                                         onerror="this.onerror=null;this.src='@defaultPath';"
+                                         alt="@item.ItemName"
+                                         class="ala-carte-meal-thumb" />
+                                    <span class="ala-carte-select-badge" aria-hidden="true">
+                                        <i class="ti ti-plus ala-carte-badge-add"></i>
+                                        <i class="ti ti-check ala-carte-badge-check"></i>
+                                    </span>
+                                </div>
+
+                                <div class="ala-carte-meal-body">
+                                    <div class="ala-carte-meal-title-row">
+                                        <div class="ala-carte-meal-title-wrap">
+                                            <h6 class="ala-carte-meal-name">
+                                                @item.ItemName
+                                                <input type="checkbox" class="d-none" value="@item.Id" />
+                                            </h6>
+                                            @if (!string.IsNullOrWhiteSpace(item.Detail))
+                                            {
+                                                <p class="ala-carte-meal-detail" title="@item.Detail">@item.Detail</p>
+                                            }
+                                        </div>
+                                        <div class="ala-carte-price-block">
+                                            <span class="ala-carte-price-label">Price</span>
+                                            <span class="ala-carte-price">@currency @item.Price.ToString("0.00")</span>
+                                        </div>
+                                    </div>
+
+                                    <input type="hidden" class="meal-item-date" value="@selectedMealDate" />
+                                    <input type="hidden" class="is-allergen-item" value="@(isAllergyItem ? "true" : "false")" />
+                                    <input type="hidden" class="allergies-name" value="@allergiesName" />
+                                    <input type="hidden" class="item-price" value="@item.Price" />
+
+                                    @if (item.NutritionList.Count > 0)
+                                    {
+                                        <div class="ala-carte-nutrition">
+                                            @foreach (var nutrition in item.NutritionList)
+                                            {
+                                                <span class="ala-carte-nutrition-chip">
+                                                    <i class="fa @nutrition.ClassName"></i>
+                                                    <span>@nutrition.NutritionName</span>
+                                                    <strong>@nutrition.MeasureValue.ToString("0.0") @nutrition.MeasureTypeName</strong>
+                                                </span>
+                                            }
+                                        </div>
+                                    }
+
+                                    @if (!string.IsNullOrWhiteSpace(allergiesName))
+                                    {
+                                        <div class="ala-carte-allergens">
+                                            <i class="ti ti-alert-triangle"></i>
+                                            <span><strong>Allergens:</strong> @allergiesName</span>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="ala-carte-empty-state">
+        <div class="ala-carte-empty-icon">
+            <i class="ti ti-mood-empty"></i>
+        </div>
+        <h5>No meals available</h5>
+        <p class="text-muted mb-0">Try another date or child.</p>
+    </div>
+}

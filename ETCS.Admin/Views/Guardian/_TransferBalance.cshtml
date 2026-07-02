@@ -1,0 +1,46 @@
+@model ETCS.Shared.Infrastructure.Admin.Master.Guardians.GuardianTransferViewModel
+@{ Layout = null; }
+<form id="frmTransfer">
+    <input type="hidden" asp-for="GuardianId" />
+    <div class="modal-header">
+        <h5 class="modal-title">Transfer Balance</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <div class="mb-3 text-center">
+            <span class="text-muted">Available balance:</span>
+            <strong id="lblFromBalance" class="text-success ms-1">0.00</strong>
+        </div>
+        <div class="mb-3">
+            <label asp-for="FromUserId" class="form-label">From student</label>
+            <select asp-for="FromUserId" id="ddlFromStudent" class="form-select">
+                <option value="">- Select from student -</option>
+                @foreach (var child in Model.Children)
+                {
+                    <option value="@child.UserId" data-balance="@child.Balance.ToString("0.00")">@child.Name (@child.Balance.ToString("0.00"))</option>
+                }
+            </select>
+            <span asp-validation-for="FromUserId" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="ToUserId" class="form-label">To student</label>
+            <select asp-for="ToUserId" id="ddlToStudent" class="form-select">
+                <option value="">- Select to student -</option>
+                @foreach (var child in Model.Children)
+                {
+                    <option value="@child.UserId">@child.Name</option>
+                }
+            </select>
+            <span asp-validation-for="ToUserId" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="Amount" class="form-label">Amount</label>
+            <input asp-for="Amount" id="txtTransferAmount" class="form-control" type="number" min="10" step="1" placeholder="Amount" />
+            <span asp-validation-for="Amount" class="text-danger"></span>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btnTransferSave">Transfer</button>
+    </div>
+</form>

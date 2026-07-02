@@ -1,0 +1,53 @@
+.circle {
+    stroke-dasharray: 1194;
+    stroke-dashoffset: 1194;
+}
+
+input[type="checkbox"] {
+    visibility: hidden;
+}
+
+input[type="checkbox"] + span {
+    visibility: hidden;
+    margin-top: -5px;
+}
+
+input[type="checkbox"]:checked + span {
+    visibility: visible;
+}
+
+input[type="checkbox"]:checked + span > svg .circle {
+    animation: circle 1s ease-in-out;
+    animation-fill-mode: forwards;
+}
+
+.tick {
+    stroke-dasharray: 350;
+    stroke-dashoffset: 350;
+}
+
+input[type="checkbox"]:checked + span > svg .tick {
+    animation: tick .8s ease-in-out;
+    animation-fill-mode: forwards;
+    animation-delay: .95s;
+}
+
+@keyframes circle {
+    from {
+        stroke-dashoffset: 1194;
+    }
+
+    to {
+        stroke-dashoffset: 2388;
+    }
+}
+
+@keyframes tick {
+    from {
+        stroke-dashoffset: 350;
+    }
+
+    to {
+        stroke-dashoffset: 0;
+    }
+}

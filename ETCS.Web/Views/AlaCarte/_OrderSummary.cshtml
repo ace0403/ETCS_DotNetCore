@@ -1,0 +1,106 @@
+@model ETCS.Web.Models.AlaCarteSummaryViewModel
+
+@inject Microsoft.Extensions.Options.IOptions<ETCS.Web.Options.WebOptions> WebOptions
+
+@{
+
+    Layout = null;
+
+    var currency = WebOptions.Value.DisplayCurrency;
+
+}
+
+@if (Model != null)
+
+{
+
+    <div class="modal fade" tabindex="-1" id="summary_modal" data-bs-backdrop="static">
+
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable ala-carte-summary-dialog">
+
+            <div class="modal-content ala-carte-summary-modal">
+
+                <div class="modal-header ala-carte-summary-header">
+
+                    <div class="ala-carte-summary-header-text">
+
+                        <div class="ala-carte-summary-title-row">
+
+                            <span class="ala-carte-summary-icon" aria-hidden="true">
+
+                                <i class="ti ti-receipt-2"></i>
+
+                            </span>
+
+                            <h5 class="modal-title mb-0">Order Summary</h5>
+
+                        </div>
+
+                        @if (Model.SelectedMeals.Count > 0)
+
+                        {
+
+                            var childLabel = string.IsNullOrWhiteSpace(Model.StudentName) ? "your child" : Model.StudentName;
+
+                            <p class="ala-carte-summary-meta mb-0">
+
+                                @Model.ItemCount @(Model.ItemCount == 1 ? "item" : "items")
+
+                                · @Model.DayCount @(Model.DayCount == 1 ? "day" : "days")
+
+                                · for @childLabel
+
+                            </p>
+
+                        }
+
+                    </div>
+
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+
+                </div>
+
+                <div class="modal-body ala-carte-summary-body">
+
+                    @{ ViewData["ShowPaymentNote"] = true; }
+
+                    <partial name="_OrderSummaryDetails" model="Model" />
+
+                </div>
+
+                <div class="modal-footer ala-carte-summary-footer">
+
+                    <div class="ala-carte-summary-footer-inner">
+
+                        <div class="ala-carte-summary-total-block">
+
+                            <span class="ala-carte-summary-total-label">Order total</span>
+
+                            <span class="ala-carte-summary-total-value">@currency <span id="summarytotal">@Model.OrderAmount.ToString("0.00")</span></span>
+
+                        </div>
+
+                        <div class="ala-carte-summary-actions">
+
+                            <button type="button" class="btn btn-link ala-carte-summary-back" data-bs-dismiss="modal">Back to menu</button>
+
+                            <button type="button" id="btnConfirmOrder" class="btn btn-primary ala-carte-place-btn" @(Model.SelectedMeals.Count == 0 ? "disabled" : null)>
+
+                                <i class="ti ti-check me-1"></i> Confirm Order
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+}
+

@@ -1,0 +1,208 @@
+@using ETCS.Shared.Infrastructure.Admin.Reports.CanteenTransactions
+@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var schools = ViewBag.Schools as IReadOnlyList<SchoolCodeLookupDto> ?? Array.Empty<SchoolCodeLookupDto>();
+    var today = DateTime.Today.ToString("yyyy-MM-dd");
+}
+<div class="dashboard-page">
+    <div class="page-header dashboard-page-header">
+        <div>
+            <h2 class="mb-1">Operations Dashboard</h2>
+            <p class="text-muted mb-0">Canteen sales, transactions, and terminal activity</p>
+        </div>
+        <div class="dashboard-toolbar">
+            <div class="btn-group dashboard-range-group" role="group" aria-label="Date range">
+                <button type="button" class="btn btn-outline-primary active" data-range="today">Today</button>
+                <button type="button" class="btn btn-outline-primary" data-range="last7">7 days</button>
+                <button type="button" class="btn btn-outline-primary" data-range="last30">30 days</button>
+                <button type="button" class="btn btn-outline-primary" data-range="custom">Custom</button>
+            </div>
+            <div id="dashboardCustomDates" class="dashboard-custom-dates d-none">
+                <input type="date" id="txtDashStartDate" class="form-control form-control-sm" value="@today" />
+                <span class="text-muted px-1">to</span>
+                <input type="date" id="txtDashEndDate" class="form-control form-control-sm" value="@today" />
+            </div>
+            <select id="ddlDashSchool" class="form-select form-select-sm dashboard-school-select" title="All Schools">
+                <option value="">All Schools</option>
+                @foreach (var school in schools)
+                {
+                    <option value="@school.Code" title="@school.Name">@school.Name</option>
+                }
+            </select>
+            <button type="button" class="btn btn-primary btn-sm" id="btnRefreshDashboard">
+                <i class="ti ti-refresh"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <div id="dashboardLoader" class="canteen-report-screen-loader d-none" aria-live="polite" aria-busy="true">
+        <div class="canteen-report-loader-card">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <span class="canteen-report-loader-text">Loading dashboard...</span>
+        </div>
+    </div>
+
+    <div id="dashboardContent">
+        <div class="row g-3" id="dashboard-summary-cards">
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card dashboard-kpi-card">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start justify-content-between">
+                            <div>
+                                <p class="dashboard-kpi-label mb-1">Total Sales</p>
+                                <h3 class="dashboard-kpi-value mb-0" id="kpi-total-sales">—</h3>
+                                <span class="dashboard-trend-pill d-none" id="kpi-total-sales-trend"></span>
+                            </div>
+                            <span class="dashboard-kpi-icon bg-primary-subtle text-primary"><i class="ti ti-currency-dirham"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card dashboard-kpi-card">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start justify-content-between">
+                            <div>
+                                <p class="dashboard-kpi-label mb-1">Transactions</p>
+                                <h3 class="dashboard-kpi-value mb-0" id="kpi-txn-count">—</h3>
+                                <span class="dashboard-trend-pill d-none" id="kpi-txn-count-trend"></span>
+                            </div>
+                            <span class="dashboard-kpi-icon bg-warning-subtle text-warning"><i class="ti ti-receipt"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card dashboard-kpi-card">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start justify-content-between">
+                            <div>
+                                <p class="dashboard-kpi-label mb-1">Student-Card Sales</p>
+                                <h3 class="dashboard-kpi-value mb-0" id="kpi-student-card">—</h3>
+                                <span class="dashboard-trend-pill d-none" id="kpi-student-card-trend"></span>
+                            </div>
+                            <span class="dashboard-kpi-icon bg-success-subtle text-success"><i class="ti ti-id"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card dashboard-kpi-card">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start justify-content-between">
+                            <div>
+                                <p class="dashboard-kpi-label mb-1">Cash + Card Sales</p>
+                                <h3 class="dashboard-kpi-value mb-0" id="kpi-cash-card">—</h3>
+                                <span class="dashboard-trend-pill d-none" id="kpi-cash-card-trend"></span>
+                            </div>
+                            <span class="dashboard-kpi-icon bg-info-subtle text-info"><i class="ti ti-credit-card"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mt-1">
+            <div class="col-12 col-xl-8">
+                <div class="card dashboard-chart-card h-100">
+                    <div class="card-body">
+                        <h6 class="mb-3">Sales &amp; transaction trend</h6>
+                        <div id="dashboard-trend-chart"></div>
+                        <p id="dashboard-trend-empty" class="dashboard-chart-empty d-none">No data for the selected period.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-xl-4">
+                <div class="card dashboard-chart-card h-100">
+                    <div class="card-body">
+                        <h6 class="mb-3">Transaction type mix</h6>
+                        <div id="dashboard-type-chart"></div>
+                        <p id="dashboard-type-empty" class="dashboard-chart-empty d-none">No data for the selected period.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mt-1">
+            <div class="col-12 col-xl-6">
+                <div class="card dashboard-chart-card h-100">
+                    <div class="card-body">
+                        <h6 class="mb-3">Top terminals by sales</h6>
+                        <div id="dashboard-terminals-chart"></div>
+                        <p id="dashboard-terminals-empty" class="dashboard-chart-empty d-none">No terminal data for the selected period.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-xl-6">
+                <div class="card dashboard-chart-card h-100">
+                    <div class="card-body">
+                        <h6 class="mb-3">Quick reports</h6>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <a asp-controller="Report" asp-action="CanteenTransactions" class="dashboard-quick-link">
+                                    <i class="ti ti-report"></i>
+                                    <span>Canteen Transactions</span>
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a asp-controller="Report" asp-action="AdminTransaction" class="dashboard-quick-link">
+                                    <i class="ti ti-report-analytics"></i>
+                                    <span>Report on Transactions</span>
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a asp-controller="Report" asp-action="TerminalSalesSummary" class="dashboard-quick-link">
+                                    <i class="ti ti-device-desktop-analytics"></i>
+                                    <span>Terminal Sales Summary</span>
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a asp-controller="Report" asp-action="MealOrdersMealDb" class="dashboard-quick-link">
+                                    <i class="ti ti-clipboard-list"></i>
+                                    <span>Meal Order Report</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mt-1">
+            <div class="col-12">
+                <div class="card dashboard-chart-card">
+                    <div class="card-body">
+                        <h6 class="mb-3">Recent transactions</h6>
+                        <div class="table-responsive">
+                            <table class="table table-striped table-bordered dashboard-recent-table mb-0" id="dashboard-recent-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date / Time</th>
+                                        <th>Student Card</th>
+                                        <th>Student Name</th>
+                                        <th>Type</th>
+                                        <th class="text-end">Amount</th>
+                                        <th>Terminal</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboard-recent-body">
+                                    <tr><td colspan="6" class="text-muted text-center">Click Refresh or change filters to load data.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="application/json" id="dashboard-urls">{"overviewUrl":"@Url.Action("GetOverviewJson", "Dashboard")"}</script>
+
+@section Scripts {
+    <script src="~/js/plugins/apexcharts.min.js"></script>
+    <script src="~/js/custom/admin-dashboard.js"></script>
+}

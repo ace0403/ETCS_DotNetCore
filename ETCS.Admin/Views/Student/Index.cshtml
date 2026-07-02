@@ -1,0 +1,25 @@
+@model ETCS.Shared.Infrastructure.Admin.Master.Students.StudentAdminSaveRequest
+@{
+    ViewData["Title"] = "Manage Students";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewBag.AdminModuleKey = "Student";
+}
+<div class="page-header d-flex justify-content-between"><h2>Manage Students</h2>
+<partial name="_AdminAddButton" /></div>
+<div class="card"><div class="card-body">
+<div class="admin-grid-toolbar">
+<partial name="_AdminGridSearch" />
+<partial name="_AdminGridSchoolFilter" />
+</div>
+<div class="table-responsive admin-grid-table-scroll">
+<table id="grid_table" class="table table-striped table-bordered w-100" style="width:100%">
+<thead><tr><th>Code</th><th>Name</th><th>School</th><th>Guardian</th><th>Balance</th><th class="text-center" style="width:70px"></th></tr></thead>
+</table>
+</div></div></div>
+<div class="modal fade" id="addDataModal" tabindex="-1" data-bs-backdrop="static"><div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content" id="div_add"></div></div></div>
+@section Scripts {
+    <link href="~/css/bootstrap-multiselect.css" rel="stylesheet" />
+    <script src="~/js/bootstrap-multiselect.js"></script>
+    <script>window.adminModuleKey = 'Student';</script>
+    <script src="~/js/custom/student.js"></script>
+}

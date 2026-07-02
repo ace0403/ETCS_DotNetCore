@@ -1,0 +1,326 @@
+# ETCS.API — REST Client (Visual Studio / VS Code)
+# 1. Set @userName and @password below.
+# 2. Run "Auth - Login" — copies accessToken and refreshToken from response (manual paste if needed).
+# 3. Protected calls use Authorization: Bearer {{accessToken}}
+# 4. Auth calls use X-API-KEY (from appsettings ApiKey:Keys)
+
+@ETCS.API_HostAddress = https://localhost:7204
+@apiKey = sk_0f4f5e48732773ad6feaca3b8e5235f58eb64d24fd6969a7764bcbfc26621e7a
+
+@userName = sanjay
+@password = 123
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjE1NjYiLCJzdWIiOiJzYW5qYXkiLCJqdGkiOiI5YTdkODNlMC0yYTc0LTRkYTctYjE2ZS1kMmJlODI5ZDIwYTEiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoic2FuamF5IiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoiQXBpVXNlciIsImV4cCI6MTc4MDA1NTQ1MCwiaXNzIjoiRVRDUyIsImF1ZCI6IkVUQ1MtQ2xpZW50cyJ9.eGeFOrLOOELLGjxM7yHlf3empEzSzCMEnk5ATShx7J4
+@refreshToken = yZ7gWG34ZlWBcPd2Uo11T9MZAxXIHlHlcm+F2+YplmDj16vxS23YwTYFtYT0A3ryCwwPb5DECnWMlt7AHe1LMw==
+
+@guardianId = 1566
+@studentId = 3953
+@studentIdString = 3953
+@customerId =
+@countryId = 1
+@mealDate = 2026-05-28
+@orderId = 15661234567
+@transactionId = paste_gateway_transaction_id
+@enumTypeId = 1
+@enumId = 1
+
+###############################################################################
+# Health
+###############################################################################
+
+### Health check (no auth)
+GET {{ETCS.API_HostAddress}}/health
+Accept: application/json
+
+###############################################################################
+# Auth — X-API-KEY required (no JWT)
+###############################################################################
+
+### Auth - Login (token)
+# @name login
+POST {{ETCS.API_HostAddress}}/api/Auth/token
+Content-Type: application/json
+X-API-KEY: {{apiKey}}
+
+{
+  "userName": "{{userName}}",
+  "password": "{{password}}"
+}
+
+###
+
+### Auth - Refresh token
+POST {{ETCS.API_HostAddress}}/api/Auth/refresh
+Content-Type: application/json
+X-API-KEY: {{apiKey}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###
+
+### Auth - Revoke refresh token
+POST {{ETCS.API_HostAddress}}/api/Auth/revoke
+Content-Type: application/json
+X-API-KEY: {{apiKey}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###############################################################################
+# DbDiagnostics — JWT required
+###############################################################################
+
+### DbDiagnostics - Ping
+GET {{ETCS.API_HostAddress}}/api/DbDiagnostics/ping
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# Enum — JWT required
+###############################################################################
+
+### Enum - Active types
+GET {{ETCS.API_HostAddress}}/api/Enum/types
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Enum - By type ids (repeat id query param for multiple)
+GET {{ETCS.API_HostAddress}}/api/Enum/by-type-ids?id={{enumTypeId}}
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Enum - By id
+GET {{ETCS.API_HostAddress}}/api/Enum/by-id/{{enumId}}
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# Students — JWT required (my-children uses token guardian; others may pass guardianId)
+###############################################################################
+
+### Students - List by logged-in guardian (optional customerId)
+GET {{ETCS.API_HostAddress}}/api/Students/list?customerId=
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Students - My children balances (logged-in guardian from JWT)
+GET {{ETCS.API_HostAddress}}/api/Students/balances
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Students - Basic list
+GET {{ETCS.API_HostAddress}}/api/Students/basic-list?guardianId={{guardianId}}
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Students - Guardian basic detail by studentId
+GET {{ETCS.API_HostAddress}}/api/Students/basic-detail?studentId={{studentIdString}}
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Students - Summary (optional studentId)
+GET {{ETCS.API_HostAddress}}/api/Students/summary?guardianId={{guardianId}}&studentId={{studentIdString}}
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Students - Grades dropdown
+GET {{ETCS.API_HostAddress}}/api/Students/grades
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Students - Schools by country
+GET {{ETCS.API_HostAddress}}/api/Students/schools?countryId={{countryId}}
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Students - Create (sample — adjust fields for your DB)
+POST {{ETCS.API_HostAddress}}/api/Students
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "studCode": "STU001",
+  "studUserName": "student001",
+  "studPassword": "ChangeMe123",
+  "studCountryID": "1",
+  "studSchoolID": "1",
+  "studStd": "1",
+  "studDiv": "A",
+  "year": "2026",
+  "studFirstName": "Test",
+  "studLastName": "Student",
+  "guardianID": "{{guardianId}}"
+}
+
+###
+
+### Students - Update (sample — omit studPassword to leave unchanged)
+PUT {{ETCS.API_HostAddress}}/api/Students
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "studCode": "STU001",
+  "studUserName": "student001",
+  "studCountryID": "1",
+  "studSchoolID": "1",
+  "studStd": "1",
+  "studDiv": "A",
+  "year": "2026",
+  "studFirstName": "Test",
+  "studLastName": "Student",
+  "guardianID": "{{guardianId}}"
+}
+
+###############################################################################
+# Meal — JWT required
+###############################################################################
+
+### Meal - List items for student and date
+GET {{ETCS.API_HostAddress}}/api/Meal/list?studentId={{studentId}}&mealDate={{mealDate}}
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Meal - Packages for student and date
+GET {{ETCS.API_HostAddress}}/api/Meal/packages?studentId={{studentId}}&mealDate={{mealDate}}
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# Order — JWT required
+###############################################################################
+
+### Order - Initiate (sample)
+POST {{ETCS.API_HostAddress}}/api/Order/initiate
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "studentId": {{studentId}},
+  "orderId": "{{orderId}}",
+  "orderStatusId": 2,
+  "orderTypeId": 42,
+  "total": 20,
+  "notes": "Test order",
+  "mealList": [
+    {
+      "itemId": 158,
+      "mealDate": "{{mealDate}}T00:00:00",
+      "id": "00000000-0000-0000-0000-000000000001",
+      "price": 20,
+      "quantity": 2,
+      "total": 40
+    }
+  ]
+}
+
+###
+
+### Order - Complete payment (sample)
+POST {{ETCS.API_HostAddress}}/api/Order/complete
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "studentId": {{studentId}},
+  "orderId": "{{orderId}}",
+  "transactionId": "{{transactionId}}"
+}
+
+###
+
+### Order - List (optional studentId)
+GET {{ETCS.API_HostAddress}}/api/Order/list?page=1&pageSize=20&studentId={{studentId}}
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Order - Detail by orderId
+GET {{ETCS.API_HostAddress}}/api/Order/detail/{{orderId}}
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# Payment — JWT required
+###############################################################################
+
+### Payment - Create topup session
+POST {{ETCS.API_HostAddress}}/api/Payment/topup/request
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "studentId": "{{studentIdString}}",
+  "amount": 25.5
+}
+
+###
+
+### Payment - Capture / update topup status
+POST {{ETCS.API_HostAddress}}/api/Payment/topup/update
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "transactionId": "{{transactionId}}",
+  "orderId": "{{orderId}}",
+  "studentId": {{studentId}}
+}
+
+###
+
+### Payment - Recent transactions (default 5)
+GET {{ETCS.API_HostAddress}}/api/Payment/transactions/recent?count=5
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Payment - Recent transactions (filter by student, type)
+GET {{ETCS.API_HostAddress}}/api/Payment/transactions/recent?count=5&studentId={{studentId}}&type=all
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Payment - Transaction history (paginated)
+GET {{ETCS.API_HostAddress}}/api/Payment/transactions/history?type=all&page=1&pageSize=20
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Payment - Transaction history (topup only)
+GET {{ETCS.API_HostAddress}}/api/Payment/transactions/history?type=topup&page=1&pageSize=20&studentId={{studentId}}
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Payment - Transaction history (orders only)
+GET {{ETCS.API_HostAddress}}/api/Payment/transactions/history?type=order&page=1&pageSize=20
+Accept: application/json
+Authorization: Bearer {{accessToken}}

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>ETCS POS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/pos.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+    <link rel="icon" href="~/favicon.ico" type="image/svg+xml" />
+</head>
+<body class="pos-body">
+    @RenderBody()
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="~/js/custom/pos/pos-core.js" asp-append-version="true"></script>
+    <script src="~/js/custom/pos/pos-api.js" asp-append-version="true"></script>
+    <script src="~/js/custom/pos/pos-cart.js" asp-append-version="true"></script>
+    <script src="~/js/custom/pos/pos-catalog.js" asp-append-version="true"></script>
+    <script src="~/js/custom/pos/pos-checkout.js" asp-append-version="true"></script>
+    <script src="~/js/custom/pos/pos-init.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

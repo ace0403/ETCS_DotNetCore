@@ -1,0 +1,13 @@
+@{
+    ViewData["Title"] = "Access Denied";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<div class="page-header">
+    <h2 class="mb-0">Access Denied</h2>
+</div>
+<div class="card">
+    <div class="card-body">
+        <p class="mb-3">You do not have permission to access any admin modules. Please contact your administrator to assign the correct role permissions.</p>
+        <a asp-controller="Home" asp-action="Logout" class="btn btn-outline-primary">Sign out</a>
+    </div>
+</div>

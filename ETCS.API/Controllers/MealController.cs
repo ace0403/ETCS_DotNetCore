@@ -1,0 +1,149 @@
+using System.Diagnostics;
+using ETCS.API.Infrastructure.Caching;
+using ETCS.Shared.Infrastructure.Meals;
+using ETCS.Shared.Infrastructure.Students;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
+
+namespace ETCS.API.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public sealed class MealController : ControllerBase
+{
+    private readonly IMealRepository _mealRepository;
+    private readonly IStudentRepository _studentRepository;
+    private readonly IMemoryCache _cache;
+    private readonly ILogger<MealController> _logger;
+
+    public MealController(
+        IMealRepository mealRepository,
+        IStudentRepository studentRepository,
+        IMemoryCache cache,
+        ILogger<MealController> logger)
+    {
+        _mealRepository = mealRepository;
+        _studentRepository = studentRepository;
+        _cache = cache;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Gets meal items for a student on a specific date.
+    /// </summary>
+    [HttpGet("list")]
+    public async Task<IActionResult> GetMealList(
+        [FromQuery] int studentId,
+        [FromQuery] DateTime mealDate,
+        [FromQuery] int? mealTypeId = null,
+        [FromQuery] bool slim = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (studentId <= 0)
+        {
+            return BadRequest(new { message = "StudentId is required" });
+        }
+
+        if (mealDate == default)
+        {
+            return BadRequest(new { message = "MealDate is required." });
+        }
+
+        var schoolId = await _studentRepository.GetStudentSchoolIdAsync(studentId, cancellationToken);
+        if (schoolId is null or <= 0)
+        {
+            return BadRequest(new { message = "Unable to resolve school for this student." });
+        }
+
+        var cacheKey = CachedMealRepository.BuildItemsCacheKey(studentId, schoolId.Value, mealDate, mealTypeId);
+        var cacheHit = _cache.TryGetValue(cacheKey, out _);
+        var stopwatch = Stopwatch.StartNew();
+
+        var items = await _mealRepository.GetMealItemsForStudentAsync(
+            studentId,
+            schoolId.Value,
+            mealDate,
+            mealTypeId,
+            cancellationToken);
+
+        stopwatch.Stop();
+        _logger.LogDebug(
+            "Meal list studentId={StudentId} date={MealDate} mealTypeId={MealTypeId} took {ElapsedMs}ms ({CacheState})",
+            studentId,
+            mealDate.Date,
+            mealTypeId,
+            stopwatch.ElapsedMilliseconds,
+            cacheHit ? "cache hit" : "cache miss");
+
+        Console.Write(string.Format("Meal list studentId={0} date={1} mealTypeId={2} took {3}ms ({4})",
+            studentId,
+            mealDate.Date,
+            mealTypeId,
+            stopwatch.ElapsedMilliseconds,
+            cacheHit ? "cache hit" : "cache miss"));
+
+        if (slim)
+        {
+            return Ok(items.Select(MealDtoMapper.ToSlim));
+        }
+
+        return Ok(items);
+    }
+
+    /// <summary>
+    /// Gets meal packages for a student on a specific date.
+    /// </summary>
+    [HttpGet("packages")]
+    public async Task<IActionResult> GetMealPackages(
+        [FromQuery] int studentId,
+        [FromQuery] DateTime mealDate,
+        [FromQuery] int? mealTypeId = null,
+        [FromQuery] bool slim = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (studentId <= 0)
+        {
+            return BadRequest(new { message = "StudentId is required" });
+        }
+
+        if (mealDate == default)
+        {
+            return BadRequest(new { message = "MealDate is required." });
+        }
+
+        var schoolId = await _studentRepository.GetStudentSchoolIdAsync(studentId, cancellationToken);
+        if (schoolId is null or <= 0)
+        {
+            return BadRequest(new { message = "Unable to resolve school for this student." });
+        }
+
+        var cacheKey = CachedMealRepository.BuildPackagesCacheKey(studentId, schoolId.Value, mealDate, mealTypeId);
+        var cacheHit = _cache.TryGetValue(cacheKey, out _);
+        var stopwatch = Stopwatch.StartNew();
+
+        var packages = await _mealRepository.GetMealPackagesForStudentAsync(
+            studentId,
+            schoolId.Value,
+            mealDate,
+            mealTypeId,
+            cancellationToken);
+
+        stopwatch.Stop();
+        _logger.LogDebug(
+            "Meal packages studentId={StudentId} date={MealDate} mealTypeId={MealTypeId} took {ElapsedMs}ms ({CacheState})",
+            studentId,
+            mealDate.Date,
+            mealTypeId,
+            stopwatch.ElapsedMilliseconds,
+            cacheHit ? "cache hit" : "cache miss");
+
+        if (slim)
+        {
+            return Ok(packages.Select(MealDtoMapper.ToSlim));
+        }
+
+        return Ok(packages);
+    }
+}

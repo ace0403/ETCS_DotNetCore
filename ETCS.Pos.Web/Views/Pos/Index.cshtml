@@ -1,0 +1,221 @@
+@model PosPageViewModel
+@{
+    ViewData["Title"] = "POS";
+}
+
+<div class="pos-app">
+    <section class="pos-main">
+        <header class="pos-page-header">
+            <div class="pos-page-header-left">
+                <img src="~/images/logo.png" alt="ETCS" class="pos-logo" width="120" />
+                <div>
+                    <h2 class="pos-page-title">Point of Sale</h2>
+                    <p class="pos-page-subtitle">School canteen terminal</p>
+                </div>
+            </div>
+            <div class="pos-setup">
+                <label class="pos-setup-field">
+                    <span>&nbsp;Branch</span>
+                    <select id="ddlSchool" asp-items="Model.Schools" disabled="@(!Model.ApiOnline)"></select>
+                </label>
+                <label class="pos-setup-field">
+                    <span>&nbsp;Terminal</span>
+                    <div id="terminalContainer" class="pos-setup-terminal">
+                        <select id="ddlTerminal" asp-items="Model.Terminals"></select>
+                    </div>
+                </label>
+                <label class="pos-setup-field pos-setup-field--compact">
+                    <span>&nbsp;IP</span>
+                    <input id="txtTerminalIp" type="text" placeholder="192.168.x.x" />
+                </label>
+                <div class="pos-status-chips">
+                    <span id="apiStatus" class="pos-status-chip @(Model.ApiOnline ? "" : "is-offline")" title="@(Model.ApiOnline ? "ETCS server reachable" : Model.ApiStatusMessage)">@(Model.ApiOnline ? "Server connected" : "Server offline")</span>
+                    <span id="bridgeStatus" class="pos-status-chip is-offline" title="Bridge status">Checking…</span>
+                </div>
+            </div>
+        </header>
+
+        @if (!Model.ApiOnline)
+        {
+            <div id="apiOfflineBanner"
+                 class="pos-api-banner"
+                 role="alert"
+                 aria-live="polite"
+                 title="@(Model.ApiStatusDetail ?? "")">
+                <div class="pos-api-banner-content">
+                    <p class="pos-api-banner-title">Cannot load sales data</p>
+                    <p class="pos-api-banner-message">@Model.ApiStatusMessage</p>
+                </div>
+                <button type="button" id="btnApiRetry" class="pos-api-banner-btn">Try again</button>
+            </div>
+        }
+
+        <div class="pos-catalog-layout">
+            <div class="pos-catalog-main">
+                <div class="pos-toolbar">
+                    <div class="pos-search">
+                        <svg class="pos-search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 105.25 12.79l4.27 4.27 1.42-1.42-4.27-4.27A7.5 7.5 0 0010.5 3zm0 2a5.5 5.5 0 110 11 5.5 5.5 0 010-11z" /></svg>
+                        <input id="txtSearch" type="search" placeholder="Search menu items…" autocomplete="off" disabled="@(!Model.ApiOnline)" />
+                    </div>
+                </div>
+
+                <div id="categoryList" class="pos-categories">
+                    @if (Model.ApiOnline)
+                    {
+                        <p class="pos-placeholder pos-categories-placeholder">Select a branch to load categories.</p>
+                    }
+                </div>
+
+                <div id="productGrid" class="pos-products">
+                    @if (!Model.ApiOnline)
+                    {
+                        <p class="pos-placeholder">Menu unavailable while the server is offline.</p>
+                    }
+                    else
+                    {
+                        <p class="pos-placeholder">Products appear here after you pick a category.</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <aside class="pos-ticket">
+        <div class="pos-ticket-main">
+            <header class="pos-ticket-header">
+                <div>
+                    <h2>Current Order</h2>
+                    <p id="cartItemCount">0 items</p>
+                </div>
+                <span id="orderBadge" class="pos-ticket-badge">0</span>
+            </header>
+
+            <div class="pos-order-table-head">
+                <span>Code</span>
+                <span>Item</span>
+                <span>Qty</span>
+            </div>
+
+            <div class="pos-ticket-body" id="cartLines"></div>
+        </div>
+
+        <div class="pos-ticket-footer">
+        <div class="pos-ticket-summary">
+            <div class="pos-summary-line">
+                <span>Subtotal</span>
+                <strong id="txtSubtotal">AED 0.00</strong>
+            </div>
+            <div class="pos-summary-inputs">
+                <label>
+                    <span>Discount %</span>
+                    <input type="text" id="txtDiscountPercent" inputmode="decimal" placeholder="0" autocomplete="off" />
+                </label>
+                <label>
+                    <span>VAT %</span>
+                    <input type="text" id="txtVatPercent" inputmode="decimal" value="@Model.VatPercent.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                </label>
+            </div>
+            <div class="pos-summary-line pos-summary-line--muted">
+                <span>Discount</span>
+                <strong id="txtDiscountAmount">AED 0.00</strong>
+            </div>
+            <div class="pos-summary-line pos-summary-line--payable">
+                <span>Payable</span>
+                <strong id="txtTotal">AED 0.00</strong>
+            </div>
+        </div>
+
+        <div class="pos-cash-fields">
+            <label>
+                <span>Received</span>
+                <input type="text" id="txtReceivedCash" inputmode="decimal" placeholder="0.00" autocomplete="off" />
+            </label>
+            <label>
+                <span>Change</span>
+                <input type="text" id="txtReturnCash" readonly tabindex="-1" value="0.00" />
+            </label>
+            <label>
+                <span>Undo cash amt</span>
+                <input type="text" id="txtUndoCashAmount" inputmode="decimal" placeholder="0.00" autocomplete="off" />
+            </label>
+        </div>
+
+        <div class="pos-ticket-actions pos-ticket-actions--legacy">
+            <button type="button" id="btnReset" class="pos-btn pos-btn--reset">Reset</button>
+            <button type="button" id="btnPay" class="pos-btn pos-btn--cashless">Cashless</button>
+            <button type="button" id="btnRemoveSelected" class="pos-btn pos-btn--ghost">Remove Selected</button>
+            <button type="button" id="btnUndo" class="pos-btn pos-btn--undo">Undo Cashless</button>
+            <button type="button" id="btnApplyDiscount" class="pos-btn pos-btn--discount">Apply Discount</button>
+            <button type="button" id="btnCard" class="pos-btn pos-btn--card">Credit / Debit Card</button>
+            <button type="button" id="btnUndoCash" class="pos-btn pos-btn--undo-cash">Undo Cash</button>
+            <button type="button" id="btnCash" class="pos-btn pos-btn--cash">Cash</button>
+        </div>
+        </div>
+    </aside>
+</div>
+
+<div id="schoolSwitchModal" class="pos-modal" hidden aria-hidden="true">
+    <div class="pos-modal-backdrop" data-school-switch-dismiss></div>
+    <div class="pos-modal-card" role="dialog" aria-labelledby="schoolSwitchTitle" aria-modal="true">
+        <h3 id="schoolSwitchTitle" class="pos-modal-title">Replace cart items?</h3>
+        <p class="pos-modal-text">
+            Your cart has items from <strong id="schoolSwitchFrom"></strong>.
+            Add items from <strong id="schoolSwitchTo"></strong> instead?
+        </p>
+        <p class="pos-modal-hint">Your current cart will be cleared.</p>
+        <div class="pos-modal-actions">
+            <button type="button" id="schoolSwitchCancel" class="pos-btn pos-btn--ghost">Keep current cart</button>
+            <button type="button" id="schoolSwitchConfirm" class="pos-btn pos-btn--confirm">Clear &amp; continue</button>
+        </div>
+    </div>
+</div>
+
+<div id="bridgeOfflineOverlay" class="pos-bridge-overlay" data-mode="checking" aria-live="polite" aria-busy="true">
+    <div class="pos-bridge-overlay-panel" role="alertdialog" aria-labelledby="bridgeOverlayTitle" aria-describedby="bridgeOverlaySubline bridgeOverlaySteps">
+        <div class="pos-bridge-overlay-brand">
+            <img src="~/images/logo.png" alt="" class="pos-bridge-overlay-logo" width="96" />
+        </div>
+        <div class="pos-bridge-overlay-icon-wrap" aria-hidden="true">
+            <div class="pos-bridge-overlay-spinner"></div>
+            <svg class="pos-bridge-overlay-icon" viewBox="0 0 24 24" fill="none">
+                <path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+        <h2 id="bridgeOverlayTitle" class="pos-bridge-overlay-title">Connecting to this terminal…</h2>
+        <p id="bridgeOverlaySubline" class="pos-bridge-overlay-subline">Waiting for local bridge on this PC.</p>
+        <div id="bridgeOverlayStepsWrap" class="pos-bridge-overlay-steps-wrap" hidden>
+            <p class="pos-bridge-overlay-steps-heading">What to do on this PC</p>
+            <ol id="bridgeOverlaySteps" class="pos-bridge-overlay-steps"></ol>
+        </div>
+        <p id="bridgeOverlayLastConnected" class="pos-bridge-overlay-last-connected" hidden></p>
+        <div id="bridgeOverlayActions" class="pos-bridge-overlay-actions">
+            @if (Model.BridgeSetupAvailable)
+            {
+                <a id="btnBridgeDownload"
+                   class="pos-bridge-overlay-btn"
+                   href="@Model.BridgeSetupDownloadUrl"
+                   download
+                   hidden>
+                    Download Bridge setup
+                </a>
+            }
+            <button type="button" id="btnBridgeRetry" class="pos-bridge-overlay-btn pos-bridge-overlay-btn--secondary">
+                <span class="pos-bridge-overlay-btn-label">Check connection</span>
+            </button>
+        </div>
+        <p class="pos-bridge-overlay-footnote">Card sales and receipts are paused until the bridge connects.</p>
+    </div>
+</div>
+
+<script>
+    window.posConfig = {
+        bridgeBaseUrl: '@Model.BridgeBaseUrl',
+        bridgeSetupDownloadUrl: '@(Model.BridgeSetupAvailable ? Model.BridgeSetupDownloadUrl : "")',
+        apiOnline: @(Model.ApiOnline ? "true" : "false"),
+        vatPercent: @Model.VatPercent.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        defaultDiscount: @Model.DefaultDiscount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        defaultBranchCode: '1',
+        prePrintReceipt: false,
+        defaultItemImage: '/images/meal-default.png'
+    };
+</script>
