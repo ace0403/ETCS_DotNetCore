@@ -31,13 +31,28 @@ public interface ITransactionRepository
         string? gatewayTransactionId,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<PendingPaymentReconcileItem>> ListPendingForReconcileAsync(
+        int lookbackHours,
+        int maxAttempts,
+        int batchSize,
+        CancellationToken cancellationToken);
+
+    Task BumpReconcileAttemptAsync(int transactionPkId, CancellationToken cancellationToken);
+
     Task QueueEmailNotificationAsync(QueueEmailNotificationRequest request, CancellationToken cancellationToken);
 
     Task<TransactionHistoryResponse> GetTransactionHistoryAsync(
         int? studentId,
         int? guardianId,
         string? type,
+        DateTime? fromDate,
+        DateTime? toDate,
         int page,
         int pageSize,
+        CancellationToken cancellationToken);
+
+    Task<TransactionHistoryItemDto?> GetGuardianTransactionByIdAsync(
+        int guardianId,
+        int transactionId,
         CancellationToken cancellationToken);
 }

@@ -36,6 +36,48 @@ public sealed class StudentAllergyAdminRepository : IStudentAllergyAdminReposito
         return rows.ToList();
     }
 
+    public async Task<IReadOnlyDictionary<decimal, IReadOnlyList<string>>> GetAllergyNamesByStudentIdsAsync(
+        IReadOnlyList<decimal> studentIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (studentIds is null || studentIds.Count == 0)
+        {
+            return new Dictionary<decimal, IReadOnlyList<string>>();
+        }
+
+        var distinctIds = studentIds.Where(id => id > 0).Distinct().ToList();
+        if (distinctIds.Count == 0)
+        {
+            return new Dictionary<decimal, IReadOnlyList<string>>();
+        }
+
+        using var connection = _connectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+
+        var rows = await dbConnection.QueryAsync<(decimal StudentId, string Name)>(
+            new CommandDefinition(
+                """
+                SELECT
+                    sa.StudentId,
+                    LTRIM(RTRIM(ISNULL(e.EnumValue, ''))) AS Name
+                FROM StudentAllergies sa
+                INNER JOIN Enums e ON e.Id = sa.AllergyItemId
+                WHERE sa.StudentId IN @StudentIds
+                  AND ISNULL(e.IsActive, 1) = 1
+                ORDER BY sa.StudentId, e.SortOrder, e.EnumValue;
+                """,
+                new { StudentIds = distinctIds },
+                cancellationToken: cancellationToken));
+
+        return rows
+            .Where(r => !string.IsNullOrWhiteSpace(r.Name))
+            .GroupBy(r => r.StudentId)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<string>)g.Select(x => x.Name.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList());
+    }
+
     public async Task SaveAllergiesAsync(
         decimal studentId,
         IReadOnlyList<int> allergyItemIds,

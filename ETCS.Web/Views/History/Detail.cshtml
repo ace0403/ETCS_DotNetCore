@@ -1,0 +1,129 @@
+@model ETCS.Web.Models.HistoryOrderDetailViewModel
+@using ETCS.Shared.Enumeration
+@inject Microsoft.Extensions.Options.IOptions<ETCS.Web.Options.WebOptions> WebOptions
+@{
+    ViewData["Title"] = "Order Detail";
+    ViewData["PageSubtitle"] = "Order status and meal summary";
+    var currency = WebOptions.Value.DisplayCurrency;
+    var isAlaCarte = Model.OrderTypeId == (int)TransactionTypeEnum.A_La_Carte;
+    var isCombo = Model.OrderTypeId == (int)TransactionTypeEnum.MealOrder;
+    var hasAlaCarteSummary = Model.AlaCarteSummary is { SelectedMeals.Count: > 0 };
+    var hasComboSummary = Model.ComboSummary is { SelectedPackages.Count: > 0 };
+    var hasSummary = hasAlaCarteSummary || hasComboSummary;
+    var typeLabel = isCombo ? "Meal Combo" : (isAlaCarte ? "Ala-Carte" : "Order");
+}
+<div class="history-detail-page">
+    <div class="history-detail-toolbar">
+        <a asp-controller="History" asp-action="Index" class="history-back-link">
+            <i class="ti ti-arrow-left"></i> Back to History
+        </a>
+    </div>
+
+    <div class="history-status-banner @Model.StatusCss">
+        <div class="history-status-banner-icon" aria-hidden="true">
+            @if (Model.IsSuccess)
+            {
+                <i class="ti ti-circle-check"></i>
+            }
+            else if (Model.IsPending)
+            {
+                <i class="ti ti-clock"></i>
+            }
+            else
+            {
+                <i class="ti ti-circle-x"></i>
+            }
+        </div>
+        <div>
+            <h2 class="history-status-banner-title mb-1">@typeLabel · @Model.StatusLabel</h2>
+            <p class="history-status-banner-text mb-0">@Model.Message</p>
+            @if (!string.IsNullOrWhiteSpace(Model.OrderId))
+            {
+                <p class="history-status-banner-ref mb-0">Order ref: @Model.OrderId</p>
+            }
+            @if (Model.CreatedOn != default)
+            {
+                <p class="history-status-banner-ref mb-0">Created: @Model.CreatedOn.ToString("dd MMM yyyy, hh:mm tt")</p>
+            }
+        </div>
+    </div>
+
+    @if (hasSummary)
+    {
+        <div class="card ala-carte-receipt-card shadow-sm border-0 mt-3">
+            <div class="ala-carte-summary-header ala-carte-receipt-header">
+                <div class="ala-carte-summary-header-text">
+                    <div class="ala-carte-summary-title-row">
+                        <span class="ala-carte-summary-icon" aria-hidden="true">
+                            <i class="ti ti-receipt-2"></i>
+                        </span>
+                        <h5 class="mb-0">Order Summary</h5>
+                    </div>
+                    @if (hasAlaCarteSummary)
+                    {
+                        var summary = Model.AlaCarteSummary!;
+                        var childLabel = string.IsNullOrWhiteSpace(summary.StudentName) ? "your child" : summary.StudentName;
+                        <p class="ala-carte-summary-meta mb-0 ps-1">
+                            @summary.ItemCount @(summary.ItemCount == 1 ? "item" : "items")
+                            · @summary.DayCount @(summary.DayCount == 1 ? "day" : "days")
+                            · for @childLabel
+                        </p>
+                    }
+                    else if (hasComboSummary)
+                    {
+                        var summary = Model.ComboSummary!;
+                        var childLabel = string.IsNullOrWhiteSpace(summary.StudentName) ? "your child" : summary.StudentName;
+                        <p class="ala-carte-summary-meta mb-0 ps-1">
+                            @summary.ItemCount @(summary.ItemCount == 1 ? "combo" : "combos")
+                            · @summary.DayCount @(summary.DayCount == 1 ? "day" : "days")
+                            · for @childLabel
+                        </p>
+                    }
+                </div>
+            </div>
+            <div class="ala-carte-summary-body ala-carte-receipt-body">
+                @if (hasAlaCarteSummary)
+                {
+                    ViewData["ShowPaymentNote"] = false;
+                    <partial name="~/Views/AlaCarte/_OrderSummaryDetails.cshtml" model="Model.AlaCarteSummary" />
+                }
+                else if (hasComboSummary)
+                {
+                    <partial name="~/Views/MealCombo/_OrderSummaryDetails.cshtml" model="Model.ComboSummary" />
+                }
+            </div>
+            <div class="ala-carte-summary-footer ala-carte-receipt-footer">
+                <div class="ala-carte-summary-footer-inner">
+                    <div class="ala-carte-summary-total-block">
+                        <span class="ala-carte-summary-total-label">Order total</span>
+                        <span class="ala-carte-summary-total-value">
+                            @currency @(hasAlaCarteSummary
+                                ? Model.AlaCarteSummary!.OrderAmount.ToString("0.00")
+                                : Model.ComboSummary!.OrderAmount.ToString("0.00"))
+                        </span>
+                    </div>
+                    <div class="ala-carte-summary-actions">
+                        <a asp-controller="History" asp-action="Index" class="btn btn-primary ala-carte-place-btn">
+                            <i class="ti ti-history me-1"></i> Back to History
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="history-detail-fallback card shadow-sm border-0 mt-3">
+            <div class="card-body text-center py-4">
+                <p class="text-muted mb-3">Line items are not available for this order.</p>
+                <a asp-controller="History" asp-action="Index" class="btn btn-outline-primary">Back to History</a>
+            </div>
+        </div>
+    }
+</div>
+
+@section Styles {
+    <link href="~/css/custom/ala-carte.css" asp-append-version="true" rel="stylesheet" />
+    <link href="~/css/custom/meal-combo.css" asp-append-version="true" rel="stylesheet" />
+    <link href="~/css/custom/history.css" asp-append-version="true" rel="stylesheet" />
+}

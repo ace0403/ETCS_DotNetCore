@@ -20,6 +20,7 @@
 
         const option = ddl.options[ddl.selectedIndex];
         ipInput.value = option?.dataset?.ipAddress?.trim() || '';
+        App.header?.updateContext();
     }
 
     function selectFirstTerminal() {
@@ -160,6 +161,7 @@
             const res = await fetch('/Pos/LoadTerminals', { method: 'POST', body: form });
             document.getElementById('terminalContainer').innerHTML = await res.text();
             bindTerminalDropdown();
+            App.header?.updateContext();
         },
 
         async loadCategories(schoolId) {
@@ -216,6 +218,8 @@
                 App.catalog.loadTerminals(schoolId),
                 App.catalog.loadCategories(schoolId)
             ]);
+            App.header?.updateContext();
+            App.header?.closeSetupIfReady();
         }
     };
 })(window.PosApp);

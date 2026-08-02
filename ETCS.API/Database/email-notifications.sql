@@ -84,6 +84,8 @@ CREATE OR ALTER PROCEDURE dbo.spQueueEmailNotification
     @Amount NVARCHAR(50) = N'',
     @EventDate NVARCHAR(100) = N'',
     @OrderItems NVARCHAR(MAX) = N'',
+    @ResetLink NVARCHAR(1000) = N'',
+    @ExpiryMinutes NVARCHAR(20) = N'',
     @PayloadJson NVARCHAR(MAX) = NULL
 AS
 BEGIN
@@ -116,6 +118,8 @@ BEGIN
     SET @Subject = REPLACE(@Subject, '{{Amount}}', ISNULL(@Amount, N''));
     SET @Subject = REPLACE(@Subject, '{{EventDate}}', ISNULL(@EventDate, N''));
     SET @Subject = REPLACE(@Subject, '{{OrderItems}}', ISNULL(@OrderItems, N''));
+    SET @Subject = REPLACE(@Subject, '{{ResetLink}}', ISNULL(@ResetLink, N''));
+    SET @Subject = REPLACE(@Subject, '{{ExpiryMinutes}}', ISNULL(@ExpiryMinutes, N''));
 
     SET @Body = REPLACE(@Body, '{{GuardianName}}', ISNULL(@GuardianName, N''));
     SET @Body = REPLACE(@Body, '{{StudentName}}', ISNULL(@StudentName, N''));
@@ -124,6 +128,8 @@ BEGIN
     SET @Body = REPLACE(@Body, '{{Amount}}', ISNULL(@Amount, N''));
     SET @Body = REPLACE(@Body, '{{EventDate}}', ISNULL(@EventDate, N''));
     SET @Body = REPLACE(@Body, '{{OrderItems}}', ISNULL(@OrderItems, N''));
+    SET @Body = REPLACE(@Body, '{{ResetLink}}', ISNULL(@ResetLink, N''));
+    SET @Body = REPLACE(@Body, '{{ExpiryMinutes}}', ISNULL(@ExpiryMinutes, N''));
 
     INSERT INTO dbo.EmailNotification
     (
@@ -351,6 +357,24 @@ EXEC dbo.spUpsertEmailTemplate
 <h3 style="margin-top:20px;font-size:16px;">Order Items</h3>
 <div style="padding:12px;border:1px solid #eee;border-radius:4px;background:#fafafa;">{{OrderItems}}</div>
 <p style="color:#666;font-size:13px;">Thank you for your order.</p>
+</div>',
+    @IsActive = 1;
+GO
+
+EXEC dbo.spUpsertEmailTemplate
+    @TemplateKey = N'PasswordReset',
+    @SubjectTemplate = N'Reset your ETCS password',
+    @BodyHtmlTemplate = N'<div style="font-family:Segoe UI,Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;">
+<h2 style="color:#fea116;margin-bottom:8px;">Password Reset</h2>
+<p>Dear {{GuardianName}},</p>
+<p>We received a request to reset the password for your ETCS account.</p>
+<p style="margin:24px 0;">
+<a href="{{ResetLink}}" style="display:inline-block;background:#fea116;color:#fff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600;">Reset password</a>
+</p>
+<p>Or copy and paste this link into your browser:</p>
+<p style="word-break:break-all;color:#555;">{{ResetLink}}</p>
+<p>This link expires in <strong>{{ExpiryMinutes}}</strong> minutes. If you did not request a password reset, you can ignore this email.</p>
+<p style="color:#666;font-size:13px;">Emirates Taste Catering Services</p>
 </div>',
     @IsActive = 1;
 GO

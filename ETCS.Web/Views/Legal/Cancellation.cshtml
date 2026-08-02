@@ -1,0 +1,26 @@
+@{
+    Layout = "_LegalLayout";
+    ViewData["Title"] = "Cancellation Policy";
+}
+
+<div class="legal-hero">
+    <h1 class="legal-title">Cancellation Policy</h1>
+    <p class="legal-updated">Last updated: July 16, 2026</p>
+</div>
+
+<article class="legal-panel">
+    <h2>Cancellations and refunds</h2>
+    <p>
+        Kindly note once you have made a successful payment for our services, we will not provide any Cancellations or Refunds.
+        All payments are considered as final.
+    </p>
+</article>
+
+@if (User.Identity?.IsAuthenticated == true)
+{
+    <a asp-controller="Dashboard" asp-action="Index" class="legal-back"><i class="ti ti-arrow-left"></i> Back to portal</a>
+}
+else
+{
+    <a asp-controller="Home" asp-action="Index" class="legal-back"><i class="ti ti-arrow-left"></i> Back to login</a>
+}

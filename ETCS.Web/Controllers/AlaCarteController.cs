@@ -40,14 +40,14 @@ public class AlaCarteController : Controller
         _orderPaymentCompleteService = orderPaymentCompleteService;
     }
 
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(int? studentId, CancellationToken cancellationToken)
     {
         if (!User.TryGetGuardianId(out var guardianId))
         {
             return Forbid();
         }
 
-        var model = await BuildPageModelAsync(guardianId, cancellationToken);
+        var model = await BuildPageModelAsync(guardianId, studentId, cancellationToken);
         return View(model);
     }
 
@@ -204,30 +204,30 @@ public class AlaCarteController : Controller
         });
     }
 
-    private async Task<AlaCartePageViewModel> BuildPageModelAsync(int guardianId, CancellationToken cancellationToken)
+    private async Task<AlaCartePageViewModel> BuildPageModelAsync(
+        int guardianId,
+        int? preferredStudentId,
+        CancellationToken cancellationToken)
     {
         var children = await LoadChildrenAsync(guardianId, cancellationToken);
-        var durations = await _mealEnumRepository.GetByTypeIdAsync(MealEnumTypeIds.Duration, cancellationToken);
-        var durationItems = durations
-            .Select(d => new { Value = ParseDurationDays(d.Name), Text = d.Description })
-            .Where(d => d.Value > 0)
-            .OrderBy(d => d.Value)
-            .ToList();
 
-        if (durationItems.Count == 0)
+        var selectedStudentId = children.FirstOrDefault()?.Id ?? 0;
+        if (preferredStudentId is > 0 && children.Any(c => c.Id == preferredStudentId.Value))
         {
-            durationItems =
-            [
-                new { Value = 5, Text = "5 Days" },
-                new { Value = 7, Text = "7 Days" }
-            ];
+            selectedStudentId = preferredStudentId.Value;
         }
+
+        const int defaultDurationDays = 30;
 
         return new AlaCartePageViewModel
         {
-            StudentId = children.FirstOrDefault()?.Id ?? 0,
-            Duration = durationItems.First().Value,
-            DurationList = new SelectList(durationItems, "Value", "Text", durationItems.First().Value),
+            StudentId = selectedStudentId,
+            Duration = defaultDurationDays,
+            DurationList = new SelectList(
+                new[] { new { Value = defaultDurationDays, Text = "30 Days" } },
+                "Value",
+                "Text",
+                defaultDurationDays),
             Children = children
         };
     }

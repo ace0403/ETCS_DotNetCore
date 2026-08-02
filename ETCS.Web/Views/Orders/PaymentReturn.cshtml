@@ -3,6 +3,7 @@
 @inject Microsoft.Extensions.Options.IOptions<ETCS.Web.Options.WebOptions> WebOptions
 @{
     ViewData["Title"] = "Payment Result";
+    ViewData["PageSubtitle"] = "Order payment confirmation";
     var currency = WebOptions.Value.DisplayCurrency;
     var isAlaCarte = Model.OrderTypeId == (int)TransactionTypeEnum.A_La_Carte;
     var isCombo = Model.OrderTypeId == (int)TransactionTypeEnum.MealOrder;
@@ -99,9 +100,6 @@
 }
 else
 {
-    <div class="page-header">
-        <h2 class="mb-1">Payment Result</h2>
-    </div>
     <div class="card">
         <div class="card-body text-center py-5">
             @if (Model.IsSuccess)

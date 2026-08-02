@@ -1,0 +1,98 @@
+@model ETCS.Web.Models.SupportPageViewModel
+@{
+    ViewData["Title"] = "Support";
+    ViewData["PageSubtitle"] = "We're here to help with orders, wallet, and account questions";
+    string SupportIcon(string file) => Url.Content($"~/images/icons/{file}");
+}
+<div class="support-page">
+    <section class="support-hero">
+        <div class="support-hero-icon" aria-hidden="true">
+            <span class="support-icon" style="--icon: url('@SupportIcon("question.svg")')"></span>
+        </div>
+        <div class="support-hero-copy">
+            <h2 class="support-hero-title">Contact Support</h2>
+            <p class="support-hero-text mb-0">
+                Reach the MealHub team by email@(Model.HasPhone ? " or phone" : "").
+                Include your child's name and order details so we can help faster.
+            </p>
+        </div>
+    </section>
+
+    <div class="support-grid">
+        <article class="support-card">
+            <div class="support-card-icon tone-email" aria-hidden="true">
+                <i class="ti ti-mail"></i>
+            </div>
+            <div class="support-card-body">
+                <h3 class="support-card-title">Email</h3>
+                <p class="support-card-value">
+                    <a href="mailto:@Model.SupportEmail">@Model.SupportEmail</a>
+                </p>
+                <p class="support-card-hint mb-0">We'll reply to your registered guardian email when possible.</p>
+            </div>
+        </article>
+
+        @if (Model.HasPhone)
+        {
+            <article class="support-card">
+                <div class="support-card-icon tone-phone" aria-hidden="true">
+                    <i class="ti ti-phone"></i>
+                </div>
+                <div class="support-card-body">
+                    <h3 class="support-card-title">Phone</h3>
+                    <p class="support-card-value">
+                        <a href="tel:@Model.SupportPhone">@Model.SupportPhone</a>
+                    </p>
+                    <p class="support-card-hint mb-0">Call during support hours for urgent help.</p>
+                </div>
+            </article>
+        }
+
+        @if (Model.HasHours)
+        {
+            <article class="support-card">
+                <div class="support-card-icon tone-hours" aria-hidden="true">
+                    <i class="ti ti-clock"></i>
+                </div>
+                <div class="support-card-body">
+                    <h3 class="support-card-title">Hours</h3>
+                    <p class="support-card-value">@Model.SupportHours</p>
+                    <p class="support-card-hint mb-0">Times may vary on public holidays.</p>
+                </div>
+            </article>
+        }
+    </div>
+
+    <section class="support-action-panel">
+        <div class="support-action-copy">
+            <h3 class="support-action-title">Email Support</h3>
+            <p class="support-action-text mb-0">
+                Opens your email app with your guardian details already filled in.
+                @if (!string.IsNullOrWhiteSpace(Model.GuardianEmail))
+                {
+                    <span>Signed in as <strong>@Model.GuardianName</strong> (@Model.GuardianEmail).</span>
+                }
+                else
+                {
+                    <span>Signed in as <strong>@Model.GuardianName</strong>.</span>
+                }
+            </p>
+        </div>
+        <a class="btn btn-primary support-mailto-btn" href="@Model.MailtoHref">
+            <i class="ti ti-send me-1" aria-hidden="true"></i>
+            Email Support
+        </a>
+    </section>
+
+    <p class="support-foot-note mb-0">
+        For account policy details, see
+        <a asp-controller="Legal" asp-action="Terms">Terms</a>,
+        <a asp-controller="Legal" asp-action="Privacy">Privacy</a>,
+        and
+        <a asp-controller="Legal" asp-action="Cancellation">Cancellation</a>.
+    </p>
+</div>
+
+@section Styles {
+    <link href="~/css/custom/support.css" asp-append-version="true" rel="stylesheet" />
+}

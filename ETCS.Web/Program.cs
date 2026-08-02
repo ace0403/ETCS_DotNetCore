@@ -25,7 +25,9 @@ using ETCS.Shared.Options;
 using ETCS.Shared.Application.Background;
 
 using ETCS.Shared.Application.Email;
+using ETCS.Shared.Application.Notifications;
 using ETCS.Shared.Application.Orders;
+using ETCS.Shared.Application.Topup;
 
 using ETCS.Web.Infrastructure.Background;
 
@@ -57,10 +59,13 @@ builder.Services.ConfigureMediaOptions(builder.Configuration, WebOptions.Section
 
 
 
+builder.Services.AddMemoryCache();
+
 builder.Services.AddSingleton<IDbConnectionFactory, SqlConnectionFactory>();
 
 builder.Services.AddSingleton<IMealDbConnectionFactory, SqlMealConnectionFactory>();
 
+builder.Services.AddScoped<IGuardianPasswordResetTokenStore, SqlGuardianPasswordResetTokenStore>();
 builder.Services.AddScoped<IParentLoginRepository, ParentLoginRepository>();
 
 builder.Services.AddScoped<IStudentRepository, StudentRepository>();
@@ -82,7 +87,9 @@ builder.Services.AddScoped<IMainOrderRepository, MainOrderRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 
 builder.Services.AddOrderFlowServices();
+builder.Services.AddTopupFlowServices();
 builder.Services.AddGuardianEmailServices();
+builder.Services.AddGuardianInAppNotificationServices();
 builder.Services.AddScoped<OrderPaymentSummaryBuilder>();
 
 builder.Services.AddSingleton<IPaymentBackgroundQueue, NoOpPaymentBackgroundQueue>();
@@ -109,7 +116,13 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.AddAuthorization();
 
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        // Match Admin / existing custom JS (Success, Message, etc.).
+        options.JsonSerializerOptions.PropertyNamingPolicy = null;
+        options.JsonSerializerOptions.DictionaryKeyPolicy = null;
+    });
 
 
 

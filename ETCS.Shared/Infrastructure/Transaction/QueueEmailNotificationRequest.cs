@@ -20,6 +20,10 @@ public sealed class QueueEmailNotificationRequest
 
     public string OrderItems { get; init; } = string.Empty;
 
+    public string ResetLink { get; init; } = string.Empty;
+
+    public string ExpiryMinutes { get; init; } = string.Empty;
+
     /// <summary>When set with OrderId, order line items are loaded in the background worker.</summary>
     public int GuardianId { get; init; }
 

@@ -7,14 +7,17 @@
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background: #f3f5f7;
     color: #1d2630;
-    min-height: 100vh;
+    height: 100vh;
     margin: 0;
+    overflow: hidden;
 }
 
 .login-shell {
-    min-height: 100vh;
+    height: 100%;
+    min-height: 100%;
     display: grid;
     grid-template-columns: 1.1fr 1fr;
+    overflow: hidden;
 }
 
 .login-hero {
@@ -24,6 +27,8 @@
     align-items: center;
     justify-content: center;
     padding: 3rem;
+    height: 100%;
+    min-height: 0;
 }
 
 .login-hero-bg {
@@ -72,20 +77,29 @@
 
 .login-panel {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    padding: 2rem 1.5rem;
+    justify-content: flex-start;
+    height: 100%;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 2rem 2rem;
     background: linear-gradient(180deg, #f8f9fa 0%, #eef2f7 100%);
+    -webkit-overflow-scrolling: touch;
 }
 
 .login-card {
     width: 100%;
-    max-width: 420px;
+    max-width: 540px;
+    margin-top: auto;
+    margin-bottom: auto;
     background: #fff;
     border: 1px solid #e8edf3;
     border-radius: 16px;
     box-shadow: 0 12px 40px rgba(29, 38, 48, 0.08);
     padding: 2.25rem 2rem 1.5rem;
+    flex-shrink: 0;
 }
 
 .login-card-logo {
@@ -159,14 +173,14 @@
 
 .login-input-group > .btn.login-password-toggle:hover,
 .login-input-group > .btn.login-password-toggle:focus {
-    color: #4680ff;
+    color: #3498db;
     background: #fff;
     box-shadow: none;
 }
 
 .login-input-group:focus-within .login-input-addon,
 .login-input-group:focus-within > .form-control {
-    border-color: #4680ff !important;
+    border-color: #3498db !important;
 }
 
 .login-input-group:focus-within {
@@ -178,8 +192,8 @@
     font-weight: 600;
     font-size: 0.95rem;
     border-radius: 10px !important;
-    background: #4680ff !important;
-    border-color: #4680ff !important;
+    background: #3498db !important;
+    border-color: #3498db !important;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -188,8 +202,8 @@
 }
 
 .login-submit:hover {
-    background: #3a6fe0 !important;
-    border-color: #3a6fe0 !important;
+    background: #2980b9 !important;
+    border-color: #2980b9 !important;
 }
 
 .login-submit:active {
@@ -207,12 +221,22 @@
 }
 
 @media (max-width: 992px) {
+    .login-page {
+        height: auto;
+        min-height: 100vh;
+        overflow: visible;
+    }
+
     .login-shell {
         grid-template-columns: 1fr;
+        height: auto;
+        min-height: 100vh;
+        overflow: visible;
     }
 
     .login-hero {
         min-height: 220px;
+        height: auto;
         padding: 2rem 1.5rem;
     }
 
@@ -230,11 +254,16 @@
     }
 
     .login-panel {
+        height: auto;
+        overflow: visible;
         padding: 1.5rem 1rem 2rem;
-        align-items: flex-start;
+        align-items: stretch;
     }
 
     .login-card {
+        margin-top: 0;
+        margin-bottom: 0;
+        max-width: none;
         padding: 1.75rem 1.25rem 1.25rem;
     }
 }
@@ -474,7 +503,7 @@ div.dt-search {
 }
 
 .login-page .login-input-group:focus-within > .form-control:last-child {
-    border-right-color: #4680ff !important;
+    border-right-color: #3498db !important;
 }
 
 .login-page .login-input-group > .input-group-text.login-input-addon {
@@ -841,14 +870,14 @@ body.canteen-report-loading {
 }
 
 .dashboard-quick-link:hover {
-    border-color: #4680ff;
+    border-color: #3498db;
     box-shadow: 0 4px 12px rgba(70, 128, 255, 0.12);
-    color: #4680ff;
+    color: #3498db;
 }
 
 .dashboard-quick-link i {
     font-size: 1.25rem;
-    color: #4680ff;
+    color: #3498db;
 }
 
 .dashboard-quick-link span {
@@ -904,4 +933,16 @@ body.canteen-report-loading {
         flex: 1;
         width: auto;
     }
+}
+
+.divider {
+    color: #bfc5cb;
+}
+
+.menu-icon{
+    width:17px;
+}
+
+.swiper-wrapper{
+    padding-top: 1px;
 }

@@ -1,9 +1,11 @@
 using ETCS.Pos.Web.Services;
 using ETCS.Shared.Infrastructure.Pos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ETCS.Pos.Web.Controllers;
 
+[Authorize]
 [Route("Pos/Api")]
 public sealed class PosApiProxyController : ControllerBase
 {

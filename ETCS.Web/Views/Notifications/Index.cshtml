@@ -1,0 +1,105 @@
+@model ETCS.Web.Models.NotificationsPageViewModel
+@{
+    ViewData["Title"] = "Notifications";
+    ViewData["PageSubtitle"] = "Orders, wallet updates, and announcements";
+    string IconUrl(string file) => Url.Content($"~/images/icons/{file}");
+}
+<div class="notifications-page">
+    <section class="notifications-inbox" aria-label="Notification inbox">
+        <div class="notifications-toolbar">
+            <div class="notifications-toolbar-meta">
+                <span class="notifications-count">
+                    @Model.TotalCount @(Model.TotalCount == 1 ? "notification" : "notifications")
+                </span>
+                @if (Model.UnreadCount > 0)
+                {
+                    <span class="notifications-unread-pill">@Model.UnreadCount unread</span>
+                }
+                @if (Model.TotalPages > 1)
+                {
+                    <span class="notifications-page-meta">Page @Model.Page of @Model.TotalPages</span>
+                }
+            </div>
+            @if (Model.UnreadCount > 0)
+            {
+                <form asp-action="MarkAllRead" method="post" id="markAllReadForm" class="m-0">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="notifications-mark-all">Mark all read</button>
+                </form>
+            }
+        </div>
+
+        @if (Model.TotalCount == 0)
+        {
+            <div class="notifications-empty">
+                <div class="notifications-empty-icon" aria-hidden="true">
+                    <span class="notifications-icon" style="--icon: url('@IconUrl("notification.svg")')"></span>
+                </div>
+                <h2 class="notifications-empty-title">You're all caught up</h2>
+                <p class="notifications-empty-text">Order confirmations, wallet top-ups, and school announcements will show up here.</p>
+            </div>
+        }
+        else
+        {
+            <div class="notifications-list" role="list">
+                @foreach (var note in Model.Items)
+                {
+                    <a href="@note.DetailUrl"
+                       class="notifications-item@(note.IsRead ? "" : " is-unread") @note.ToneCss"
+                       role="listitem">
+                        <div class="notifications-item-icon" aria-hidden="true">
+                            <span class="notifications-icon" style="--icon: url('@IconUrl(note.Icon)')"></span>
+                        </div>
+                        <div class="notifications-item-body">
+                            <div class="notifications-item-top">
+                                <h3 class="notifications-item-title">@note.Title</h3>
+                                <time class="notifications-item-time" datetime="@note.CreatedOn.ToString("o")">@note.RelativeTime</time>
+                            </div>
+                            <p class="notifications-item-message">@note.Message</p>
+                        </div>
+                        @if (!note.IsRead)
+                        {
+                            <span class="notifications-unread-dot" aria-label="Unread"></span>
+                        }
+                        <span class="notifications-item-chevron" aria-hidden="true">
+                            <i class="ti ti-chevron-right"></i>
+                        </span>
+                    </a>
+                }
+            </div>
+
+            @if (Model.TotalPages > 1)
+            {
+                <nav class="notifications-pagination" aria-label="Notifications pagination">
+                    <a class="notifications-page-btn@(Model.Page <= 1 ? " is-disabled" : "")"
+                       asp-action="Index"
+                       asp-route-page="@(Model.Page - 1)">
+                        <i class="ti ti-chevron-left"></i> Previous
+                    </a>
+                    <span class="notifications-page-indicator">@Model.Page / @Model.TotalPages</span>
+                    <a class="notifications-page-btn@(Model.Page >= Model.TotalPages ? " is-disabled" : "")"
+                       asp-action="Index"
+                       asp-route-page="@(Model.Page + 1)">
+                        Next <i class="ti ti-chevron-right"></i>
+                    </a>
+                </nav>
+            }
+        }
+    </section>
+</div>
+
+@section Styles {
+    <link href="~/css/custom/notifications.css" asp-append-version="true" rel="stylesheet" />
+}
+
+@section Scripts {
+<script>
+    $('#markAllReadForm').on('submit', function (e) {
+        e.preventDefault();
+        var $form = $(this);
+        $.post($form.attr('action'), $form.serialize()).done(function () {
+            window.location.reload();
+        });
+    });
+</script>
+}

@@ -1,19 +1,11 @@
 using ETCS.API.Features.Payment;
 using ETCS.API.Infrastructure.Auth;
-using ETCS.API.Infrastructure.Background;
-using ETCS.Shared.Application.Background;
-using ETCS.Shared.Application.Email;
-using ETCS.Shared.Application.Payment;
-using ETCS.PaymentGateway.Abstractions;
+using ETCS.Shared.Application.Topup;
 using ETCS.PaymentGateway.Models;
-using ETCS.Shared.Enumeration;
-using ETCS.Shared.Helpers;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Infrastructure.Transaction;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Globalization;
-using System.Text.Json;
 
 namespace ETCS.API.Controllers;
 
@@ -22,33 +14,23 @@ namespace ETCS.API.Controllers;
 [Authorize]
 public sealed class PaymentController : ControllerBase
 {
-    private readonly IPaymentGatewayRepository _paymentGatewayRepository;
-    private readonly ITransactionRepository _transactionRepository;
     private readonly IStudentRepository _studentRepository;
-    private readonly IPaymentBackgroundQueue _paymentBackgroundQueue;
-    private readonly IGuardianEmailNotificationService _emailNotificationService;
-    private readonly PaymentCompletionCancellation _completionCancellation;
+    private readonly ITransactionRepository _transactionRepository;
+    private readonly ITopupInitiateService _topupInitiateService;
+    private readonly ITopupPaymentCompleteService _topupPaymentCompleteService;
     private readonly IPaymentStatusService _paymentStatusService;
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
 
     public PaymentController(
-        IPaymentGatewayRepository paymentGatewayRepository,
-        ITransactionRepository transactionRepository,
         IStudentRepository studentRepository,
-        IPaymentBackgroundQueue paymentBackgroundQueue,
-        IGuardianEmailNotificationService emailNotificationService,
-        PaymentCompletionCancellation completionCancellation,
+        ITransactionRepository transactionRepository,
+        ITopupInitiateService topupInitiateService,
+        ITopupPaymentCompleteService topupPaymentCompleteService,
         IPaymentStatusService paymentStatusService)
     {
-        _paymentGatewayRepository = paymentGatewayRepository;
-        _transactionRepository = transactionRepository;
         _studentRepository = studentRepository;
-        _paymentBackgroundQueue = paymentBackgroundQueue;
-        _emailNotificationService = emailNotificationService;
-        _completionCancellation = completionCancellation;
+        _transactionRepository = transactionRepository;
+        _topupInitiateService = topupInitiateService;
+        _topupPaymentCompleteService = topupPaymentCompleteService;
         _paymentStatusService = paymentStatusService;
     }
 
@@ -108,126 +90,37 @@ public sealed class PaymentController : ControllerBase
             return Unauthorized(new { message = "Guardian claim is missing in token." });
         }
 
-        if (string.IsNullOrWhiteSpace(request.StudentId))
-        {
-            return BadRequest(new { message = "StudentId is required." });
-        }
-
-        if (!int.TryParse(request.StudentId.Trim(), out var studentPk) || studentPk <= 0)
-        {
-            return BadRequest(new { message = "StudentId is invalid." });
-        }
-
-        if (request.Amount <= 0)
-        {
-            return BadRequest(new { message = "Amount must be greater than zero." });
-        }
-
-        var parentDetails = await _studentRepository.GetGuardianBasicDetailByStudentIdAsync(request.StudentId, cancellationToken);
-        if (parentDetails is null)
-        {
-            return BadRequest(new { message = "Unable to resolve guardian details for this student." });
-        }
-
-        if (parentDetails.GuardianId != guardianId)
-        {
-            return Forbid();
-        }
-
-        var minimumTopup = await _studentRepository.GetStudentMinimumTopupAsync(studentPk, cancellationToken);
-        if (!TopupAmountRules.MeetsMinimum(request.Amount, minimumTopup))
-        {
-            var minimum = minimumTopup ?? 0m;
-            return BadRequest(new
+        var result = await _topupInitiateService.InitiateAsync(
+            new TopupInitiateRequest
             {
-                message = $"Minimum top-up amount for this student is {minimum.ToString("F2", CultureInfo.InvariantCulture)}.",
-                minimumTopupAmount = minimum
-            });
-        }
-
-        var orderId = OrderIdGenerator.GenerateForStudent(request.StudentId);
-        var topupTransactionPkId = await _transactionRepository.CreateTopupPendingTransactionAsync(
-            new TopupTransactionCreateRequest
-            {
-                GuardianId = parentDetails.GuardianId,
-                StudentId = studentPk,
-                Amount = request.Amount,
-                Remarks = orderId,
-                StatusId = (int)TransactionStatusEnum.Pending,
-                CreatedBy = parentDetails.GuardianId
+                GuardianId = guardianId,
+                StudentId = request.StudentId,
+                Amount = request.Amount
             },
             cancellationToken);
-
-        var result = await _paymentGatewayRepository.CreateTopupSessionAsync(request, orderId, cancellationToken);
-
-        var pgResponse = JsonSerializer.Serialize(result, JsonOptions);
-        _paymentBackgroundQueue.EnqueuePaymentLog(
-            orderId,
-            pgResponse ?? string.Empty);
 
         if (!result.IsSuccess)
         {
-            await _transactionRepository.UpdateTopupTransactionStatusAsync(
-                new TopupTransactionUpdateRequest
-                {
-                    TransactionPkId = topupTransactionPkId,
-                    GatewayTransactionId = string.IsNullOrWhiteSpace(result.TransactionId) ? string.Empty : result.TransactionId,
-                    StatusId = (int)TransactionStatusEnum.Failed,
-                    IsTransactionCompleted = false,
-                    Remarks = string.IsNullOrWhiteSpace(result.Message) ? "Payment session creation failed." : result.Message,
-                    UpdatedBy = parentDetails.GuardianId
-                },
-                cancellationToken);
-
-            return BadRequest(new
+            if (result.MinimumTopupAmount is > 0)
             {
-                message = string.IsNullOrWhiteSpace(result.Message)
-                    ? "Unable to create payment session."
-                    : result.Message
-            });
+                return BadRequest(new
+                {
+                    message = result.Message,
+                    minimumTopupAmount = result.MinimumTopupAmount
+                });
+            }
+
+            return BadRequest(new { message = result.Message });
         }
 
-        await _transactionRepository.UpdateTopupTransactionStatusAsync(
-            new TopupTransactionUpdateRequest
-            {
-                TransactionPkId = topupTransactionPkId,
-                GatewayTransactionId = result.TransactionId,
-                StatusId = (int)TransactionStatusEnum.Initiated,
-                IsTransactionCompleted = false,
-                Remarks = "Payment session created.",
-                UpdatedBy = parentDetails.GuardianId
-            },
-            cancellationToken);
-
-        var requestObj = new
+        return Ok(new PaymentSessionCreateResult
         {
-            GUID = orderId,
+            IsSuccess = true,
+            Message = result.Message,
             TransactionId = result.TransactionId,
-            GrdId = parentDetails?.GuardianId ?? 0,
-            CustomerId = parentDetails?.CustomerId ?? string.Empty,
-            GuardianEmail = parentDetails?.Email ?? string.Empty,
-            Amount = request.Amount.ToString(),
-            TransactionType = "topup"
-        };
-
-        await _transactionRepository.InsertPendingTransactionAsync(
-            new PendingTransactionRequest
-            {
-                CustomerID = requestObj.CustomerId,
-                Creby = parentDetails?.Email ?? string.Empty,
-                Amount = request.Amount.ToString(CultureInfo.InvariantCulture),
-                Loaded = "0",
-                TransDate = DateTime.Now.ToString("dd-MM-yyyy hh:mm:ss tt", CultureInfo.InvariantCulture),
-                Remarks = orderId,
-                Mode = "O",
-                BankName = "ETISALAT",
-                PaymentDetails = result.TransactionId,
-                Billdate = DateTime.Now.ToString("dd-MM-yyyy hh:mm:ss tt", CultureInfo.InvariantCulture),
-                RequestObject = JsonSerializer.Serialize(requestObj)
-            },
-            cancellationToken);
-
-        return Ok(result);
+            RedirectUrl = result.RedirectUrl,
+            OrderId = result.OrderId
+        });
     }
 
     /// <summary>
@@ -243,106 +136,26 @@ public sealed class PaymentController : ControllerBase
             return BadRequest(new { message = "TransactionId is required." });
         }
 
-        var topupState = await _transactionRepository.GetTopupPendingForCompletionAsync(
-            request.OrderId,
-            request.TransactionId,
-            cancellationToken);
-
-        if (topupState is { IsTransactionCompleted: true })
-        {
-            return Ok(new PaymentCaptureResult
+        var result = await _topupPaymentCompleteService.CompleteAsync(
+            new TopupCompleteRequest
             {
-                IsSuccess = true,
-                Message = "Top-up already completed.",
-                TransactionId = request.TransactionId,
-                Status = "completed"
-            });
-        }
-
-        var result = await _paymentGatewayRepository.CapturePaymentAsync(
-            request,
-            _completionCancellation.CaptureToken(cancellationToken));
+                StudentId = request.StudentId,
+                OrderId = request.OrderId,
+                TransactionId = request.TransactionId
+            },
+            cancellationToken);
 
         if (!result.IsSuccess && !result.IsPending)
         {
-            return BadRequest(new
-            {
-                message = string.IsNullOrWhiteSpace(result.Message)
-                    ? "Unable to capture payment status."
-                    : result.Message
-            });
-        }
-
-        var pgResponse = JsonSerializer.Serialize(result, JsonOptions);
-        _paymentBackgroundQueue.EnqueuePaymentLog(
-            request.OrderId,
-            pgResponse ?? string.Empty);
-
-        var paymentCompleted = result.IsSuccess && !result.IsPending;
-        var gatewayTransactionId = string.IsNullOrWhiteSpace(result.TransactionId) ? request.TransactionId : result.TransactionId;
-
-        if (paymentCompleted)
-        {
-            var dbToken = _completionCancellation.DbToken();
-
-            var parentDetails = await _studentRepository.GetGuardianBasicDetailByStudentIdAsync(
-                request.StudentId.ToString(CultureInfo.InvariantCulture),
-                dbToken);
-
-            if (topupState is not null)
-            {
-                await _transactionRepository.UpdateTopupTransactionStatusAsync(
-                    new TopupTransactionUpdateRequest
-                    {
-                        TransactionPkId = topupState.TransactionPkId,
-                        GatewayTransactionId = gatewayTransactionId,
-                        StatusId = (int)TransactionStatusEnum.Success,
-                        IsTransactionCompleted = true,
-                        Remarks = string.IsNullOrWhiteSpace(result.Message) ? "Topup completed." : result.Message,
-                        UpdatedBy = parentDetails?.GuardianId
-                    },
-                    dbToken);
-            }
-
-            await _transactionRepository.UpdatePendingAndTopupTransactionAsync(
-                new UpdatePendingTransactionRequest
-                {
-                    CustomerID = parentDetails?.CustomerId ?? string.Empty,
-                    Loaded = "1",
-                    Creby = parentDetails?.Email ?? string.Empty,
-                    PaymentDetails = gatewayTransactionId,
-                    Remarks = request.OrderId
-                },
-                new UpdateTopupTransactionRequest
-                {
-                    CustomerID = parentDetails?.CustomerId ?? string.Empty,
-                    Remarks = request.OrderId
-                },
-                dbToken);
-
-            var topupAmount = topupState?.Amount ?? 0m;
-            if (parentDetails is not null)
-            {
-                await _emailNotificationService.QueueTopupSuccessAsync(
-                    request.StudentId,
-                    parentDetails.GuardianId,
-                    parentDetails.Email,
-                    parentDetails.GuardianName,
-                    request.OrderId,
-                    gatewayTransactionId,
-                    topupAmount,
-                    dbToken);
-            }
+            return BadRequest(new { message = result.Message });
         }
 
         return Ok(new PaymentCaptureResult
         {
-            IsSuccess = paymentCompleted,
+            IsSuccess = result.IsSuccess,
             IsPending = result.IsPending,
-            Message = string.IsNullOrWhiteSpace(result.Message)
-                ? (paymentCompleted ? "Topup completed." : "Payment is still processing.")
-                : result.Message,
-            TransactionId = gatewayTransactionId,
+            Message = result.Message,
+            TransactionId = result.TransactionId,
             Status = result.Status
         });
     }
@@ -410,6 +223,8 @@ public sealed class PaymentController : ControllerBase
                 studentId,
                 guardianId,
                 type,
+                fromDate: null,
+                toDate: null,
                 page: 1,
                 pageSize: count,
                 cancellationToken);
@@ -434,6 +249,8 @@ public sealed class PaymentController : ControllerBase
     public async Task<IActionResult> GetTransactionHistory(
         [FromQuery] int? studentId,
         [FromQuery] string? type = "all",
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
@@ -460,6 +277,8 @@ public sealed class PaymentController : ControllerBase
                 studentId,
                 guardianId,
                 type,
+                fromDate,
+                toDate,
                 page,
                 pageSize,
                 cancellationToken);

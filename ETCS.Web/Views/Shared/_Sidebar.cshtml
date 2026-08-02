@@ -1,38 +1,96 @@
-@{ Layout = null; }
+@{
+    Layout = null;
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    var historyView = Context.Request.Query["view"].ToString();
+    var isHistory = string.Equals(currentController, "History", StringComparison.OrdinalIgnoreCase);
+    var isOrders = isHistory && !string.Equals(historyView, "transactions", StringComparison.OrdinalIgnoreCase);
+    var isTransactions = isHistory && string.Equals(historyView, "transactions", StringComparison.OrdinalIgnoreCase);
+
+    bool IsActive(string controller) =>
+        string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase);
+
+    string NavIcon(string fileName) => Url.Content($"~/images/icons/{fileName}");
+}
 <nav class="pc-sidebar">
-    <div class="navbar-wrapper pt-2">
-        <div class="m-header mt-3 mb-3 d-flex justify-content-center">
-            <a asp-controller="Dashboard" asp-action="Index" class="b-brand text-primary">
-                <img src="~/images/logo.png" width="120" class="img-fluid logo-lg" alt="ETCS" />
+    <div class="navbar-wrapper">
+        <div class="m-header">
+            <a asp-controller="Dashboard" asp-action="Index" class="etcs-brand">
+                <img src="~/images/icons/cutlery_w.svg" class="etcs-brand-logo" alt="ETCS" />
+                <span class="etcs-brand-text">
+                    <span class="etcs-brand-title">MealHub</span>
+                    <span class="etcs-brand-subtitle">Parent Portal</span>
+                </span>
             </a>
         </div>
         <div class="navbar-content">
-            <ul class="pc-navbar">
-                <li class="pc-item">
-                    <a asp-controller="Dashboard" asp-action="Index" class="pc-link">
-                        <span class="pc-micon"><i class="ti ti-dashboard"></i></span>
+            <ul class="pc-navbar etcs-nav">
+                <li class="pc-item@(IsActive("Dashboard") ? " active" : "")">
+                    <a asp-controller="Dashboard" asp-action="Index" class="pc-link@(IsActive("Dashboard") ? " active" : "")">
+                        <span class="pc-micon etcs-nav-icon" style="--icon: url('@NavIcon("dashboard.svg")')"></span>
                         <span class="pc-mtext">Dashboard</span>
                     </a>
                 </li>
-                <li class="pc-item">
-                    <a asp-controller="MyKids" asp-action="Index" class="pc-link">
-                        <span class="pc-micon"><i class="ti ti-users"></i></span>
-                        <span class="pc-mtext">My Kids</span>
+                <li class="pc-item@(IsActive("MyKids") ? " active" : "")">
+                    <a asp-controller="MyKids" asp-action="Index" class="pc-link@(IsActive("MyKids") ? " active" : "")">
+                        <span class="pc-micon etcs-nav-icon" style="--icon: url('@NavIcon("users.svg")')"></span>
+                        <span class="pc-mtext">My Children</span>
                     </a>
                 </li>
-                <li class="pc-item">
-                    <a asp-controller="AlaCarte" asp-action="Index" class="pc-link">
-                        <span class="pc-micon"><i class="ti ti-tools-kitchen-2"></i></span>
-                        <span class="pc-mtext">Ala-Carte</span>
+                <li class="pc-item@(IsActive("MealCombo") ? " active" : "")">
+                    <a asp-controller="MealCombo" asp-action="Index" class="pc-link@(IsActive("MealCombo") ? " active" : "")">
+                        <span class="pc-micon etcs-nav-icon" style="--icon: url('@NavIcon("plan.svg")')"></span>
+                        <span class="pc-mtext">Meal Plans</span>
                     </a>
                 </li>
-                <li class="pc-item">
-                    <a asp-controller="MealCombo" asp-action="Index" class="pc-link">
-                        <span class="pc-micon"><i class="ti ti-package"></i></span>
-                        <span class="pc-mtext">Meal Combo</span>
+                <li class="pc-item@(IsActive("AlaCarte") ? " active" : "")">
+                    <a asp-controller="AlaCarte" asp-action="Index" class="pc-link@(IsActive("AlaCarte") ? " active" : "")">
+                        <span class="pc-micon etcs-nav-icon" style="--icon: url('@NavIcon("cutlery.svg")')"></span>
+                        <span class="pc-mtext">A La Carte</span>
+                    </a>
+                </li>
+                <li class="pc-item@(IsActive("Topup") ? " active" : "")">
+                    <a asp-controller="Topup" asp-action="Index" class="pc-link@(IsActive("Topup") ? " active" : "")">
+                        <span class="pc-micon etcs-nav-icon" style="--icon: url('@NavIcon("wallet.svg")')"></span>
+                        <span class="pc-mtext">Wallet</span>
+                    </a>
+                </li>
+                @* <li class="pc-item@(isOrders ? " active" : "")">
+                    <a asp-controller="History" asp-action="Index" class="pc-link@(isOrders ? " active" : "")">
+                        <span class="pc-micon etcs-nav-icon" style="--icon: url('@NavIcon("shopping.svg")')"></span>
+                        <span class="pc-mtext">Orders</span>
+                    </a>
+                </li> *@
+                <li class="pc-item@(isTransactions ? " active" : "")">
+                    <a asp-controller="History" asp-action="Index" class="pc-link@(isTransactions ? " active" : "")">
+                        <span class="pc-micon etcs-nav-icon" style="--icon: url('@NavIcon("money.svg")')"></span>
+                        <span class="pc-mtext">Transactions</span>
+                    </a>
+                </li>
+                <li class="pc-item@(IsActive("Notifications") ? " active" : "")">
+                    <a asp-controller="Notifications" asp-action="Index" class="pc-link@(IsActive("Notifications") ? " active" : "")">
+                        <span class="pc-micon etcs-nav-icon" style="--icon: url('@NavIcon("notification.svg")')"></span>
+                        <span class="pc-mtext">Notifications</span>
+                    </a>
+                </li>
+                @* <li class="pc-item">
+                    <a href="#" class="pc-link js-change-password">
+                        <span class="pc-micon etcs-nav-icon" style="--icon: url('@NavIcon("user.svg")')"></span>
+                        <span class="pc-mtext">Profile</span>
+                    </a>
+                </li> *@
+                <li class="pc-item@(IsActive("Support") ? " active" : "")">
+                    <a asp-controller="Support" asp-action="Index" class="pc-link@(IsActive("Support") ? " active" : "")">
+                        <span class="pc-micon etcs-nav-icon" style="--icon: url('@NavIcon("question.svg")')"></span>
+                        <span class="pc-mtext">Support</span>
                     </a>
                 </li>
             </ul>
+        </div>
+
+        <div class="etcs-sidebar-help">
+            <h6>Need Help?</h6>
+            <p>Contact our support team</p>
+            <a asp-controller="Support" asp-action="Index" class="btn">Get Support</a>
         </div>
     </div>
 </nav>

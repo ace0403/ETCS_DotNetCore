@@ -2,6 +2,7 @@ using ETCS.PaymentGateway.Abstractions;
 using ETCS.PaymentGateway.Models;
 using ETCS.Shared.Application.Background;
 using ETCS.Shared.Application.Email;
+using ETCS.Shared.Application.Notifications;
 using ETCS.Shared.Application.Payment;
 using ETCS.Shared.Enumeration;
 using ETCS.Shared.Infrastructure.Orders;
@@ -23,6 +24,7 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
     private readonly ITransactionRepository _transactionRepository;
     private readonly IPaymentBackgroundQueue _paymentBackgroundQueue;
     private readonly IGuardianEmailNotificationService _emailNotificationService;
+    private readonly IGuardianInAppNotificationService _inAppNotificationService;
     private readonly PaymentCompletionCancellation _completionCancellation;
     private readonly OrderFlowOptions _orderFlowOptions;
 
@@ -39,6 +41,7 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
         ITransactionRepository transactionRepository,
         IPaymentBackgroundQueue paymentBackgroundQueue,
         IGuardianEmailNotificationService emailNotificationService,
+        IGuardianInAppNotificationService inAppNotificationService,
         PaymentCompletionCancellation completionCancellation,
         IOptions<OrderFlowOptions> orderFlowOptions)
     {
@@ -49,6 +52,7 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
         _transactionRepository = transactionRepository;
         _paymentBackgroundQueue = paymentBackgroundQueue;
         _emailNotificationService = emailNotificationService;
+        _inAppNotificationService = inAppNotificationService;
         _completionCancellation = completionCancellation;
         _orderFlowOptions = orderFlowOptions.Value;
     }
@@ -77,6 +81,31 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
                 OrderId = request.OrderId,
                 GatewayTransactionId = request.TransactionId,
                 AccessLogId = paymentState.AccessLogId.Value
+            };
+        }
+
+        if (paymentState.IsTransactionCompleted
+            || paymentState.TransactionStatusId == (int)TransactionStatusEnum.Success)
+        {
+            return new OrderCompleteResponse
+            {
+                IsSuccess = true,
+                IsAlreadyProcessed = true,
+                Message = "Order payment already completed.",
+                OrderId = request.OrderId,
+                GatewayTransactionId = request.TransactionId,
+                AccessLogId = paymentState.AccessLogId ?? 0
+            };
+        }
+
+        if (paymentState.TransactionStatusId is not ((int)TransactionStatusEnum.Initiated or (int)TransactionStatusEnum.Pending))
+        {
+            return new OrderCompleteResponse
+            {
+                IsSuccess = false,
+                Message = $"Order payment is not pending (StatusId={paymentState.TransactionStatusId}).",
+                OrderId = request.OrderId,
+                GatewayTransactionId = request.TransactionId
             };
         }
 
@@ -179,6 +208,32 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
             request.OrderId,
             paymentDetails,
             paymentState.Total,
+            dbToken);
+
+        var schoolId = await _studentRepository.GetStudentSchoolIdAsync(request.StudentId, dbToken);
+        var mealLabel = paymentState.OrderTypeId switch
+        {
+            (int)TransactionTypeEnum.A_La_Carte => "A La Carte",
+            (int)TransactionTypeEnum.MealOrder => "Meal Plan",
+            (int)TransactionTypeEnum.POS => "POS",
+            _ => "Order"
+        };
+
+        var studentName = string.Empty;
+        var students = await _studentRepository.GetStudentBasicListByGuardianAsync(request.GuardianId, dbToken);
+        var matched = students.FirstOrDefault(s => s.UserId == request.StudentId);
+        if (matched is not null && !string.IsNullOrWhiteSpace(matched.Name))
+        {
+            studentName = matched.Name.Trim();
+        }
+
+        await _inAppNotificationService.CreateOrderSuccessAsync(
+            request.StudentId,
+            request.GuardianId,
+            studentName,
+            request.OrderId,
+            mealLabel,
+            schoolId,
             dbToken);
 
         return new OrderCompleteResponse

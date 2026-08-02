@@ -1,0 +1,136 @@
+@model ETCS.Web.Models.ParentRegisterRequest
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register - ETCS</title>
+    <link rel="icon" href="~/favicon.ico" type="image/svg+xml" />
+    <link rel="stylesheet" href="~/fonts/inter/inter.css" />
+    <link rel="stylesheet" href="~/fonts/tabler-icons.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/toastr.min.css" />
+    <link rel="stylesheet" href="~/css/custom/dev-style.css" />
+    <link rel="stylesheet" href="~/css/custom/legal.css" asp-append-version="true" />
+</head>
+<body class="login-page">
+    <div class="login-shell">
+        <section class="login-hero" aria-hidden="true">
+            <div class="login-hero-bg"></div>
+            <div class="login-hero-content">
+                <img src="~/images/logo.png" alt="ETCS" class="login-hero-logo" />
+                <h1 class="login-hero-title">ETCS Portal</h1>
+                <p class="login-hero-text">View balances, meal orders, and student activity from one secure dashboard.</p>
+            </div>
+        </section>
+
+        <section class="login-panel">
+            <div class="login-card">
+                <div class="login-card-header text-center">
+                    <img src="~/images/logo.png" alt="ETCS" class="login-card-logo" />
+                    <h2 class="login-card-title">Create account</h2>
+                    <p class="login-card-subtitle">Register to manage meals, balances, and student activity.</p>
+                </div>
+
+                <form asp-action="Register" method="post" class="login-form">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="FirstName" class="form-label login-label"></label>
+                            <div class="input-group login-input-group">
+                                <span class="input-group-text login-input-addon"><i class="ti ti-user"></i></span>
+                                <input asp-for="FirstName" class="form-control" placeholder="First name" autocomplete="given-name" />
+                            </div>
+                            <span asp-validation-for="FirstName" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="LastName" class="form-label login-label"></label>
+                            <div class="input-group login-input-group">
+                                <span class="input-group-text login-input-addon"><i class="ti ti-user"></i></span>
+                                <input asp-for="LastName" class="form-control" placeholder="Last name" autocomplete="family-name" />
+                            </div>
+                            <span asp-validation-for="LastName" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 mt-3">
+                        <label asp-for="Username" class="form-label login-label"></label>
+                        <div class="input-group login-input-group">
+                            <span class="input-group-text login-input-addon"><i class="ti ti-at"></i></span>
+                            <input asp-for="Username" class="form-control" placeholder="Choose a username" autocomplete="username" />
+                        </div>
+                        <span asp-validation-for="Username" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label login-label"></label>
+                        <div class="input-group login-input-group">
+                            <span class="input-group-text login-input-addon"><i class="ti ti-mail"></i></span>
+                            <input asp-for="Email" class="form-control" placeholder="Email address" autocomplete="email" />
+                        </div>
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="MobileNumber" class="form-label login-label"></label>
+                        <div class="input-group login-input-group">
+                            <span class="input-group-text login-input-addon"><i class="ti ti-phone"></i></span>
+                            <input asp-for="MobileNumber" class="form-control" placeholder="Mobile number" autocomplete="tel" />
+                        </div>
+                        <span asp-validation-for="MobileNumber" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label login-label"></label>
+                        <div class="input-group login-input-group">
+                            <span class="input-group-text login-input-addon"><i class="ti ti-lock"></i></span>
+                            <input asp-for="Password" class="form-control" placeholder="Password (min 8 characters)" autocomplete="new-password" />
+                        </div>
+                        <span asp-validation-for="Password" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="ConfirmPassword" class="form-label login-label"></label>
+                        <div class="input-group login-input-group">
+                            <span class="input-group-text login-input-addon"><i class="ti ti-lock"></i></span>
+                            <input asp-for="ConfirmPassword" class="form-control" placeholder="Confirm password" autocomplete="new-password" />
+                        </div>
+                        <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary login-submit w-100">
+                        <span>Create account</span>
+                        <i class="ti ti-arrow-right ms-1"></i>
+                    </button>
+                </form>
+
+                <p class="text-center mt-3 mb-0">
+                    <a asp-controller="Home" asp-action="Index" class="small text-decoration-none">Already have an account? Sign in</a>
+                </p>
+
+                <p class="login-footer text-center mb-0 mt-3">&copy; @DateTime.Now.Year ETCS. All rights reserved.</p>
+                <div class="login-footer-links">
+                    <a asp-controller="Legal" asp-action="Terms">Terms</a>
+                    <a asp-controller="Legal" asp-action="Privacy">Privacy</a>
+                    <a asp-controller="Legal" asp-action="Cancellation">Cancellation</a>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="~/js/toastr.min.js"></script>
+    <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js"></script>
+    <script src="~/js/custom/siteurl.js"></script>
+    <script src="~/js/custom/common.js"></script>
+    <script>
+        $(function () {
+            initAdminFormValidation('.login-form');
+        });
+    </script>
+</body>
+</html>

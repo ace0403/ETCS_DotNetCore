@@ -6,6 +6,9 @@
     else if (msg == "login-failed") { text = "Invalid username or password."; }
     else if (msg == "logout-success") { success = true; text = "You have been logged out."; }
     else if (msg == "unauthorize") { text = "Please sign in to continue."; }
+    else if (msg == "password-reset-success") { success = true; text = "Your password has been updated. Please sign in."; }
+    else if (msg == "reset-sent") { success = true; text = "If an account exists for that email, password reset instructions have been sent."; }
+    else if (msg == "register-success") { success = true; text = "Registration successful. Please sign in."; }
 }
 <script>
     $(function () {

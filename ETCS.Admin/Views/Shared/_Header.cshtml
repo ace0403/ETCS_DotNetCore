@@ -1,28 +1,62 @@
 @using System.Security.Claims
-@{ Layout = null; }
-<header class="pc-header">
-    <div class="header-wrapper">
-        <div class="me-auto pc-mob-drp">
-            <ul class="list-unstyled">
+@{
+    Layout = null;
+    var displayName = User.GetDisplayName()?.Trim();
+    if (string.IsNullOrWhiteSpace(displayName))
+    {
+        displayName = "there";
+    }
+
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    var isDashboard = string.Equals(controller, "Dashboard", StringComparison.OrdinalIgnoreCase);
+    var pageTitle = ViewData["Title"]?.ToString() ?? "ETCS Admin";
+    var pageSubtitle = ViewData["PageSubtitle"]?.ToString();
+    if (string.IsNullOrWhiteSpace(pageSubtitle))
+    {
+        pageSubtitle = isDashboard
+            ? "Canteen sales, transactions, and terminal activity"
+            : "Manage schools, meals, users, and reports";
+    }
+}
+<header class="pc-header etcs-topbar">
+    <div class="header-wrapper etcs-topbar-inner">
+        <div class="etcs-topbar-left">
+            <ul class="list-unstyled etcs-topbar-toggles mb-0">
                 <li class="pc-h-item pc-sidebar-collapse">
-                    <a href="#" class="pc-head-link ms-0" id="sidebar-hide"><i class="ti ti-menu-2"></i></a>
+                    <a href="#" class="pc-head-link ms-0" id="sidebar-hide" aria-label="Toggle sidebar"><i class="ti ti-menu-2"></i></a>
                 </li>
                 <li class="pc-h-item pc-sidebar-popup">
-                    <a href="#" class="pc-head-link ms-0" id="mobile-collapse"><i class="ti ti-menu-2"></i></a>
+                    <a href="#" class="pc-head-link ms-0" id="mobile-collapse" aria-label="Open menu"><i class="ti ti-menu-2"></i></a>
                 </li>
             </ul>
+            <div class="etcs-topbar-greeting">
+                @if (isDashboard)
+                {
+                    <h1 class="etcs-topbar-title">Welcome back, @displayName</h1>
+                }
+                else
+                {
+                    <h1 class="etcs-topbar-title">@pageTitle</h1>
+                }
+                <p class="etcs-topbar-subtitle mt-0">@pageSubtitle</p>
+            </div>
         </div>
-        <div class="ms-auto">
-            <ul class="list-unstyled">
+        <div class="etcs-topbar-right">
+            <ul class="list-unstyled d-flex align-items-center gap-2 mb-0">
                 <li class="dropdown pc-h-item header-user-profile">
-                    <a class="pc-head-link dropdown-toggle arrow-none me-0" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">
-                        <img src="/images/user/avatar-2.jpg" alt="user-image" class="user-avtar">
+                    <a class="pc-head-link dropdown-toggle arrow-none me-0 etcs-topbar-avatar-link"
+                       data-bs-toggle="dropdown"
+                       href="#"
+                       role="button"
+                       aria-expanded="false"
+                       aria-label="Account menu">
+                        <img src="/images/user/avatar-2.jpg" alt="" class="user-avtar etcs-topbar-avatar">
                     </a>
                     <div class="dropdown-menu dropdown-user-profile dropdown-menu-end pc-h-dropdown">
                         <div class="dropdown-body">
                             <div class="d-flex mb-2">
                                 <div class="flex-shrink-0">
-                                    <img src="~/images/user/avatar-2.jpg" alt="user-image" class="user-avtar wid-35" />
+                                    <img src="~/images/user/avatar-2.jpg" alt="" class="user-avtar wid-35" />
                                 </div>
                                 <div class="flex-grow-1 ms-3">
                                     <h6 class="mb-1">@User.GetDisplayName()</h6>

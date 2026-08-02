@@ -1,7 +1,11 @@
 var selectedIds = [];
 var dateSwiper = null;
+var MENU_DURATION_DAYS = 30;
+var activeMealTypeFilter = 'all';
 
 $(function () {
+    initChildSelect();
+
     $('#StudentId').on('change', function () {
         resetSelection();
         var currentDate = getSelectedMealDate();
@@ -10,12 +14,19 @@ $(function () {
         }
     });
 
-    $('#Duration').on('change', function () {
-        $('#date-container').empty();
-        initDates();
+    $(document).on('input', '#menuSearchInput', function () {
+        applyMenuFilters();
     });
 
-    $(document).on('click', '#div-packagelist .meal-item', function () {
+    $(document).on('click', '.menu-category-chip', function () {
+        var $chip = $(this);
+        activeMealTypeFilter = String($chip.data('meal-type') || 'all');
+        $('.menu-category-chip').removeClass('is-active').attr('aria-selected', 'false');
+        $chip.addClass('is-active').attr('aria-selected', 'true');
+        applyMenuFilters();
+    });
+
+    $(document).on('click', '#div-packagelist .meal-item', async function () {
         var $item = $(this);
         var packageId = parseInt($item.find('input[type="checkbox"]').val(), 10);
         var mealDate = getSelectedMealDate();
@@ -25,13 +36,31 @@ $(function () {
             $checkbox.prop('checked', false);
             $item.removeClass('selected').attr('aria-pressed', 'false');
             selectedIds = excludeSelection(selectedIds, packageId, mealDate);
-        } else {
-            $checkbox.prop('checked', true);
-            $item.addClass('selected').attr('aria-pressed', 'true');
-            selectedIds = excludeSelection(selectedIds, packageId, mealDate);
-            selectedIds.push({ PackageId: packageId, MealDate: mealDate, Id: GUID() });
+            updateSelectionBar();
+            return;
         }
 
+        var isAllergenItem = String($item.find('.is-allergen-item').val() || '').toLowerCase() === 'true';
+        if (isAllergenItem) {
+            var allergies = [];
+            var name = $item.find('.allergies-name').val();
+            if (name) {
+                String(name).split(',').forEach(function (part) {
+                    var trimmed = part.trim();
+                    if (trimmed) allergies.push(trimmed);
+                });
+            }
+            var childName = $('#StudentId option:selected').text();
+            var consent = await showAllergenConsent(childName, allergies, 'combo');
+            if (!consent.isConfirmed) {
+                return;
+            }
+        }
+
+        $checkbox.prop('checked', true);
+        $item.addClass('selected').attr('aria-pressed', 'true');
+        selectedIds = excludeSelection(selectedIds, packageId, mealDate);
+        selectedIds.push({ PackageId: packageId, MealDate: mealDate, Id: GUID() });
         updateSelectionBar();
     });
 
@@ -44,33 +73,8 @@ $(function () {
 
     $(document).on('click', '#btnPlaceOrder', async function () {
         if (selectedIds.length === 0) {
-            await Swal.fire({ title: 'Please select at least one combo.', icon: 'warning' });
+            await showStyledAlert('Please select at least one combo.');
             return;
-        }
-
-        var allergenItems = $('#div_meal .is-allergen-item[value="true"]').closest('.meal-item')
-            .filter(function () { return $(this).find('input[type="checkbox"]').is(':checked'); });
-
-        if (allergenItems.length > 0) {
-            var allergies = [];
-            allergenItems.each(function () {
-                var name = $(this).find('.allergies-name').val();
-                if (name) allergies.push(name);
-            });
-            var childName = $('#StudentId option:selected').text();
-            var message = '<b>Allergens: ' + allergies.join(', ') + '</b><br/><br/>I consent to ' + childName +
-                ' receiving this combo despite the allergens it contains.';
-
-            var consent = await Swal.fire({
-                title: 'The selected combo contains allergens that ' + childName + ' is sensitive to',
-                html: message,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'Agree to Serve',
-                cancelButtonText: 'Cancel Selection'
-            });
-
-            if (!consent.isConfirmed) return;
         }
 
         getOrderSummary(selectedIds);
@@ -82,7 +86,7 @@ $(function () {
             return;
         }
         if (selectedIds.length === 0) {
-            Swal.fire({ title: 'Please select at least one combo.', icon: 'warning' });
+            showStyledAlert('Please select at least one combo.');
             return;
         }
         showPageOverlay('Processing your order...');
@@ -90,8 +94,74 @@ $(function () {
         placeOrder(selectedIds, $btn);
     });
 
+    $(document).on('click', '#summary_modal .ala-carte-summary-remove', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        removeSummarySelection($(this));
+    });
+
     initDates();
 });
+
+function initChildSelect() {
+    var $student = $('#StudentId');
+    if (!$student.length || typeof $student.select2 !== 'function') {
+        return;
+    }
+
+    if ($student.hasClass('select2-hidden-accessible')) {
+        $student.select2('destroy');
+    }
+
+    $student.select2({
+        width: '100%',
+        minimumResultsForSearch: 6,
+        placeholder: 'Select child',
+        allowClear: false,
+        dropdownParent: $(document.body),
+        // Dropdown is attached to body (scroll-jump fix), so theme via this class — not .menu-browse-child nesting.
+        dropdownCssClass: 'menu-child-select2-dropdown'
+    });
+
+    // Prevent Select2's hidden <select> from pulling the page scroll to the top.
+    $student.on('select2:opening select2:open select2:closing select2:close select2:select', function () {
+        var pos = captureMenuScroll();
+        window.requestAnimationFrame(function () {
+            restoreMenuScroll(pos);
+        });
+    });
+}
+
+function getMenuScrollContainer() {
+    var $container = $('.pc-container');
+    if ($container.length && $container.css('overflow-y') === 'auto') {
+        return $container;
+    }
+    return $(window);
+}
+
+function captureMenuScroll() {
+    var $scroller = getMenuScrollContainer();
+    if ($scroller[0] === window) {
+        return {
+            type: 'window',
+            top: window.scrollY || document.documentElement.scrollTop || 0
+        };
+    }
+    return {
+        type: 'element',
+        top: $scroller.scrollTop()
+    };
+}
+
+function restoreMenuScroll(pos) {
+    if (!pos) return;
+    if (pos.type === 'window') {
+        window.scrollTo(0, pos.top);
+        return;
+    }
+    $('.pc-container').scrollTop(pos.top);
+}
 
 function resetSelection() {
     selectedIds = [];
@@ -110,6 +180,8 @@ function searchPackages() {
     var mealDate = $('#MealDate').val();
     if (!studentId || !mealDate) return;
 
+    var scrollPos = captureMenuScroll();
+
     $.ajax({
         url: SiteUrl + 'mealcombo/searchpackages',
         type: 'POST',
@@ -119,13 +191,45 @@ function searchPackages() {
         },
         success: function (result) {
             $('#div-packagelist').html(result);
+            activeMealTypeFilter = 'all';
+            $('#menuSearchInput').val('');
             initSelection();
+            applyMenuFilters();
             updateSelectionBar();
+            restoreMenuScroll(scrollPos);
         },
         error: function () {
             toastMsg('Error loading meal combos', false);
         }
     });
+}
+
+function applyMenuFilters() {
+    var query = String($('#menuSearchInput').val() || '').trim().toLowerCase();
+    var visibleCount = 0;
+    var showingAll = activeMealTypeFilter === 'all';
+
+    $('.menu-browse-inner').toggleClass('is-showing-all', showingAll);
+
+    $('#div-packagelist .meal-item').each(function () {
+        var $card = $(this);
+        var typeId = String($card.data('meal-type-id') || '');
+        var searchText = String($card.data('search-text') || '');
+        var typeOk = showingAll || typeId === String(activeMealTypeFilter);
+        var searchOk = !query || searchText.indexOf(query) >= 0;
+        var show = typeOk && searchOk;
+        $card.toggleClass('is-filtered-out', !show);
+        if (show) visibleCount += 1;
+    });
+
+    var $empty = $('#menuFilterEmpty');
+    if ($empty.length) {
+        if (visibleCount === 0 && $('#div-packagelist .meal-item').length > 0) {
+            $empty.removeAttr('hidden');
+        } else {
+            $empty.attr('hidden', 'hidden');
+        }
+    }
 }
 
 function getSelectedMealDate() {
@@ -181,21 +285,44 @@ function updateSelectedDateDisplay(dateValue) {
     $wrap.removeAttr('hidden');
 }
 
-function getOrderSummary(packageList) {
+function getOrderSummary(packageList, preferredMealDate) {
     $.ajax({
         url: SiteUrl + 'mealcombo/getordersummary',
         type: 'POST',
         traditional: true,
         data: serializeOrderItems(packageList, 'items'),
         success: function (result) {
+            var $existing = $('#summary_modal');
+            var activeMealDate = preferredMealDate
+                || $existing.find('.ala-carte-summary-date-tab.active').attr('data-meal-date')
+                || '';
+
+            if ($existing.length && $existing.hasClass('show')) {
+                var $incoming = $('<div>').html(result);
+                var $newModal = $incoming.find('#summary_modal');
+                if (!$newModal.length) {
+                    toastMsg('Unable to load order summary', false);
+                    return;
+                }
+
+                $existing.find('.modal-header').replaceWith($newModal.find('.modal-header'));
+                $existing.find('.modal-body').replaceWith($newModal.find('.modal-body'));
+                $existing.find('.modal-footer').replaceWith($newModal.find('.modal-footer'));
+                activateSummaryDateTab(activeMealDate);
+                return;
+            }
+
+            disposeSummaryModal();
             $('#summary_div').html(result);
+
             var modalEl = document.getElementById('summary_modal');
             if (!modalEl) {
                 toastMsg('Unable to load order summary', false);
                 return;
             }
-            var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-            modal.show();
+
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            activateSummaryDateTab(activeMealDate);
         },
         error: function () {
             toastMsg('Error loading order summary', false);
@@ -203,14 +330,67 @@ function getOrderSummary(packageList) {
     });
 }
 
-function initDates() {
-    var numberOfDays = parseInt($('#Duration').val(), 10) || 5;
-    var $wrapper = $('.swiper-wrapper');
-    if (numberOfDays > 10) {
-        $wrapper.removeClass('flex-center');
-    } else {
-        $wrapper.addClass('flex-center');
+function disposeSummaryModal() {
+    var modalEl = document.getElementById('summary_modal');
+    if (!modalEl) {
+        return;
     }
+
+    var instance = bootstrap.Modal.getInstance(modalEl);
+    if (instance) {
+        instance.dispose();
+    }
+}
+
+function activateSummaryDateTab(mealDate) {
+    if (!mealDate) {
+        return;
+    }
+
+    var tabBtn = document.querySelector('#summary_modal .ala-carte-summary-date-tab[data-meal-date="' + mealDate + '"]');
+    if (!tabBtn) {
+        return;
+    }
+
+    bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+}
+
+function removeSummarySelection($btn) {
+    var selectionId = String($btn.data('selection-id') || '').toLowerCase();
+    var packageId = parseInt($btn.data('package-id'), 10);
+    var mealDate = String($btn.data('meal-date') || '');
+
+    selectedIds = selectedIds.filter(function (x) {
+        if (selectionId && String(x.Id || '').toLowerCase() === selectionId) {
+            return false;
+        }
+        if (!selectionId && parseInt(x.PackageId, 10) === packageId && String(x.MealDate) === mealDate) {
+            return false;
+        }
+        return true;
+    });
+
+    initSelection();
+    updateSelectionBar();
+
+    if (selectedIds.length === 0) {
+        var modalEl = document.getElementById('summary_modal');
+        var modal = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+        if (modal) {
+            modal.hide();
+        }
+        disposeSummaryModal();
+        $('#summary_div').empty();
+        return;
+    }
+
+    getOrderSummary(selectedIds, mealDate);
+}
+
+function initDates() {
+    var numberOfDays = MENU_DURATION_DAYS;
+    var $wrapper = $('.swiper-wrapper');
+    $wrapper.removeClass('flex-center');
 
     if (dateSwiper) {
         dateSwiper.destroy(true, true);
@@ -218,7 +398,7 @@ function initDates() {
     }
 
     dateSwiper = new Swiper('.ala-carte-swiper', {
-        slidesPerView: numberOfDays > 10 ? 10 : numberOfDays,
+        slidesPerView: 'auto',
         spaceBetween: 10,
         centeredSlides: false,
         loop: false
@@ -236,8 +416,13 @@ function initDates() {
         slide.dataset.date = dateValue;
         slide.setAttribute('role', 'option');
         slide.setAttribute('aria-selected', 'false');
-        slide.innerHTML = '<div class="date-day">' + date.format('ddd').toUpperCase() + '</div>' +
-            '<div class="date-number">' + date.format('DD/MM') + '</div>';
+        var dayLabel = i === 0
+            ? 'TODAY'
+            : (i === 1 ? 'TOMORROW' : date.format('ddd').toUpperCase());
+        slide.innerHTML =
+            '<div class="date-day">' + dayLabel + '</div>' +
+            '<div class="date-number">' + date.format('DD') + '</div>' +
+            '<div class="date-month">' + date.format('MMM') + '</div>';
 
         slide.addEventListener('click', function (selectedDateValue) {
             return function () {
@@ -273,20 +458,19 @@ function initSelection() {
 
 function updateSelectionBar() {
     var count = selectedIds.length;
-    var $bar = $('#mealComboOrderBar');
-    var $count = $('#mealComboSelectionCount');
+    var $badge = $('#menuCartBadge');
     var $page = $('.meal-combo-page');
 
-    if (!$bar.length) return;
-
     if (count > 0) {
-        $bar.removeAttr('hidden');
         $page.addClass('meal-combo-has-selection');
-        $count.text(count === 1 ? '1 combo selected' : count + ' combos selected');
+        if ($badge.length) {
+            $badge.text(String(count)).removeAttr('hidden');
+        }
     } else {
-        $bar.attr('hidden', 'hidden');
         $page.removeClass('meal-combo-has-selection');
-        $count.text('0 combos');
+        if ($badge.length) {
+            $badge.text('0').attr('hidden', 'hidden');
+        }
     }
 }
 

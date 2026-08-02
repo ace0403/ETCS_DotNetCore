@@ -160,27 +160,17 @@ public class MealComboController : Controller
     private async Task<MealComboPageViewModel> BuildPageModelAsync(int guardianId, CancellationToken cancellationToken)
     {
         var children = await LoadChildrenAsync(guardianId, cancellationToken);
-        var durations = await _mealEnumRepository.GetByTypeIdAsync(MealEnumTypeIds.Duration, cancellationToken);
-        var durationItems = durations
-            .Select(d => new { Value = ParseDurationDays(d.Name), Text = d.Description })
-            .Where(d => d.Value > 0)
-            .OrderBy(d => d.Value)
-            .ToList();
-
-        if (durationItems.Count == 0)
-        {
-            durationItems =
-            [
-                new { Value = 5, Text = "5 Days" },
-                new { Value = 7, Text = "7 Days" }
-            ];
-        }
+        const int defaultDurationDays = 30;
 
         return new MealComboPageViewModel
         {
             StudentId = children.FirstOrDefault()?.Id ?? 0,
-            Duration = durationItems.First().Value,
-            DurationList = new SelectList(durationItems, "Value", "Text", durationItems.First().Value),
+            Duration = defaultDurationDays,
+            DurationList = new SelectList(
+                new[] { new { Value = defaultDurationDays, Text = "30 Days" } },
+                "Value",
+                "Text",
+                defaultDurationDays),
             Children = children
         };
     }

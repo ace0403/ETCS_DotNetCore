@@ -3,15 +3,14 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
     ViewBag.AdminModuleKey = "MealServingPeriod";
 }
-<div class="page-header d-flex justify-content-between">
-    <h2>Meal Package Serving Period</h2>
-    <partial name="_AdminAddButton" />
-</div>
 <div class="card">
     <div class="card-body">
         <div class="admin-grid-toolbar">
             <partial name="_AdminGridSearch" />
             <partial name="_AdminGridSchoolFilter" />
+            <div class="admin-grid-actions">
+                <partial name="_AdminAddButton" />
+            </div>
         </div>
         <div class="table-responsive admin-grid-table-scroll">
         <table id="grid_table" class="table table-striped table-bordered w-100" style="width:100%">

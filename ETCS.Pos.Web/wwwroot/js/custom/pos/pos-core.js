@@ -317,17 +317,17 @@ window.PosApp = window.PosApp || {};
             const el = document.getElementById('bridgeStatus');
             if (!el) return;
             if (online) {
-                el.textContent = 'Bridge connected';
                 el.classList.remove('is-offline');
                 el.title = 'Bridge OK (' + (localIp || 'localhost') + ') — click to recheck';
+                el.setAttribute('aria-label', 'Bridge connected');
             } else if (App.state.bridgeChecking) {
-                el.textContent = 'Checking bridge…';
                 el.classList.add('is-offline');
                 el.title = 'Checking POS Bridge connection';
+                el.setAttribute('aria-label', 'Checking bridge');
             } else {
-                el.textContent = 'Bridge offline';
                 el.classList.add('is-offline');
                 el.title = 'POS Bridge offline — click to check connection';
+                el.setAttribute('aria-label', 'Bridge offline');
             }
         },
 

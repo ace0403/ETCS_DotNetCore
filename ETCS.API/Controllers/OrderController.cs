@@ -205,6 +205,7 @@ public sealed class OrderController : ControllerBase
             StudentId = order.StudentId,
             StudentName = studentName,
             GuardianId = order.GuardianId,
+            OrderTypeId = order.OrderTypeId,
             SubTotal = order.SubTotal,
             TaxAmount = order.TaxAmount,
             Total = order.Total,

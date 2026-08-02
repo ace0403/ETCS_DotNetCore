@@ -199,7 +199,7 @@ public sealed class MealOrderRepository : IMealOrderRepository
         string message,
         CancellationToken cancellationToken)
     {
-        const string sql = """
+        const string updateTransactionSql = """
             UPDATE [Transaction]
             SET Remarks = @Message,
                 UpdatedOn = GETDATE(),
@@ -207,12 +207,46 @@ public sealed class MealOrderRepository : IMealOrderRepository
             WHERE Id = (SELECT TOP (1) TransactionId FROM [Order] WHERE OrderId = @OrderId);
             """;
 
+        const string updateOrderSql = """
+            UPDATE [Order]
+            SET OrderStatusId = @StatusId,
+                UpdatedOn = GETDATE()
+            WHERE OrderId = @OrderId;
+            """;
+
         using var connection = _connectionFactory.CreateConnection();
-        await connection.ExecuteAsync(new CommandDefinition(
-            sql,
-            new { OrderId = orderId, Message = message, StatusId = (int)TransactionStatusEnum.Failed },
-            commandType: CommandType.Text,
-            cancellationToken: cancellationToken));
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+        await using var transaction = await dbConnection.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            var args = new
+            {
+                OrderId = orderId,
+                Message = message,
+                StatusId = (int)TransactionStatusEnum.Failed
+            };
+
+            await dbConnection.ExecuteAsync(new CommandDefinition(
+                updateTransactionSql,
+                args,
+                transaction: transaction,
+                cancellationToken: cancellationToken));
+
+            await dbConnection.ExecuteAsync(new CommandDefinition(
+                updateOrderSql,
+                args,
+                transaction: transaction,
+                cancellationToken: cancellationToken));
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 
     public async Task<MealOrderPaymentState?> GetPaymentStateAsync(
@@ -228,7 +262,9 @@ public sealed class MealOrderRepository : IMealOrderRepository
                 o.OrderTypeId,
                 IsPaid = ISNULL(o.IsPaid, 0),
                 t.AccessLogId,
-                t.Id AS MealTransactionId
+                t.Id AS MealTransactionId,
+                TransactionStatusId = ISNULL(t.StatusId, 0),
+                IsTransactionCompleted = ISNULL(t.IsTransactionCompleted, 0)
             FROM [Order] o
             LEFT JOIN [Transaction] t ON t.Id = o.TransactionId
             WHERE o.OrderId = @OrderId
@@ -275,7 +311,9 @@ public sealed class MealOrderRepository : IMealOrderRepository
                 o.OrderTypeId,
                 IsPaid = ISNULL(o.IsPaid, 0),
                 t.AccessLogId,
-                t.Id AS MealTransactionId
+                t.Id AS MealTransactionId,
+                TransactionStatusId = ISNULL(t.StatusId, 0),
+                IsTransactionCompleted = ISNULL(t.IsTransactionCompleted, 0)
             FROM [Order] o WITH (UPDLOCK, ROWLOCK)
             LEFT JOIN [Transaction] t ON t.Id = o.TransactionId
             WHERE o.OrderId = @OrderId;
@@ -437,16 +475,20 @@ public sealed class MealOrderRepository : IMealOrderRepository
                 o.OrderId,
                 o.StudentId,
                 o.GuardianId,
+                o.OrderTypeId,
                 o.SubTotal,
                 o.TaxAmount,
                 o.Total,
                 o.TotalItems,
                 o.OrderStatusId,
+                TransactionStatusId = t.StatusId,
                 IsPaid = ISNULL(o.IsPaid, 0),
+                IsTransactionCompleted = ISNULL(t.IsTransactionCompleted, 0),
                 Notes = ISNULL(o.Notes, ''),
                 o.OrderDate,
                 o.CreatedOn
             FROM [Order] o
+            LEFT JOIN [Transaction] t ON t.Id = o.TransactionId
             WHERE o.GuardianId = @GuardianId
               AND o.OrderId = @OrderId;
             """;
@@ -494,12 +536,15 @@ public sealed class MealOrderRepository : IMealOrderRepository
             OrderId = order.OrderId,
             StudentId = order.StudentId,
             GuardianId = order.GuardianId,
+            OrderTypeId = order.OrderTypeId,
             SubTotal = order.SubTotal,
             TaxAmount = order.TaxAmount,
             Total = order.Total,
             TotalItems = order.TotalItems,
             OrderStatusId = order.OrderStatusId,
+            TransactionStatusId = order.TransactionStatusId,
             IsPaid = order.IsPaid,
+            IsTransactionCompleted = order.IsTransactionCompleted,
             Notes = order.Notes,
             OrderDate = order.OrderDate,
             CreatedOn = order.CreatedOn,

@@ -241,6 +241,9 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
         if (guardian is null) return null;
 
         var students = await _studentRepository.GetStudentsByGuardianAsync(guardianId, null, cancellationToken);
+        var allergyNamesByStudent = await _allergyRepository.GetAllergyNamesByStudentIdsAsync(
+            students.Select(s => s.UserId).ToList(),
+            cancellationToken);
         var children = new List<GuardianChildListItemDto>(students.Count);
         foreach (var student in students)
         {
@@ -251,6 +254,8 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
                 ? 0m
                 : await GetAccountBalanceAsync(dbConnection, cardNo, cancellationToken);
 
+            allergyNamesByStudent.TryGetValue(student.UserId, out var allergies);
+
             children.Add(new GuardianChildListItemDto
             {
                 UserId = student.UserId,
@@ -259,7 +264,8 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
                 Std = student.Std?.Trim() ?? string.Empty,
                 SchoolName = student.SchoolName?.Trim() ?? string.Empty,
                 Balance = balance,
-                Status = student.Status?.Trim() ?? string.Empty
+                Status = student.Status?.Trim() ?? string.Empty,
+                Allergies = allergies ?? []
             });
         }
 

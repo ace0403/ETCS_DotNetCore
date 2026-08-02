@@ -22,4 +22,11 @@ public interface IGuardianEmailNotificationService
         string transactionId,
         decimal total,
         CancellationToken cancellationToken);
+
+    Task QueuePasswordResetAsync(
+        string guardianEmail,
+        string guardianName,
+        string resetLink,
+        int expiryMinutes,
+        CancellationToken cancellationToken);
 }

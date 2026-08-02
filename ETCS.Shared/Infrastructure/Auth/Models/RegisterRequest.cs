@@ -13,6 +13,10 @@ public sealed class RegisterRequest
     public string LastName { get; init; } = string.Empty;
 
     [Required]
+    [StringLength(128)]
+    public string Username { get; init; } = string.Empty;
+
+    [Required]
     [EmailAddress]
     [StringLength(256)]
     public string Email { get; init; } = string.Empty;

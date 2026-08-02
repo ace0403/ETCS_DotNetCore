@@ -101,6 +101,7 @@ public sealed class StudentRepository : IStudentRepository
         var rows = await GetStudentsByGuardianAsync(guardianId, null, cancellationToken);
         return rows
             .Select(row => new StudentBasicListItemDto(
+                row.UserId,
                 string.IsNullOrWhiteSpace(row.StudCode)
                     ? row.UserId.ToString(System.Globalization.CultureInfo.InvariantCulture)
                     : row.StudCode.Trim(),

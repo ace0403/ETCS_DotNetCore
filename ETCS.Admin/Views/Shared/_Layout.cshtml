@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="~/css/style-preset.css" />
     <link rel="stylesheet" href="~/css/toastr.min.css" />
     <link rel="stylesheet" href="~/css/custom/dev-style.css" />
+    <link rel="stylesheet" href="~/css/custom/portal-theme.css" asp-append-version="true" />
 </head>
 <body data-pc-preset="preset-1" data-pc-sidebar-caption="true" data-pc-direction="ltr" data-pc-theme="light">
     <div class="loader-bg">
@@ -30,7 +31,7 @@
     <partial name="_Sidebar" />
     <partial name="_Header" />
     <div class="pc-container">
-        <div class="pc-content pt-1">
+        <div class="pc-content pt-4 pt-lg-4 pt-xl-1">
             @RenderBody()
         </div>
     </div>
@@ -65,6 +66,63 @@
         window.adminIsFullAccess = @(User.IsAdminRole().ToString().ToLower());
         layout_change('light');
         preset_change("preset-1");
+
+        // Sidebar uses native CSS scroll (portal-theme). Skip Able Pro SimpleBar on the menu —
+        // it often mounts without a constrained height and blocks scrolling.
+        window.add_scroller = function () {
+            if (typeof menu_click === 'function') {
+                menu_click();
+            }
+            var el = document.querySelector('.pc-sidebar .navbar-content');
+            if (!el) return;
+            try {
+                if (el.SimpleBar && typeof el.SimpleBar.unMount === 'function') {
+                    el.SimpleBar.unMount();
+                }
+            } catch (e) { /* ignore */ }
+            el.removeAttribute('data-simplebar');
+            el.classList.remove('simplebar-scrollable-y', 'simplebar-scrollable-x');
+            el.style.overflowY = 'auto';
+            el.style.overflowX = 'hidden';
+
+            if (el.dataset.autoHideScrollBound !== '1') {
+                el.dataset.autoHideScrollBound = '1';
+                var hideTimer;
+                el.addEventListener('scroll', function () {
+                    el.classList.add('is-scrolling');
+                    clearTimeout(hideTimer);
+                    hideTimer = setTimeout(function () {
+                        el.classList.remove('is-scrolling');
+                    }, 900);
+                }, { passive: true });
+            }
+
+            scrollActiveSidebarItemIntoView(el);
+        };
+
+        function scrollActiveSidebarItemIntoView(nav) {
+            nav = nav || document.querySelector('.pc-sidebar .navbar-content');
+            if (!nav) return;
+            var active = nav.querySelector('.pc-navbar > .pc-item.active:not(.pc-caption)');
+            if (!active) return;
+
+            var navRect = nav.getBoundingClientRect();
+            var itemRect = active.getBoundingClientRect();
+            var fullyVisible = itemRect.top >= navRect.top + 4 && itemRect.bottom <= navRect.bottom - 4;
+            if (fullyVisible) return;
+
+            // Briefly reveal the auto-hide scrollbar while we jump to the active item.
+            nav.classList.add('is-scrolling');
+            active.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+            setTimeout(function () {
+                nav.classList.remove('is-scrolling');
+            }, 1000);
+        }
+
+        if (document.readyState !== 'loading') {
+            setTimeout(window.add_scroller, 0);
+        }
+        window.addEventListener('load', function () { setTimeout(window.add_scroller, 0); });
 
         $(function () {
             $('#btnChangePassword').on('click', function (e) {

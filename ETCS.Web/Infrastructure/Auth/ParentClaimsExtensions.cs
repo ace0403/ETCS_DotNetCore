@@ -15,4 +15,7 @@ public static class ParentClaimsExtensions
     public static string? GetDisplayName(this ClaimsPrincipal user) =>
         user.FindFirstValue(ClaimTypes.GivenName)
         ?? user.FindFirstValue(ClaimTypes.Name);
+
+    public static string? GetEmail(this ClaimsPrincipal user) =>
+        user.FindFirstValue(ClaimTypes.Email);
 }

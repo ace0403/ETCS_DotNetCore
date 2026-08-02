@@ -1,16 +1,17 @@
 :root {
-    --ala-accent: #fea116;
-    --ala-accent-dark: #e8920f;
-    --ala-accent-soft: rgba(254, 161, 22, 0.12);
-    --ala-text: #1d2630;
-    --ala-muted: #5b6b79;
-    --ala-border: #e8edf3;
+    --ala-accent: var(--etcs-primary, #3498db);
+    --ala-accent-dark: #2471a3;
+    --ala-accent-soft: rgba(var(--etcs-primary-rgb, 52, 152, 219), 0.12);
+    --ala-text: #111827;
+    --ala-muted: #6b7280;
+    --ala-border: rgba(17, 24, 39, 0.08);
     --ala-surface: #ffffff;
-    --ala-page-bg: #f4f7fa;
+    --ala-page-bg: #f8fafc;
+    --ala-allergy: #d97706;
 }
 
 .ala-carte-page {
-    padding-bottom: 5.5rem;
+    padding-bottom: 2rem;
 }
 
 .ala-carte-hero {
@@ -36,7 +37,7 @@
     width: 52px;
     height: 52px;
     border-radius: 14px;
-    background: linear-gradient(135deg, var(--ala-accent-soft), rgba(254, 161, 22, 0.22));
+    background: linear-gradient(135deg, var(--ala-accent-soft), rgba(var(--etcs-primary-rgb, 52, 152, 219), 0.22));
     color: var(--ala-accent-dark);
     display: flex;
     align-items: center;
@@ -266,15 +267,15 @@
 }
 
 .ala-carte-meal-item:hover {
-    border-color: rgba(254, 161, 22, 0.45);
+    border-color: rgba(var(--etcs-primary-rgb, 52, 152, 219), 0.45);
     box-shadow: 0 10px 28px rgba(29, 38, 48, 0.08);
     transform: translateY(-1px);
 }
 
 .ala-carte-meal-item.selected {
-    border-color: var(--ala-accent);
-    background: linear-gradient(180deg, #fff 0%, #fffaf3 100%);
-    box-shadow: 0 12px 30px var(--ala-accent-soft);
+    border-color: rgba(5, 150, 105, 0.28);
+    background: #fff;
+    box-shadow: inset 3px 0 0 #059669, 0 8px 20px rgba(17, 24, 39, 0.05);
 }
 
 .ala-carte-meal-item:focus-visible {
@@ -315,7 +316,7 @@
     align-items: center;
     justify-content: center;
     font-size: 0.85rem;
-    box-shadow: 0 4px 12px rgba(254, 161, 22, 0.35);
+    box-shadow: 0 4px 12px rgba(var(--etcs-primary-rgb, 52, 152, 219), 0.35);
     transition: background 0.2s ease, transform 0.2s ease;
 }
 
@@ -324,8 +325,9 @@
 }
 
 .ala-carte-meal-item.selected .ala-carte-select-badge {
-    background: #2ca87a;
-    transform: scale(1.05);
+    background: #059669;
+    transform: none;
+    box-shadow: 0 4px 10px rgba(5, 150, 105, 0.28);
 }
 
 .ala-carte-meal-item.selected .ala-carte-badge-add {
@@ -457,7 +459,7 @@
     position: fixed;
     left: 0;
     right: 0;
-    bottom: 0;
+    bottom: 52px;
     z-index: 1020;
     padding: 0.85rem 1rem calc(0.85rem + env(safe-area-inset-bottom));
     background: rgba(255, 255, 255, 0.96);
@@ -584,14 +586,14 @@
 }
 
 .ala-carte-summary-date-tab:hover {
-    border-color: rgba(254, 161, 22, 0.45) !important;
+    border-color: rgba(var(--etcs-primary-rgb, 52, 152, 219), 0.45) !important;
 }
 
 .ala-carte-summary-date-tab.active {
-    background: linear-gradient(180deg, #fea116 0%, #e8920f 100%) !important;
-    border-color: #fea116 !important;
+    background: var(--ala-accent) !important;
+    border-color: var(--ala-accent) !important;
     color: #fff !important;
-    box-shadow: 0 6px 16px rgba(254, 161, 22, 0.28);
+    box-shadow: 0 6px 16px rgba(var(--etcs-primary-rgb, 52, 152, 219), 0.28);
 }
 
 .ala-carte-summary-date-tab .date-day {
@@ -646,6 +648,42 @@
     align-items: flex-start;
     gap: 0.75rem;
     margin-bottom: 0.35rem;
+}
+
+.ala-carte-summary-item-aside {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-shrink: 0;
+}
+
+.ala-carte-summary-remove {
+    appearance: none;
+    border: 1px solid rgba(220, 38, 38, 0.18);
+    background: #fef2f2;
+    color: #dc2626;
+    width: 1.85rem;
+    height: 1.85rem;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.ala-carte-summary-remove:hover,
+.ala-carte-summary-remove:focus-visible {
+    background: #fee2e2;
+    border-color: rgba(220, 38, 38, 0.35);
+    color: #b91c1c;
+    outline: none;
+}
+
+.ala-carte-summary-remove i {
+    font-size: 0.95rem;
 }
 
 .ala-carte-summary-item-name {
@@ -890,15 +928,15 @@
 }
 
 .ala-carte-menu-inner .ala-carte-meal-item:hover {
-    border-color: #fea116;
-    box-shadow: 0 8px 24px rgba(254, 161, 22, 0.12);
+    border-color: var(--ala-accent);
+    box-shadow: 0 8px 24px rgba(var(--etcs-primary-rgb, 52, 152, 219), 0.12);
     transform: none;
 }
 
 .ala-carte-menu-inner .ala-carte-meal-item.selected {
-    border-color: #fea116;
-    background: linear-gradient(180deg, #fffaf3 0%, #fff 100%);
-    box-shadow: 0 10px 28px rgba(254, 161, 22, 0.16);
+    border-color: rgba(5, 150, 105, 0.28);
+    background: #fff;
+    box-shadow: inset 3px 0 0 #059669, 0 8px 20px rgba(17, 24, 39, 0.05);
 }
 
 .ala-carte-menu-inner .ala-carte-meal-thumb {
@@ -912,7 +950,7 @@
 }
 
 .ala-carte-menu-inner .ala-carte-meal-item.selected .ala-carte-meal-thumb {
-    box-shadow: 0 0 0 3px rgba(254, 161, 22, 0.35);
+    box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.22), 0 4px 14px rgba(29, 38, 48, 0.08);
 }
 
 .ala-carte-menu-inner .ala-carte-meal-name {
@@ -1056,5 +1094,1038 @@ body.ala-carte-overlay-open {
 
     .ala-carte-receipt-footer .ala-carte-place-btn {
         width: 100%;
+    }
+}
+
+/* ===== Premium restraint overrides ===== */
+.ala-carte-page {
+    --ala-accent: var(--etcs-primary, #3498db);
+    --ala-accent-dark: #2471a3;
+    --ala-accent-soft: rgba(var(--etcs-primary-rgb, 52, 152, 219), 0.12);
+    --ala-text: #111827;
+    --ala-muted: #6b7280;
+    --ala-border: rgba(17, 24, 39, 0.08);
+    --ala-page-bg: #f8fafc;
+    --ala-allergy: #d97706;
+}
+
+.ala-carte-shell {
+    max-width: 920px;
+    margin: 0 auto;
+}
+
+.ala-carte-hero {
+    display: block;
+    margin-bottom: 1.1rem;
+}
+
+.ala-carte-page-title {
+    font-size: 1.75rem;
+    letter-spacing: -0.035em;
+}
+
+.ala-carte-page-subtitle {
+    font-size: 0.95rem;
+}
+
+.ala-carte-hero-icon {
+    display: none !important;
+}
+
+.ala-carte-filters-card,
+.ala-carte-menu-card {
+    border: 1px solid var(--ala-border) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 12px 28px rgba(17, 24, 39, 0.06) !important;
+}
+
+.ala-carte-label {
+    display: block;
+    gap: 0;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ala-muted);
+}
+
+.ala-carte-label i {
+    display: none !important;
+}
+
+.ala-carte-select {
+    border-radius: 10px;
+    min-height: 42px;
+    padding: 0.5rem 0.8rem;
+    font-size: 0.92rem;
+}
+
+.ala-carte-select:focus {
+    border-color: rgba(var(--etcs-primary-rgb, 52, 152, 219), 0.55);
+    box-shadow: 0 0 0 3px rgba(var(--etcs-primary-rgb, 52, 152, 219), 0.12);
+}
+
+.ala-carte-date-strip {
+    border-radius: 12px;
+    padding: 0.5rem;
+}
+
+.ala-carte-date-nav-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--ala-border);
+    border-radius: 9px;
+    box-shadow: none;
+}
+
+.ala-carte-date-nav-btn:hover {
+    background: var(--ala-text);
+    border-color: var(--ala-text);
+    color: #fff;
+}
+
+.ala-carte-menu-inner {
+    padding: 1.15rem;
+}
+
+.ala-carte-menu-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    text-align: left !important;
+    margin-bottom: 1rem;
+}
+
+.ala-carte-section-title {
+    display: none !important;
+}
+
+.ala-carte-heading {
+    font-size: 1.15rem !important;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.ala-carte-menu-hint {
+    margin: 0;
+    font-size: 0.82rem;
+    white-space: nowrap;
+}
+
+.ala-carte-menu-date {
+    margin-top: 0.15rem;
+    color: var(--ala-muted) !important;
+    font-weight: 500 !important;
+    font-size: 0.84rem !important;
+}
+
+.ala-carte-menu-date i {
+    display: none !important;
+}
+
+.ala-carte-tabs-wrap {
+    border-bottom: 0;
+    margin-bottom: 1rem;
+}
+
+.ala-carte-meal-tabs {
+    min-width: auto;
+    justify-content: flex-start;
+    gap: 0;
+    padding: 3px;
+    border-radius: 10px;
+    background: #f3f4f6;
+    border: 1px solid var(--ala-border);
+}
+
+.ala-carte-meal-tab {
+    flex-direction: row;
+    gap: 0;
+    min-width: 0;
+    padding: 0.45rem 0.95rem;
+    border-radius: 8px !important;
+    border-bottom: 0 !important;
+}
+
+.ala-carte-meal-tab.active,
+.ala-carte-meal-tab:hover {
+    border-bottom-color: transparent !important;
+}
+
+.ala-carte-meal-tab.active {
+    background: #fff !important;
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.08);
+}
+
+.ala-carte-meal-tab.active .ala-carte-tab-label {
+    color: var(--ala-text) !important;
+}
+
+.ala-carte-tab-icon-wrap {
+    display: none !important;
+}
+
+.ala-carte-tab-label {
+    font-size: 0.86rem;
+}
+
+.ala-carte-selected-date {
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--ala-muted);
+    font-size: 0.84rem;
+}
+
+.ala-carte-selected-date i {
+    display: none !important;
+}
+
+.ala-carte-selected-date strong {
+    color: var(--ala-text);
+}
+
+.ala-carte-item-list {
+    gap: 0.65rem;
+}
+
+.ala-carte-meal-item,
+.ala-carte-menu-inner .ala-carte-meal-item {
+    gap: 0.95rem;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid var(--ala-border);
+    border-radius: 14px;
+    transform: none !important;
+}
+
+.ala-carte-meal-item:hover,
+.ala-carte-menu-inner .ala-carte-meal-item:hover {
+    transform: none !important;
+    border-color: rgba(var(--etcs-primary-rgb, 52, 152, 219), 0.35);
+    box-shadow: 0 8px 20px rgba(17, 24, 39, 0.06);
+}
+
+.ala-carte-meal-item.selected,
+.ala-carte-menu-inner .ala-carte-meal-item.selected {
+    border-color: rgba(5, 150, 105, 0.28);
+    background: #fff;
+    box-shadow: inset 3px 0 0 #059669, 0 8px 20px rgba(17, 24, 39, 0.05);
+}
+
+.ala-carte-meal-thumb,
+.ala-carte-summary-thumb {
+    width: 88px;
+    height: 88px;
+    border-radius: 12px;
+}
+
+.ala-carte-select-badge {
+    width: 24px;
+    height: 24px;
+    right: -5px;
+    bottom: -5px;
+    background: var(--ala-text);
+    box-shadow: 0 4px 10px rgba(17, 24, 39, 0.18);
+}
+
+.ala-carte-meal-item.selected .ala-carte-select-badge {
+    background: #059669;
+    transform: none;
+    box-shadow: 0 4px 10px rgba(5, 150, 105, 0.28);
+}
+
+.ala-carte-meal-name {
+    font-size: 0.98rem;
+    font-weight: 600;
+    text-transform: none !important;
+    letter-spacing: -0.015em;
+}
+
+.ala-carte-meal-detail {
+    font-size: 0.84rem;
+}
+
+.ala-carte-nutrition-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.2rem 0.85rem;
+    margin-top: 0.4rem;
+}
+
+.ala-carte-nutrition-stat {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.28rem;
+    min-width: 0;
+}
+
+.ala-carte-nutrition-stat + .ala-carte-nutrition-stat {
+    padding-left: 0.85rem;
+    border-left: 1px solid var(--ala-border);
+}
+
+.ala-carte-nutrition-icon {
+    font-size: 0.7rem;
+    line-height: 1;
+    width: 0.85rem;
+    text-align: center;
+    flex-shrink: 0;
+    position: relative;
+    top: -0.05rem;
+    color: var(--ala-muted);
+}
+
+.ala-carte-nutrition-stat.is-energy .ala-carte-nutrition-icon {
+    color: #ea580c;
+}
+
+.ala-carte-nutrition-stat.is-protein .ala-carte-nutrition-icon {
+    color: #16a34a;
+}
+
+.ala-carte-nutrition-stat.is-fat .ala-carte-nutrition-icon {
+    color: #dc2626;
+}
+
+.ala-carte-nutrition-stat.is-carb .ala-carte-nutrition-icon {
+    color: #f59e0b;
+}
+
+.ala-carte-nutrition-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+    color: var(--ala-muted);
+}
+
+.ala-carte-nutrition-value {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--ala-text);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+}
+
+.ala-carte-price-label {
+    display: none !important;
+}
+
+.ala-carte-price {
+    color: var(--ala-text);
+    font-weight: 700;
+    font-size: 1.02rem;
+}
+
+.ala-carte-nutrition {
+    display: none !important;
+}
+
+.ala-carte-allergens {
+    margin-top: 0.55rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+}
+
+.ala-carte-place-btn,
+.ala-carte-place-order-btn {
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    min-height: 42px;
+}
+
+@media (max-width: 575.98px) {
+    .ala-carte-menu-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .ala-carte-menu-hint {
+        white-space: normal;
+    }
+}
+
+/* ===== Menu browse redesign (A La Carte + Meal Plans) ===== */
+.menu-browse-page .menu-browse-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+}
+
+.menu-browse-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: -0.35rem;
+}
+
+.menu-browse-header,
+.menu-browse-toolbar {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.menu-browse-filters {
+    display: grid;
+    grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
+    gap: 0.85rem 1rem;
+    align-items: start;
+    overflow: visible !important;
+}
+
+.menu-browse-child,
+.menu-search-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 0;
+    max-width: none;
+    overflow: visible !important;
+    position: relative;
+}
+
+/* Keep Select2's hidden native select near the control so focus does not jump the page to top. */
+.menu-browse-page .menu-browse-child select.select2-hidden-accessible {
+    position: absolute !important;
+    top: 2.75rem !important;
+    left: 0.75rem !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    clip: rect(0, 0, 0, 0) !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+.menu-browse-page .select2-container--open {
+    z-index: 2000;
+}
+
+/* Body-attached Child dropdown (dropdownParent: body) — teal theme */
+.select2-container--default .menu-child-select2-dropdown.select2-dropdown,
+.select2-dropdown.menu-child-select2-dropdown {
+    z-index: 2001;
+    border: 1px solid var(--ala-border);
+    border-radius: 12px;
+    box-shadow: 0 10px 28px rgba(17, 24, 39, 0.1);
+    overflow: hidden;
+}
+
+.select2-dropdown.menu-child-select2-dropdown .select2-search--dropdown {
+    padding: 0.65rem 0.65rem 0.35rem;
+}
+
+.select2-dropdown.menu-child-select2-dropdown .select2-search--dropdown .select2-search__field {
+    border: 1px solid var(--ala-border);
+    border-radius: 10px;
+    padding: 0.45rem 0.7rem;
+    outline: none;
+}
+
+.select2-dropdown.menu-child-select2-dropdown .select2-search--dropdown .select2-search__field:focus {
+    border-color: var(--ala-accent);
+    box-shadow: 0 0 0 0.15rem var(--ala-accent-soft);
+}
+
+.select2-dropdown.menu-child-select2-dropdown .select2-results__option {
+    padding: 0.55rem 0.85rem;
+    font-size: 0.92rem;
+}
+
+.select2-container--default .menu-child-select2-dropdown .select2-results__option--highlighted.select2-results__option--selectable,
+.select2-dropdown.menu-child-select2-dropdown .select2-results__option--highlighted.select2-results__option--selectable {
+    background: var(--ala-accent) !important;
+    color: #fff !important;
+}
+
+.select2-container--default .menu-child-select2-dropdown .select2-results__option--selected,
+.select2-dropdown.menu-child-select2-dropdown .select2-results__option--selected {
+    background: var(--ala-accent-soft);
+    color: var(--ala-accent-dark);
+}
+
+.menu-search-field {
+    position: relative;
+    overflow: visible;
+}
+
+.menu-browse-page .menu-filter-label {
+    display: block !important;
+    float: none !important;
+    position: static !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 0 0.5rem !important;
+    padding: 0.15rem 0 0.1rem !important;
+    overflow: visible !important;
+    clip: auto !important;
+    white-space: normal !important;
+    text-overflow: unset !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    line-height: 1.5 !important;
+    color: var(--ala-text, #111827) !important;
+}
+
+/* Select2 — Child (single select), MealHub teal */
+.menu-browse-page .menu-browse-child .select2-container {
+    width: 100% !important;
+    margin: 0 !important;
+    display: block !important;
+}
+
+.menu-browse-page .menu-browse-child .select2-container--default .select2-selection--single {
+    min-height: 46px;
+    border: 1px solid var(--ala-border);
+    border-radius: 12px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    padding: 0 0.35rem 0 0.15rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.menu-browse-page .menu-browse-child .select2-container--default.select2-container--focus .select2-selection--single,
+.menu-browse-page .menu-browse-child .select2-container--default.select2-container--open .select2-selection--single {
+    border-color: var(--ala-accent);
+    box-shadow: 0 0 0 0.2rem var(--ala-accent-soft);
+}
+
+.menu-browse-page .menu-browse-child .select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: var(--ala-text);
+    font-size: 0.95rem;
+    font-weight: 500;
+    line-height: 1.3;
+    padding-left: 0.85rem;
+    padding-right: 2rem;
+}
+
+.menu-browse-page .menu-browse-child .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 100%;
+    right: 0.55rem;
+    top: 0;
+}
+
+.menu-browse-page .menu-browse-child .select2-container--default .select2-selection--single .select2-selection__arrow b {
+    border-color: var(--ala-muted) transparent transparent transparent;
+    margin-top: -2px;
+}
+
+
+.menu-cart-btn {
+    appearance: none;
+    border: 0;
+    border-radius: 12px;
+    min-height: 46px;
+    padding: 0 1.15rem;
+    background: var(--ala-accent);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.92rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    flex-shrink: 0;
+}
+
+.menu-cart-btn:hover {
+    background: var(--ala-accent-dark);
+    color: #fff;
+}
+
+.menu-cart-badge {
+    min-width: 1.35rem;
+    height: 1.35rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.menu-search-icon {
+    position: absolute;
+    left: 1.05rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ala-muted);
+    pointer-events: none;
+    font-size: 1.05rem;
+}
+
+.menu-search-input {
+    width: 100%;
+    min-height: 46px;
+    border: 1px solid var(--ala-border);
+    border-radius: 12px;
+    padding: 0.7rem 1.15rem 0.7rem 2.75rem;
+    background: var(--ala-surface);
+    color: var(--ala-text);
+    font-size: 0.95rem;
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.03);
+}
+
+.menu-search-input:focus {
+    outline: none;
+    border-color: var(--ala-accent);
+    box-shadow: 0 0 0 0.2rem var(--ala-accent-soft);
+}
+
+.menu-date-block {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+}
+
+.menu-date-label {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.4rem;
+    overflow: visible;
+    line-height: 1.45;
+    margin-bottom: 0.45rem;
+}
+
+.menu-date-label i {
+    display: inline-flex !important;
+    color: var(--ala-accent);
+    font-size: 1.05rem;
+}
+
+.menu-browse-page .menu-date-strip .ala-carte-date-nav-btn {
+    display: none;
+}
+
+.menu-browse-page .ala-carte-selected-date {
+    display: none !important;
+}
+
+.menu-browse-results {
+    min-height: 12rem;
+}
+
+.menu-browse-inner {
+    padding: 0 !important;
+}
+
+.menu-category-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin-bottom: 1.1rem;
+}
+
+.menu-category-chip {
+    appearance: none;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    color: var(--ala-text);
+    border-radius: 999px;
+    min-height: 38px;
+    padding: 0 1.05rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.menu-category-chip:hover {
+    border-color: rgba(52, 152, 219, 0.35);
+    color: var(--ala-accent-dark);
+}
+
+.menu-category-chip.is-active {
+    background: var(--ala-accent);
+    border-color: var(--ala-accent);
+    color: #fff;
+}
+
+.menu-card-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+}
+
+@media (min-width: 480px) {
+    .menu-card-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 900px) {
+    .menu-card-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1280px) {
+    .menu-card-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1rem;
+    }
+}
+
+@media (min-width: 1600px) {
+    .menu-card-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+}
+
+.menu-meal-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: #fff;
+    border: 1px solid #eef2f6;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 8px 20px rgba(17, 24, 39, 0.04);
+    cursor: pointer;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+}
+
+.menu-meal-card:hover {
+    border-color: rgba(52, 152, 219, 0.25);
+    box-shadow: 0 10px 28px rgba(17, 24, 39, 0.08);
+}
+
+    .menu-meal-card.selected {
+        background: linear-gradient(180deg, #f0fdfa 0%, #ffffff 42%);
+        /*border-color: var(--ala-accent);*/
+        /*box-shadow:
+        0 0 0 2px rgba(var(--etcs-primary-rgb, 52, 152, 219), 0.18),
+        0 10px 28px rgba(52, 152, 219, 0.12);*/
+        box-shadow: 0 6px 0 -2px rgb(21 118 110), 0 10px 28px rgba(52, 152, 219, 0.12)
+    }
+
+.menu-meal-card.selected:hover {
+    /*border-color: var(--ala-accent-dark);*/
+    /*box-shadow:
+        0 0 0 2px rgba(var(--etcs-primary-rgb, 52, 152, 219), 0.24),
+        0 12px 30px rgba(52, 152, 219, 0.14);*/
+}
+
+.menu-meal-card.is-filtered-out {
+    display: none !important;
+}
+
+.menu-meal-card-media {
+    position: relative;
+    height: 152px;
+    aspect-ratio: auto;
+    background: var(--etcs-primary-soft, #ebf5fb);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.menu-meal-card.selected .menu-meal-card-media::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: linear-gradient(180deg, rgba(52, 152, 219, 0.08) 0%, transparent 55%);
+    pointer-events: none;
+}
+
+.menu-selected-check {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    z-index: 3;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 999px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: var(--ala-accent);
+    color: #fff;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.35);
+    pointer-events: none;
+}
+
+.menu-meal-card.selected .menu-selected-check {
+    display: inline-flex;
+}
+
+.menu-popular-badge {
+    position: absolute;
+    top: 0.55rem;
+    left: 0.55rem;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    background: #f1a735;
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1.4;
+    /*box-shadow: 0 2px 8px rgba(234, 88, 12, 0.28);*/
+    pointer-events: none;
+}
+
+.menu-popular-badge i {
+    font-size: 0.78rem;
+}
+
+.menu-meal-type-badge {
+    display: none;
+    position: absolute;
+    left: 0.55rem;
+    bottom: 0.55rem;
+    z-index: 2;
+    max-width: calc(100% - 1.1rem);
+    padding: 0.18rem 0.5rem;
+    border-radius: 999px;
+    background: rgba(17, 24, 39, 0.72);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 650;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+}
+
+.menu-browse-inner.is-showing-all .menu-meal-type-badge {
+    display: inline-flex;
+}
+
+@media (min-width: 768px) {
+    .menu-meal-card-media {
+        height: 164px;
+    }
+}
+
+@media (min-width: 1280px) {
+    .menu-meal-card-media {
+        height: 172px;
+    }
+}
+
+.menu-meal-card-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ala-accent);
+    font-size: 1.75rem;
+    opacity: 0.5;
+    z-index: 0;
+}
+
+.menu-meal-card-img {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.menu-meal-card-img.is-broken,
+.menu-meal-card-media.is-placeholder .menu-meal-card-img {
+    display: none;
+}
+
+.menu-meal-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.7rem 0.75rem 0.8rem;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.menu-meal-card-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.4rem;
+}
+
+.menu-meal-card-name {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.3;
+    min-width: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.menu-cal-badge {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.12rem 0.4rem;
+    border-radius: 999px;
+    background: #f3f4f6;
+    color: #6b7280;
+    font-size: 0.68rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.menu-meal-card-detail,
+.menu-meal-card-includes {
+    margin: 0;
+    color: #6b7280;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.menu-meal-card-includes {
+    -webkit-line-clamp: 1;
+    color: var(--ala-accent-dark);
+    font-weight: 500;
+}
+
+.menu-allergen-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
+}
+
+.menu-allergen-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    color: #d97706;
+    font-size: 0.72rem;
+    font-weight: 500;
+}
+
+.menu-meal-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: auto;
+    padding-top: 0.2rem;
+}
+
+.menu-meal-card-price {
+    font-weight: 700;
+    color: var(--ala-accent);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.92rem;
+}
+
+.menu-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 16px;
+    min-height: 32px;
+    padding: 0 0.65rem;
+    background: var(--ala-accent);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding-top: 1px;
+    border: 1px solid transparent;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.menu-meal-card.selected .menu-add-btn {
+    background: #fff;
+    color: var(--ala-accent-dark);
+    border-color: rgba(var(--etcs-primary-rgb, 52, 152, 219), 0.35);
+}
+
+.menu-add-btn .menu-added-icon,
+.menu-add-btn .menu-added-label {
+    display: none;
+}
+
+.menu-meal-card.selected .menu-add-btn .menu-add-icon,
+.menu-meal-card.selected .menu-add-btn .menu-add-label {
+    display: none;
+}
+
+.menu-meal-card.selected .menu-add-btn .menu-added-icon,
+.menu-meal-card.selected .menu-add-btn .menu-added-label {
+    display: inline;
+}
+
+.menu-meal-card.selected .menu-add-btn .menu-added-icon {
+    color: var(--ala-accent);
+}
+
+.menu-filter-empty {
+    text-align: center;
+    padding: 1.5rem 1rem;
+}
+
+.menu-browse-page .ala-carte-order-bar {
+    display: none !important;
+}
+
+.menu-browse-page.ala-carte-has-selection {
+    padding-bottom: 2rem;
+}
+
+.menu-browse-page .ala-carte-date-strip {
+    background: transparent;
+    border: 0;
+    padding: 0;
+}
+
+.menu-browse-page .swiper-slide.selected {
+    background: var(--ala-accent) !important;
+    color: #fff !important;
+    border-color: var(--ala-accent) !important;
+}
+
+.menu-browse-page .swiper-slide.selected .date-day,
+.menu-browse-page .swiper-slide.selected .date-number,
+.menu-browse-page .swiper-slide.selected .date-month {
+    color: #fff !important;
+}
+
+@media (max-width: 767.98px) {
+    .menu-browse-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .menu-browse-page .menu-date-strip .ala-carte-date-nav-btn {
+        display: inline-flex;
     }
 }

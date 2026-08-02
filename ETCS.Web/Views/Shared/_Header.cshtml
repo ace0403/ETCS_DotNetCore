@@ -1,34 +1,105 @@
 @using System.Security.Claims
-@{ Layout = null; }
-<header class="pc-header">
-    <div class="header-wrapper">
-        <div class="me-auto pc-mob-drp">
-            <ul class="list-unstyled">
+@using ETCS.Web.Infrastructure.Auth
+@{
+    Layout = null;
+    var displayName = User.GetDisplayName()?.Trim();
+    if (string.IsNullOrWhiteSpace(displayName))
+    {
+        displayName = "there";
+    }
+
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    var isDashboard = string.Equals(controller, "Dashboard", StringComparison.OrdinalIgnoreCase);
+    var isMenuBrowse = string.Equals(controller, "AlaCarte", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(controller, "MealCombo", StringComparison.OrdinalIgnoreCase);
+    var pageTitle = ViewData["Title"]?.ToString() ?? "ETCS";
+    var pageSubtitle = ViewData["PageSubtitle"]?.ToString();
+    if (string.IsNullOrWhiteSpace(pageSubtitle))
+    {
+        pageSubtitle = isDashboard
+            ? "Here's what's happening today"
+            : "Manage meals, wallets, and student activity";
+    }
+}
+<header class="pc-header etcs-topbar">
+    <div class="header-wrapper etcs-topbar-inner">
+        <div class="etcs-topbar-left">
+            <ul class="list-unstyled etcs-topbar-toggles mb-0">
                 <li class="pc-h-item pc-sidebar-collapse">
-                    <a href="#" class="pc-head-link ms-0" id="sidebar-hide"><i class="ti ti-menu-2"></i></a>
+                    <a href="#" class="pc-head-link ms-0" id="sidebar-hide" aria-label="Toggle sidebar"><i class="ti ti-menu-2"></i></a>
                 </li>
                 <li class="pc-h-item pc-sidebar-popup">
-                    <a href="#" class="pc-head-link ms-0" id="mobile-collapse"><i class="ti ti-menu-2"></i></a>
+                    <a href="#" class="pc-head-link ms-0" id="mobile-collapse" aria-label="Open menu"><i class="ti ti-menu-2"></i></a>
                 </li>
             </ul>
+            <div class="etcs-topbar-greeting">
+                @if (isDashboard)
+                {
+                    <h1 class="etcs-topbar-title">Welcome back, @displayName</h1>
+                }
+                else
+                {
+                    <h1 class="etcs-topbar-title">@pageTitle</h1>
+                }
+                <p class="etcs-topbar-subtitle mt-0">@pageSubtitle</p>
+            </div>
         </div>
-        <div class="ms-auto">
-            <ul class="list-unstyled">
+        <div class="etcs-topbar-right">
+            <ul class="list-unstyled d-flex align-items-center gap-2 mb-0">
+                @if (isMenuBrowse)
+                {
+                    <li class="pc-h-item">
+                        <button type="button"
+                                class="menu-cart-btn etcs-topbar-cart-btn"
+                                id="btnPlaceOrder"
+                                aria-label="Cart">
+                            <i class="ti ti-shopping-cart" aria-hidden="true"></i>
+                            <span class="menu-cart-label">Cart</span>
+                            <span class="menu-cart-badge" id="menuCartBadge" hidden>0</span>
+                        </button>
+                    </li>
+                }
+                <li class="dropdown pc-h-item">
+                    <a class="pc-head-link dropdown-toggle arrow-none me-0 etcs-topbar-bell"
+                       href="#"
+                       role="button"
+                       data-bs-toggle="dropdown"
+                       aria-expanded="false"
+                       aria-label="Notifications"
+                       id="etcsNotificationBell">
+                        <i class="ti ti-bell"></i>
+                        <span class="etcs-topbar-bell-badge" id="etcsNotificationBadge" aria-hidden="true"></span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end etcs-notification-dropdown" id="etcsNotificationDropdown">
+                        <div class="etcs-notification-dropdown-header">
+                            <span>Notifications</span>
+                            <button type="button" class="btn btn-link btn-sm p-0" id="etcsMarkAllNotificationsRead">Mark all read</button>
+                        </div>
+                        <div class="etcs-notification-dropdown-list" id="etcsNotificationList">
+                            <div class="etcs-notification-dropdown-empty">Loading…</div>
+                        </div>
+                        <a asp-controller="Notifications" asp-action="Index" class="etcs-notification-dropdown-footer">View all</a>
+                    </div>
+                </li>
                 <li class="dropdown pc-h-item header-user-profile">
-                    <a class="pc-head-link dropdown-toggle arrow-none me-0" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">
-                        <img src="/images/user/avatar-2.jpg" alt="user-image" class="user-avtar">
+                    <a class="pc-head-link dropdown-toggle arrow-none me-0 etcs-topbar-avatar-link" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false" aria-label="Account menu">
+                        <img src="/images/user/avatar-2.jpg" alt="" class="user-avtar etcs-topbar-avatar">
                     </a>
                     <div class="dropdown-menu dropdown-user-profile dropdown-menu-end pc-h-dropdown">
                         <div class="dropdown-body">
                             <div class="d-flex mb-2">
                                 <div class="flex-shrink-0">
-                                    <img src="~/images/user/avatar-2.jpg" alt="user-image" class="user-avtar wid-35" />
+                                    <img src="~/images/user/avatar-2.jpg" alt="" class="user-avtar wid-35" />
                                 </div>
                                 <div class="flex-grow-1 ms-3">
                                     <h6 class="mb-1">@User.GetDisplayName()</h6>
                                     <span class="text-muted small">@User.FindFirstValue(ClaimTypes.Email)</span>
                                 </div>
                             </div>
+                            <hr class="border-secondary border-opacity-50 mb-1" />
+                            <a href="#" class="dropdown-item d-block" id="btnChangePassword">
+                                <i class="ti ti-lock me-2"></i>Change Password
+                            </a>
                             <hr class="border-secondary border-opacity-50 mt-1" />
                             <div class="d-grid">
                                 <a asp-controller="Home" asp-action="Logout" class="btn btn-primary text-white">Logout</a>
@@ -40,3 +111,8 @@
         </div>
     </div>
 </header>
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" id="changePasswordContainer"></div>
+    </div>
+</div>

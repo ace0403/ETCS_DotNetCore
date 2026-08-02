@@ -95,6 +95,7 @@ USING (
         (N'Student',                     N'Manage Students',            N'Master',    N'Student',           N'Index',                40),
         (N'Staff',                       N'Manage Staff',               N'Master',    N'Staff',             N'Index',                50),
         (N'EmailTemplate',               N'Email Templates',            N'Master',    N'EmailTemplate',     N'Index',                60),
+        (N'InAppNotification',           N'In-App Notifications',       N'Master',    N'InAppNotification', N'Index',                65),
         (N'Category',                    N'Menu Category',              N'Inventory', N'Category',          N'Index',                70),
         (N'Ingredient',                  N'Ingredients',                N'Inventory', N'Ingredient',        N'Index',                80),
         (N'MealItem',                    N'Item Master',                N'Inventory', N'MealItem',          N'Index',                90),

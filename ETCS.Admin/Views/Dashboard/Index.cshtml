@@ -1,28 +1,26 @@
 @using ETCS.Shared.Infrastructure.Admin.Reports.CanteenTransactions
 @{
     ViewData["Title"] = "Dashboard";
+    ViewData["PageSubtitle"] = "Canteen sales, transactions, and terminal activity";
     Layout = "~/Views/Shared/_Layout.cshtml";
     var schools = ViewBag.Schools as IReadOnlyList<SchoolCodeLookupDto> ?? Array.Empty<SchoolCodeLookupDto>();
     var today = DateTime.Today.ToString("yyyy-MM-dd");
 }
 <div class="dashboard-page">
-    <div class="page-header dashboard-page-header">
-        <div>
-            <h2 class="mb-1">Operations Dashboard</h2>
-            <p class="text-muted mb-0">Canteen sales, transactions, and terminal activity</p>
-        </div>
+    <div class="dashboard-filters" aria-label="Dashboard filters">
         <div class="dashboard-toolbar">
-            <div class="btn-group dashboard-range-group" role="group" aria-label="Date range">
-                <button type="button" class="btn btn-outline-primary active" data-range="today">Today</button>
-                <button type="button" class="btn btn-outline-primary" data-range="last7">7 days</button>
-                <button type="button" class="btn btn-outline-primary" data-range="last30">30 days</button>
-                <button type="button" class="btn btn-outline-primary" data-range="custom">Custom</button>
+            <div class="dashboard-toolbar-group dashboard-range-group" role="group" aria-label="Date range">
+                <button type="button" class="dashboard-range-btn active" data-range="today">Today</button>
+                <button type="button" class="dashboard-range-btn" data-range="last7">7 days</button>
+                <button type="button" class="dashboard-range-btn" data-range="last30">30 days</button>
+                <button type="button" class="dashboard-range-btn" data-range="custom">Custom</button>
             </div>
             <div id="dashboardCustomDates" class="dashboard-custom-dates d-none">
-                <input type="date" id="txtDashStartDate" class="form-control form-control-sm" value="@today" />
-                <span class="text-muted px-1">to</span>
-                <input type="date" id="txtDashEndDate" class="form-control form-control-sm" value="@today" />
+                <input type="date" id="txtDashStartDate" class="form-control form-control-sm py-0" value="@today" />
+                <span class="dashboard-custom-sep" aria-hidden="true">to</span>
+                <input type="date" id="txtDashEndDate" class="form-control form-control-sm py-0" value="@today" />
             </div>
+            <div class="dashboard-toolbar-spacer" aria-hidden="true"></div>
             <select id="ddlDashSchool" class="form-select form-select-sm dashboard-school-select" title="All Schools">
                 <option value="">All Schools</option>
                 @foreach (var school in schools)
@@ -30,8 +28,9 @@
                     <option value="@school.Code" title="@school.Name">@school.Name</option>
                 }
             </select>
-            <button type="button" class="btn btn-primary btn-sm" id="btnRefreshDashboard">
-                <i class="ti ti-refresh"></i> Refresh
+            <button type="button" class="btn btn-primary dashboard-refresh-btn" id="btnRefreshDashboard">
+                <i class="ti ti-refresh" aria-hidden="true"></i>
+                <span>Refresh</span>
             </button>
         </div>
     </div>

@@ -3,7 +3,9 @@ using System.Threading.RateLimiting;
 using ETCS.API.Features.Auth;
 using ETCS.API.Features.Payment;
 using ETCS.Shared.Application.Email;
+using ETCS.Shared.Application.Notifications;
 using ETCS.Shared.Application.Orders;
+using ETCS.Shared.Application.Topup;
 using ETCS.Shared.Application.Pos;
 using ETCS.API.Infrastructure.Auth;
 using ETCS.API.Infrastructure.Background;
@@ -40,12 +42,14 @@ builder.Services.Configure<PosOptions>(builder.Configuration.GetSection(PosOptio
 builder.Services.ConfigureMediaOptions(builder.Configuration);
 builder.Services.Configure<RefreshTokenStoreOptions>(builder.Configuration.GetSection(RefreshTokenStoreOptions.SectionName));
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+builder.Services.Configure<PendingPaymentReconcileOptions>(builder.Configuration.GetSection(PendingPaymentReconcileOptions.SectionName));
 builder.Services.AddPaymentGateway(builder.Configuration);
 builder.Services.AddMemoryCache();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
 builder.Services.AddScoped<IDbHealthRepository, DbHealthRepository>();
+builder.Services.AddScoped<IGuardianPasswordResetTokenStore, SqlGuardianPasswordResetTokenStore>();
 builder.Services.AddScoped<IParentLoginRepository, ParentLoginRepository>();
 builder.Services.AddScoped<IEnumRepository, EnumRepository>();
 builder.Services.AddScoped<MealRepository>();
@@ -53,8 +57,11 @@ builder.Services.AddScoped<IMealRepository, CachedMealRepository>();
 builder.Services.AddScoped<IMealOrderRepository, MealOrderRepository>();
 builder.Services.AddScoped<IMainOrderRepository, MainOrderRepository>();
 builder.Services.AddOrderFlowServices();
+builder.Services.AddTopupFlowServices();
 builder.Services.AddPosServices();
 builder.Services.AddGuardianEmailServices();
+builder.Services.AddGuardianInAppNotificationServices();
+builder.Services.AddPendingPaymentReconcileServices();
 builder.Services.AddScoped<IPaymentStatusService, PaymentStatusService>();
 builder.Services.AddScoped<StudentRepository>();
 builder.Services.AddScoped<IStudentRepository, CachedStudentRepository>();
@@ -63,6 +70,7 @@ builder.Services.AddSingleton<PaymentBackgroundQueue>();
 builder.Services.AddSingleton<IPaymentBackgroundQueue>(sp => sp.GetRequiredService<PaymentBackgroundQueue>());
 builder.Services.AddHostedService<PaymentBackgroundService>();
 builder.Services.AddHostedService<EmailDeliveryBackgroundService>();
+builder.Services.AddHostedService<PendingPaymentReconcileBackgroundService>();
 builder.Services.AddSingleton<IDbConnectionFactory, SqlConnectionFactory>();
 builder.Services.AddSingleton<IMealDbConnectionFactory, SqlMealConnectionFactory>();
 
@@ -234,7 +242,7 @@ app.UseResponseCompression();
 var mediaOptions = builder.Configuration.GetSection(MediaOptions.SectionName).Get<MediaOptions>() ?? new MediaOptions();
 app.MapMealImageStaticFiles(mediaOptions.StorePath);
 
-if (app.Environment.IsDevelopment())
+if (true) // (app.Environment.IsDevelopment())
 {
     app.UseSwagger(options =>
     {
@@ -242,7 +250,11 @@ if (app.Environment.IsDevelopment())
         {
             swagger.Servers =
             [
+#if DEBUG
                 new OpenApiServer { Url = "https://localhost:7204" }
+#else
+                new OpenApiServer { Url = "https://dev.api.etcs.acasea.ae" }
+#endif
             ];
         });
     });

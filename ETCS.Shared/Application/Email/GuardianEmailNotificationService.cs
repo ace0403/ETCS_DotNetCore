@@ -78,6 +78,45 @@ public sealed class GuardianEmailNotificationService : IGuardianEmailNotificatio
             cancellationToken);
     }
 
+    public async Task QueuePasswordResetAsync(
+        string guardianEmail,
+        string guardianName,
+        string resetLink,
+        int expiryMinutes,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(guardianEmail))
+        {
+            _logger.LogInformation("Skipping password reset email: guardian email is empty.");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(resetLink))
+        {
+            _logger.LogWarning("Skipping password reset email: reset link is empty.");
+            return;
+        }
+
+        try
+        {
+            await _emailNotificationRepository.QueueAsync(
+                new QueueEmailNotificationRequest
+                {
+                    TemplateKey = EmailTemplateKeys.PasswordReset,
+                    ToEmail = guardianEmail.Trim(),
+                    GuardianName = string.IsNullOrWhiteSpace(guardianName) ? "Guardian" : guardianName.Trim(),
+                    ResetLink = resetLink.Trim(),
+                    ExpiryMinutes = expiryMinutes.ToString(CultureInfo.InvariantCulture),
+                    EventDate = DateTime.Now.ToString("dd-MM-yyyy hh:mm:ss tt", CultureInfo.InvariantCulture)
+                },
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to queue password reset email for {Email}.", guardianEmail);
+        }
+    }
+
     private async Task QueueAsync(
         string templateKey,
         int studentId,
@@ -144,8 +183,7 @@ public sealed class GuardianEmailNotificationService : IGuardianEmailNotificatio
     {
         var students = await _studentRepository.GetStudentBasicListByGuardianAsync(guardianId, cancellationToken);
         var studentIdText = studentId.ToString(CultureInfo.InvariantCulture);
-        var match = students.FirstOrDefault(s =>
-            string.Equals(s.StudentId, studentIdText, StringComparison.OrdinalIgnoreCase));
+        var match = students.FirstOrDefault(s => s.UserId == studentId);
 
         return string.IsNullOrWhiteSpace(match?.Name)
             ? studentIdText

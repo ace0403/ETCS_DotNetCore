@@ -29,8 +29,10 @@ function adminDataTableAjax(relativeUrl) {
 }
 
 function renderAdminActionMenu(items) {
+    // Fixed strategy escapes DataTables scroll wrappers that clip menus on short tables.
     var html = '<div class="dropdown admin-table-action">';
-    html += '<button type="button" class="btn admin-action-toggle" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" title="Actions">';
+    html += '<button type="button" class="btn admin-action-toggle" data-bs-toggle="dropdown"';
+    html += ' data-bs-popper-config=\'{"strategy":"fixed"}\' aria-expanded="false" title="Actions">';
     html += '<i class="ti ti-dots-vertical"></i></button>';
     html += '<ul class="dropdown-menu dropdown-menu-end admin-action-menu shadow-sm">';
 
@@ -44,6 +46,20 @@ function renderAdminActionMenu(items) {
     html += '</ul></div>';
     return html;
 }
+
+$(document).on('mousedown.adminActionMenu', '.admin-table-action .admin-action-toggle', function () {
+    var $dropdown = $(this).closest('.admin-table-action');
+    var toggle = this;
+    var $menu = $dropdown.find('.admin-action-menu');
+    var toggleRect = toggle.getBoundingClientRect();
+    var menuHeight = $menu.outerHeight() || ($menu.children().length * 42) || 96;
+    var spaceBelow = window.innerHeight - toggleRect.bottom;
+    $dropdown.toggleClass('dropup', spaceBelow < menuHeight + 12);
+});
+
+$(document).on('hidden.bs.dropdown', '.admin-table-action', function () {
+    $(this).removeClass('dropup');
+});
 
 function adminCan(moduleKey, action) {
     if (window.adminIsFullAccess) return true;

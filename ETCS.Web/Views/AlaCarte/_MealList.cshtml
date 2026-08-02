@@ -7,121 +7,125 @@
     Layout = null;
     var currency = WebOptions.Value.DisplayCurrency;
     var selectedMealDate = ViewData["SelectedMealDate"]?.ToString() ?? string.Empty;
-    var selectedMealDateDisplay = ViewData["SelectedMealDateDisplay"]?.ToString() ?? string.Empty;
+    var groups = Model?.Where(g => g.MealItems.Count > 0).ToList() ?? [];
 }
 
-@if (Model != null && Model.Count > 0)
+@if (groups.Count > 0)
 {
-    <div class="ala-carte-menu-inner">
-        <div class="ala-carte-menu-header text-center">
-            <p class="ala-carte-section-title mb-1">Food Menu</p>
-            <h2 class="ala-carte-heading mb-0">Order Your Favorites</h2>
-            <p class="ala-carte-menu-hint">Tap a meal card to add it to your order</p>
-            @if (!string.IsNullOrWhiteSpace(selectedMealDateDisplay))
+    <div class="ala-carte-menu-inner menu-browse-inner is-showing-all">
+        <div class="menu-category-chips" role="tablist" aria-label="Meal categories">
+            <button type="button"
+                    class="menu-category-chip is-active"
+                    data-meal-type="all"
+                    role="tab"
+                    aria-selected="true">All</button>
+            @foreach (var group in groups)
             {
-                <p class="ala-carte-menu-date mb-0">
-                    <i class="ti ti-calendar-event"></i> @selectedMealDateDisplay
-                </p>
+                var typeName = string.IsNullOrWhiteSpace(group.MealTypeName) ? "Meals" : group.MealTypeName.Trim();
+                <button type="button"
+                        class="menu-category-chip"
+                        data-meal-type="@group.MealTypeId"
+                        role="tab"
+                        aria-selected="false">@typeName</button>
             }
         </div>
 
-        <div class="ala-carte-tabs-wrap">
-            <ul class="nav nav-pills ala-carte-meal-tabs" role="tablist">
-                @for (var index = 0; index < Model.Count; index++)
-                {
-                    var item = Model[index];
-                    if (item.MealItems.Count == 0) { continue; }
-                    var cssClass = index == 0 ? "active" : string.Empty;
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link ala-carte-meal-tab @cssClass" id="meal-tab-@item.MealTypeId" data-bs-toggle="pill"
-                                data-bs-target="#meal-item-@item.MealTypeId" type="button" role="tab">
-                            <span class="ala-carte-tab-icon-wrap">
-                                <i class="fa @item.MealCssClass ala-carte-tab-icon"></i>
-                            </span>
-                            <span class="ala-carte-tab-label">@(string.IsNullOrWhiteSpace(item.MealTypeName) ? "Meals" : item.MealTypeName)</span>
-                        </button>
-                    </li>
-                }
-            </ul>
-        </div>
-
-        <div class="tab-content ala-carte-tab-content" id="div_meal">
-            @for (var index = 0; index < Model.Count; index++)
+        <div class="menu-card-grid" id="div_meal">
+            @foreach (var group in groups)
             {
-                var mItem = Model[index];
-                if (mItem.MealItems.Count == 0) { continue; }
-                var cssClass = index == 0 ? "show active" : string.Empty;
-                <div id="meal-item-@mItem.MealTypeId" class="tab-pane fade @cssClass" role="tabpanel">
-                    <div class="ala-carte-item-list">
-                        @foreach (var item in mItem.MealItems)
-                        {
-                            var thumbnailPath = ImageUrlBuilder.GetThumbnailPath(MealImageKind.MealItem, item.ImageName);
-                            var defaultPath = MealImagePaths.MealItemDefaultThumbnail;
-                            var allergiesName = AlaCarteAllergenHelper.ParseAllergenNames(item.StudentAllergies);
-                            var isAllergyItem = AlaCarteAllergenHelper.HasAllergens(item.StudentAllergies);
+                foreach (var item in group.MealItems)
+                {
+                    var hasImage = !string.IsNullOrWhiteSpace(item.ImageName);
+                    var thumbnailPath = ImageUrlBuilder.GetThumbnailPath(MealImageKind.MealItem, item.ImageName);
+                    var defaultPath = MealImagePaths.MealItemDefaultThumbnail;
+                    var allergiesName = AlaCarteAllergenHelper.ParseAllergenNames(item.StudentAllergies);
+                    var isAllergyItem = AlaCarteAllergenHelper.HasAllergens(item.StudentAllergies);
+                    var allergenList = allergiesName
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .ToList();
+                    var calorieBadge = AlaCarteNutritionHelper.TryFormatCalorieBadge(item.NutritionList);
+                    var searchText = $"{item.ItemName} {item.Detail}".Trim().ToLowerInvariant();
+                    var typeName = string.IsNullOrWhiteSpace(group.MealTypeName) ? "Meals" : group.MealTypeName.Trim();
 
-                            <div class="ala-carte-meal-item meal-item" role="button" tabindex="0" aria-pressed="false">
-                                <div class="ala-carte-meal-media">
-                                    <img src="@thumbnailPath"
-                                         onerror="this.onerror=null;this.src='@defaultPath';"
-                                         alt="@item.ItemName"
-                                         class="ala-carte-meal-thumb" />
-                                    <span class="ala-carte-select-badge" aria-hidden="true">
-                                        <i class="ti ti-plus ala-carte-badge-add"></i>
-                                        <i class="ti ti-check ala-carte-badge-check"></i>
+                    <article class="menu-meal-card meal-item"
+                             role="button"
+                             tabindex="0"
+                             aria-pressed="false"
+                             data-meal-type-id="@group.MealTypeId"
+                             data-search-text="@searchText">
+                        <div class="menu-meal-card-media @(hasImage ? "" : "is-placeholder")">
+                            @if (item.IsPopular)
+                            {
+                                <span class="menu-popular-badge">
+                                    <i class="ti ti-flame" aria-hidden="true"></i>
+                                    Popular
+                                </span>
+                            }
+                            <span class="menu-selected-check" aria-hidden="true">
+                                <i class="ti ti-check"></i>
+                            </span>
+                            <span class="menu-meal-type-badge">@typeName</span>
+                            <span class="menu-meal-card-placeholder" aria-hidden="true">
+                                <i class="ti ti-tools-kitchen-2"></i>
+                            </span>
+                            @if (hasImage)
+                            {
+                                <img src="@thumbnailPath"
+                                     onerror="this.onerror=null;this.classList.add('is-broken');this.parentElement.classList.add('is-placeholder');"
+                                     alt="@item.ItemName"
+                                     class="menu-meal-card-img" />
+                            }
+                        </div>
+
+                        <div class="menu-meal-card-body">
+                            <div class="menu-meal-card-title-row">
+                                <h6 class="menu-meal-card-name">
+                                    @item.ItemName
+                                    <input type="checkbox" class="d-none" value="@item.Id" />
+                                </h6>
+                                @if (!string.IsNullOrWhiteSpace(calorieBadge))
+                                {
+                                    <span class="menu-cal-badge">@calorieBadge</span>
+                                }
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(item.Detail))
+                            {
+                                <p class="menu-meal-card-detail" title="@item.Detail">@item.Detail</p>
+                            }
+
+                            @if (allergenList.Count > 0)
+                            {
+                                <div class="menu-allergen-chips">
+                                    <span class="menu-allergen-chip">
+                                        <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+                                        @(string.Join(", ", allergenList))
                                     </span>
                                 </div>
+                            }
 
-                                <div class="ala-carte-meal-body">
-                                    <div class="ala-carte-meal-title-row">
-                                        <div class="ala-carte-meal-title-wrap">
-                                            <h6 class="ala-carte-meal-name">
-                                                @item.ItemName
-                                                <input type="checkbox" class="d-none" value="@item.Id" />
-                                            </h6>
-                                            @if (!string.IsNullOrWhiteSpace(item.Detail))
-                                            {
-                                                <p class="ala-carte-meal-detail" title="@item.Detail">@item.Detail</p>
-                                            }
-                                        </div>
-                                        <div class="ala-carte-price-block">
-                                            <span class="ala-carte-price-label">Price</span>
-                                            <span class="ala-carte-price">@currency @item.Price.ToString("0.00")</span>
-                                        </div>
-                                    </div>
-
-                                    <input type="hidden" class="meal-item-date" value="@selectedMealDate" />
-                                    <input type="hidden" class="is-allergen-item" value="@(isAllergyItem ? "true" : "false")" />
-                                    <input type="hidden" class="allergies-name" value="@allergiesName" />
-                                    <input type="hidden" class="item-price" value="@item.Price" />
-
-                                    @if (item.NutritionList.Count > 0)
-                                    {
-                                        <div class="ala-carte-nutrition">
-                                            @foreach (var nutrition in item.NutritionList)
-                                            {
-                                                <span class="ala-carte-nutrition-chip">
-                                                    <i class="fa @nutrition.ClassName"></i>
-                                                    <span>@nutrition.NutritionName</span>
-                                                    <strong>@nutrition.MeasureValue.ToString("0.0") @nutrition.MeasureTypeName</strong>
-                                                </span>
-                                            }
-                                        </div>
-                                    }
-
-                                    @if (!string.IsNullOrWhiteSpace(allergiesName))
-                                    {
-                                        <div class="ala-carte-allergens">
-                                            <i class="ti ti-alert-triangle"></i>
-                                            <span><strong>Allergens:</strong> @allergiesName</span>
-                                        </div>
-                                    }
-                                </div>
+                            <div class="menu-meal-card-footer">
+                                <span class="menu-meal-card-price">@currency @item.Price.ToString("0.00")</span>
+                                <span class="menu-add-btn" aria-hidden="true">
+                                    <i class="ti ti-plus menu-add-icon"></i>
+                                    <i class="ti ti-check menu-added-icon"></i>
+                                    <span class="menu-add-label">Add</span>
+                                    <span class="menu-added-label">Added</span>
+                                </span>
                             </div>
-                        }
-                    </div>
-                </div>
+                        </div>
+
+                        <input type="hidden" class="meal-item-date" value="@selectedMealDate" />
+                        <input type="hidden" class="is-allergen-item" value="@(isAllergyItem ? "true" : "false")" />
+                        <input type="hidden" class="allergies-name" value="@allergiesName" />
+                        <input type="hidden" class="item-price" value="@item.Price" />
+                    </article>
+                }
             }
+        </div>
+
+        <div class="menu-filter-empty" id="menuFilterEmpty" hidden>
+            <p class="text-muted mb-0">No meals match your search or filter.</p>
         </div>
     </div>
 }

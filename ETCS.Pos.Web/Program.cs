@@ -1,12 +1,24 @@
 using ETCS.Pos.Web.Options;
 using ETCS.Pos.Web.Services;
+using ETCS.Shared.Infrastructure.Admin.Auth;
+using ETCS.Shared.Infrastructure.Admin.Security;
+using ETCS.Shared.Infrastructure.Data;
 using ETCS.Shared.Media;
 using ETCS.Shared.Options;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<PosWebOptions>(builder.Configuration.GetSection(PosWebOptions.SectionName));
+builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
+builder.Services.Configure<MealDatabaseOptions>(builder.Configuration.GetSection(MealDatabaseOptions.SectionName));
 builder.Services.ConfigureMediaOptions(builder.Configuration, PosWebOptions.SectionName);
+
+builder.Services.AddSingleton<IDbConnectionFactory, SqlConnectionFactory>();
+builder.Services.AddSingleton<IMealDbConnectionFactory, SqlMealConnectionFactory>();
+builder.Services.AddScoped<IAdminLoginRepository, AdminLoginRepository>();
+builder.Services.AddScoped<IAdminPermissionRepository, AdminPermissionRepository>();
+
 builder.Services.AddScoped<IPosApiProxyService, PosApiProxyService>();
 builder.Services.AddScoped<IBridgeSetupFileResolver, BridgeSetupFileResolver>();
 
@@ -28,6 +40,16 @@ if (builder.Environment.IsDevelopment())
         ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
     });
 }
+
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Home/Index";
+        options.AccessDeniedPath = "/Home/Index";
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+    });
+builder.Services.AddAuthorization();
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
@@ -45,6 +67,8 @@ app.MapMealImageStaticFiles(posWebOptions.StorePath);
 
 app.UseStaticFiles();
 app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",

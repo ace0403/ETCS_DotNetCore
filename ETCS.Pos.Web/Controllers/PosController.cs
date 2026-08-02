@@ -2,12 +2,14 @@ using ETCS.Pos.Web.Models;
 using ETCS.Pos.Web.Options;
 using ETCS.Pos.Web.Services;
 using ETCS.Shared.Infrastructure.Pos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Extensions.Options;
 
 namespace ETCS.Pos.Web.Controllers;
 
+[Authorize]
 public sealed class PosController : Controller
 {
     private readonly IPosApiProxyService _proxy;
@@ -132,5 +134,6 @@ public sealed class PosController : Controller
         return PartialView("_Cart", model);
     }
 
+    [AllowAnonymous]
     public IActionResult Error() => View();
 }

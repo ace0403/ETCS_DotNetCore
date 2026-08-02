@@ -82,6 +82,7 @@ public sealed class GuardianChildListItemDto
     public string SchoolName { get; init; } = string.Empty;
     public decimal Balance { get; init; }
     public string Status { get; init; } = string.Empty;
+    public IReadOnlyList<string> Allergies { get; init; } = [];
 }
 
 public sealed class GuardianBalanceTransferRequest

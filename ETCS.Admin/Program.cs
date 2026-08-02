@@ -7,6 +7,7 @@ using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
 using ETCS.Shared.Infrastructure.Admin.Inventory.MealCombos;
 using ETCS.Shared.Infrastructure.Admin.Inventory.MealItems;
 using ETCS.Shared.Application.Email;
+using ETCS.Shared.Application.Notifications;
 using ETCS.Shared.Infrastructure.Admin.Inventory.MealServingPeriods;
 using ETCS.Shared.Infrastructure.Email;
 using ETCS.Shared.Infrastructure.Admin.Master.Guardians;
@@ -58,6 +59,7 @@ builder.Services.AddScoped<IMealComboAdminRepository, MealComboAdminRepository>(
 builder.Services.AddScoped<IMealServingPeriodAdminRepository, MealServingPeriodAdminRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddEmailNotificationInfrastructure();
+builder.Services.AddGuardianInAppNotificationServices();
 builder.Services.AddScoped<ICanteenTransactionReportRepository, CanteenTransactionReportRepository>();
 builder.Services.AddScoped<IAdminTransactionReportRepository, AdminTransactionReportRepository>();
 builder.Services.AddScoped<ITerminalSalesSummaryReportRepository, TerminalSalesSummaryReportRepository>();

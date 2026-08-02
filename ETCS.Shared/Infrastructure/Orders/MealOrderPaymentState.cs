@@ -17,4 +17,8 @@ public sealed class MealOrderPaymentState
     public int MealTransactionId { get; init; }
 
     public int OrderTypeId { get; init; }
+
+    public int TransactionStatusId { get; init; }
+
+    public bool IsTransactionCompleted { get; init; }
 }

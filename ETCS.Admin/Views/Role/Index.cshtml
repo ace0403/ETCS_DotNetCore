@@ -4,16 +4,17 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
     ViewBag.AdminModuleKey = "Role";
 }
-<div class="page-header d-flex justify-content-between">
-    <h2>Manage Roles</h2>
-    @if (AdminPermissionViewHelper.CanAdd(User, "Role"))
-    {
-        <button class="btn btn-outline-primary" onclick="loadRole(0)"><i class="ti ti-plus"></i> Add Role</button>
-    }
-</div>
 <div class="card">
     <div class="card-body">
-        <partial name="_AdminGridSearch" />
+        <div class="admin-grid-toolbar">
+            <partial name="_AdminGridSearch" />
+            @* <div class="admin-grid-actions">
+                @if (AdminPermissionViewHelper.CanAdd(User, "Role"))
+                {
+                    <button type="button" class="btn btn-outline-primary" onclick="loadRole(0)"><i class="ti ti-plus"></i> Add Role</button>
+                }
+            </div> *@
+        </div>
         <div class="table-responsive admin-grid-table-scroll">
         <table id="grid_table" class="table table-striped table-bordered w-100" style="width:100%">
             <thead>

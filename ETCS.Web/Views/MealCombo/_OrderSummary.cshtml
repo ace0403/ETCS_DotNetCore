@@ -30,7 +30,10 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body ala-carte-summary-body">
-                    @{ ViewData["ShowPaymentNote"] = true; }
+                    @{
+                        ViewData["ShowPaymentNote"] = true;
+                        ViewData["AllowSummaryRemove"] = true;
+                    }
                     <partial name="_OrderSummaryDetails" model="Model" />
                 </div>
                 <div class="modal-footer ala-carte-summary-footer">

@@ -47,6 +47,8 @@ public sealed class HomeController : ControllerBase
             studentId: null,
             guardianId: guardianId,
             type: "all",
+            fromDate: null,
+            toDate: null,
             page: 1,
             pageSize: recentCount,
             cancellationToken);

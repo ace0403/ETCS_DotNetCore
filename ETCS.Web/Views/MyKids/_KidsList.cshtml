@@ -1,40 +1,105 @@
 @model ETCS.Shared.Infrastructure.Admin.Master.Guardians.GuardianChildrenViewModel
-@{ Layout = null; }
+@inject Microsoft.Extensions.Options.IOptions<ETCS.Web.Options.WebOptions> WebOptions
+@{
+    Layout = null;
+    var currency = WebOptions.Value.DisplayCurrency;
+}
 @if (Model.Children.Count == 0)
 {
-    <p class="text-muted mb-0">No children linked to your account yet. Click <strong>Add Child</strong> to get started.</p>
+    <div class="my-kids-empty">
+        <div class="my-kids-empty-icon" aria-hidden="true">
+            <i class="ti ti-school"></i>
+        </div>
+        <h5 class="mb-1">No children linked</h5>
+        <p class="text-muted mb-0">Click <strong>Add Child</strong> to get started.</p>
+    </div>
 }
 else
 {
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered mb-0">
-            <thead>
-                <tr>
-                    <th class="text-center" style="width:70px"></th>
-                    <th>Name</th>
-                    <th>Card No</th>
-                    <th>Std</th>
-                    <th>School</th>
-                    <th class="text-end">Balance</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var child in Model.Children)
-                {
-                    <tr>
-                        <td class="text-center text-nowrap">
-                            <a href="javascript:;" onclick="openEditKid(@child.UserId)" title="Edit"><i class="ti ti-edit"></i></a>
-                        </td>
-                        <td>@child.Name</td>
-                        <td>@child.CardNo</td>
-                        <td>@child.Std</td>
-                        <td>@child.SchoolName</td>
-                        <td class="text-end">@child.Balance.ToString("0.00")</td>
-                        <td>@child.Status</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+    <div class="my-kids-grid" role="list">
+        @foreach (var child in Model.Children)
+        {
+            var name = string.IsNullOrWhiteSpace(child.Name) ? "—" : child.Name.Trim();
+            var initial = name == "—" ? "?" : char.ToUpperInvariant(name[0]).ToString();
+            var std = string.IsNullOrWhiteSpace(child.Std) || child.Std.Trim() == "-" ? "—" : child.Std.Trim();
+            var school = string.IsNullOrWhiteSpace(child.SchoolName) ? "—" : child.SchoolName.Trim();
+            var cardNo = string.IsNullOrWhiteSpace(child.CardNo) ? null : child.CardNo.Trim();
+            var allergies = child.Allergies?.Where(a => !string.IsNullOrWhiteSpace(a)).Select(a => a.Trim()).ToList() ?? [];
+            var studentId = Convert.ToInt32(child.UserId);
+
+            <article class="my-kids-card" role="listitem">
+                <header class="my-kids-card-header">
+                    <div class="my-kids-avatar" aria-hidden="true">@initial</div>
+                    <div class="my-kids-header-info">
+                        <div class="my-kids-name-row">
+                            <h3 class="my-kids-name">@name</h3>
+                        </div>
+                        @if (cardNo != null)
+                        {
+                            <div class="my-kids-card-id">@cardNo</div>
+                        }
+                    </div>
+                    <div class="dropdown my-kids-kebab">
+                        <button type="button"
+                                class="my-kids-kebab-btn"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false"
+                                aria-label="More options for @name">
+                            <i class="ti ti-dots-vertical" aria-hidden="true"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <button type="button" class="dropdown-item" onclick="openEditKid(@studentId)">
+                                    <i class="ti ti-edit me-2" aria-hidden="true"></i>
+                                    Edit
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </header>
+
+                <div class="my-kids-card-body">
+                    <div class="my-kids-meta-grid">
+                        <div class="my-kids-meta-item">
+                            <span class="my-kids-meta-label">School</span>
+                            <span class="my-kids-meta-value is-ellipsis" title="@school">@school</span>
+                        </div>
+                        <div class="my-kids-meta-item">
+                            <span class="my-kids-meta-label">Grade / Class</span>
+                            <span class="my-kids-meta-value is-ellipsis" title="@std">@std</span>
+                        </div>
+                    </div>
+
+                    <div class="my-kids-balance-box">
+                        <span class="my-kids-balance-icon" aria-hidden="true">
+                            <i class="ti ti-wallet"></i>
+                        </span>
+                        <span class="my-kids-balance-label">Balance</span>
+                        <span class="my-kids-balance-value">@currency @child.Balance.ToString("0.00")</span>
+                    </div>
+
+                    @if (allergies.Count > 0)
+                    {
+                        <div class="my-kids-allergies" title="@string.Join(", ", allergies)">
+                            <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+                            <span>@string.Join(", ", allergies)</span>
+                        </div>
+                    }
+                </div>
+
+                <footer class="my-kids-card-footer">
+                    <button type="button"
+                            class="my-kids-btn-profile"
+                            onclick="openEditKid(@studentId)">
+                        View Profile
+                    </button>
+                    <a class="my-kids-btn-order"
+                       href="@Url.Action("Index", "AlaCarte", new { studentId })">
+                        <i class="ti ti-calendar" aria-hidden="true"></i>
+                        Order
+                    </a>
+                </footer>
+            </article>
+        }
     </div>
 }

@@ -43,4 +43,9 @@ public sealed class MealPackageDto
     public IReadOnlyList<NutritionItemDto> NutritionList { get; init; } = [];
 
     public string StudentAllergies { get; init; } = string.Empty;
+
+    /// <summary>
+    /// True when this package ranks among the school's top paid sellers (recent window).
+    /// </summary>
+    public bool IsPopular { get; init; }
 }

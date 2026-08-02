@@ -2,12 +2,13 @@
     ViewData["Title"] = "Email Notification Log";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
-<div class="page-header d-flex justify-content-between align-items-center">
-    <h2 class="mb-0">Email Notification Log</h2>
-    <a asp-action="Index" class="btn btn-outline-secondary btn-sm"><i class="ti ti-arrow-left"></i> Templates</a>
-</div>
 <div class="card">
     <div class="card-body">
+        <div class="admin-grid-toolbar">
+            <div class="admin-grid-actions">
+                <a asp-action="Index" class="btn btn-outline-secondary btn-sm"><i class="ti ti-arrow-left"></i> Templates</a>
+            </div>
+        </div>
         <div class="table-responsive admin-grid-table-scroll">
         <table id="log_table" class="table table-striped table-bordered w-100" style="width:100%">
             <thead>

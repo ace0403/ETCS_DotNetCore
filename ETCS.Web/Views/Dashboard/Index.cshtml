@@ -1,70 +1,355 @@
+@model ETCS.Web.Models.DashboardPageViewModel
+@using System.Text.Json
+@inject Microsoft.Extensions.Options.IOptions<ETCS.Web.Options.WebOptions> WebOptions
 @{
     ViewData["Title"] = "Dashboard";
+    ViewData["PageSubtitle"] = "Here's what's happening today";
+    var currency = WebOptions.Value.DisplayCurrency;
+    var monthSpendTotal = Model.MonthlySpendSeries.Sum(p => p.Value);
+    var chartLabels = JsonSerializer.Serialize(Model.MonthlySpendSeries.Select(p => p.Label).ToList());
+    var chartValues = JsonSerializer.Serialize(Model.MonthlySpendSeries.Select(p => p.Value).ToList());
+    var categoryLabels = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(p => p.Label).ToList());
+    var categoryValues = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(p => p.Value).ToList());
+
+    string DashIcon(string fileName) => Url.Content($"~/images/icons/{fileName}");
+
+    string FormatTrend(decimal? percent)
+    {
+        if (percent is null)
+        {
+            return string.Empty;
+        }
+
+        return percent.Value > 0
+            ? $"+{percent.Value:0}%"
+            : $"{percent.Value:0}%";
+    }
 }
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h2 class="mb-1">Welcome</h2>
-        <p class="text-muted mb-0">Your ETCS parent portal dashboard</p>
+<div class="dashboard-page">
+    <section class="dashboard-balance-hero">
+        <div class="dashboard-balance-decor" aria-hidden="true"></div>
+        <div class="dashboard-balance-content">
+            <span class="dashboard-balance-label">Total Wallet Balance</span>
+            <span class="dashboard-balance-value">@currency @Model.TotalBalance.ToString("0.00")</span>
+            <div class="dashboard-balance-actions">
+                <a asp-controller="Topup" asp-action="Index" class="btn dashboard-balance-btn-primary">Top Up</a>
+                <a asp-controller="AlaCarte" asp-action="Index" class="btn dashboard-balance-btn-ghost">Order Food</a>
+            </div>
+        </div>
+    </section>
+
+    <div class="dashboard-stats">
+        <div class="dashboard-stat">
+            <div class="dashboard-stat-top">
+                <div class="dashboard-stat-icon tone-wallet">
+                    <span class="dashboard-icon" style="--icon: url('@DashIcon("wallet.svg")')" aria-hidden="true"></span>
+                </div>
+                @if (Model.WalletBalanceChangePercent is not null)
+                {
+                    <span class="dashboard-stat-badge @(Model.WalletBalanceChangePercent >= 0 ? "is-up" : "is-down")">@FormatTrend(Model.WalletBalanceChangePercent)</span>
+                }
+            </div>
+            <span class="dashboard-stat-value">@currency @Model.TotalBalance.ToString("0.00")</span>
+            <span class="dashboard-stat-label">Wallet Balance</span>
+        </div>
+        <div class="dashboard-stat">
+            <div class="dashboard-stat-top">
+                <div class="dashboard-stat-icon tone-orders">
+                    <span class="dashboard-icon" style="--icon: url('@DashIcon("shopping.svg")')" aria-hidden="true"></span>
+                </div>
+            </div>
+            <span class="dashboard-stat-value">@Model.TodayOrdersCount</span>
+            <span class="dashboard-stat-label">Today's Orders</span>
+        </div>
+        <div class="dashboard-stat">
+            <div class="dashboard-stat-top">
+                <div class="dashboard-stat-icon tone-spend">
+                    <span class="dashboard-icon" style="--icon: url('@DashIcon("chart.svg")')" aria-hidden="true"></span>
+                </div>
+                @if (Model.MonthlySpendingChangePercent is not null)
+                {
+                    <span class="dashboard-stat-badge @(Model.MonthlySpendingChangePercent >= 0 ? "is-up" : "is-down")">@FormatTrend(Model.MonthlySpendingChangePercent)</span>
+                }
+            </div>
+            <span class="dashboard-stat-value">@currency @Model.MonthlySpending.ToString("0.00")</span>
+            <span class="dashboard-stat-label">Monthly Spending</span>
+        </div>
+        <div class="dashboard-stat">
+            <div class="dashboard-stat-top">
+                <div class="dashboard-stat-icon tone-plans">
+                    <span class="dashboard-icon" style="--icon: url('@DashIcon("plan.svg")')" aria-hidden="true"></span>
+                </div>
+            </div>
+            <span class="dashboard-stat-value">@Model.ActivePlansCount</span>
+            <span class="dashboard-stat-label">Active Plans</span>
+        </div>
+        <div class="dashboard-stat">
+            <div class="dashboard-stat-top">
+                <div class="dashboard-stat-icon tone-kids">
+                    <span class="dashboard-icon" style="--icon: url('@DashIcon("users.svg")')" aria-hidden="true"></span>
+                </div>
+            </div>
+            <span class="dashboard-stat-value">@Model.Children.Count</span>
+            <span class="dashboard-stat-label">Children</span>
+        </div>
+        <div class="dashboard-stat">
+            <div class="dashboard-stat-top">
+                <div class="dashboard-stat-icon tone-pending">
+                    <span class="dashboard-icon" style="--icon: url('@DashIcon("clock.svg")')" aria-hidden="true"></span>
+                </div>
+            </div>
+            <span class="dashboard-stat-value">@Model.PendingOrdersCount</span>
+            <span class="dashboard-stat-label">Pending Orders</span>
+        </div>
     </div>
+
+    <section class="dashboard-panel">
+        <div class="dashboard-panel-header">
+            <h3 class="dashboard-panel-title mb-0">Quick Actions</h3>
+        </div>
+        <div class="dashboard-quick-actions" aria-label="Quick actions">
+            <a asp-controller="Topup" asp-action="Index" class="dashboard-action tone-topup">
+                <span class="dashboard-action-icon" aria-hidden="true">
+                    <span class="dashboard-action-plus">+</span>
+                </span>
+                <span class="dashboard-action-label">Top-Up Wallet</span>
+            </a>
+            <a asp-controller="AlaCarte" asp-action="Index" class="dashboard-action tone-alacarte">
+                <span class="dashboard-action-icon" aria-hidden="true">
+                    <span class="dashboard-icon" style="--icon: url('@DashIcon("cutlery.svg")')"></span>
+                </span>
+                <span class="dashboard-action-label">Order Food</span>
+            </a>
+            <a asp-controller="MyKids" asp-action="Index" class="dashboard-action tone-kids">
+                <span class="dashboard-action-icon" aria-hidden="true">
+                    <span class="dashboard-icon" style="--icon: url('@DashIcon("users.svg")')"></span>
+                </span>
+                <span class="dashboard-action-label">Manage Children</span>
+            </a>
+            <a asp-controller="MealCombo" asp-action="Index" class="dashboard-action tone-combo">
+                <span class="dashboard-action-icon" aria-hidden="true">
+                    <span class="dashboard-icon" style="--icon: url('@DashIcon("plan.svg")')"></span>
+                </span>
+                <span class="dashboard-action-label">Meal Plans</span>
+            </a>
+            <a asp-controller="History" asp-action="Index" class="dashboard-action tone-history">
+                <span class="dashboard-action-icon" aria-hidden="true">
+                    <span class="dashboard-icon" style="--icon: url('@DashIcon("money.svg")')"></span>
+                </span>
+                <span class="dashboard-action-label">Transactions</span>
+            </a>
+        </div>
+    </section>
+
+    <div class="dashboard-charts">
+        <section class="dashboard-panel dashboard-chart-panel">
+            <div class="dashboard-panel-header">
+                <h3 class="dashboard-panel-title mb-0">Monthly Spending</h3>
+                <span class="dashboard-chart-total">@currency @monthSpendTotal.ToString("0.00")</span>
+            </div>
+            @if (Model.MonthlySpendSeries.All(p => p.Value <= 0))
+            {
+                <div class="dashboard-empty py-4">
+                    <p class="text-muted mb-0">No spending data for the selected period.</p>
+                </div>
+            }
+            else
+            {
+                <div class="dashboard-chart-wrap">
+                    <canvas id="dashboardSpendChart" aria-label="Monthly spending chart"></canvas>
+                </div>
+            }
+        </section>
+        <section class="dashboard-panel dashboard-chart-panel">
+            <div class="dashboard-panel-header">
+                <h3 class="dashboard-panel-title mb-0">Meal Categories</h3>
+            </div>
+            @if (Model.CategoryBreakdown.Count == 0)
+            {
+                <div class="dashboard-empty py-4">
+                    <p class="text-muted mb-0">No category data yet.</p>
+                </div>
+            }
+            else
+            {
+                <div class="dashboard-chart-wrap dashboard-chart-wrap-donut">
+                    <canvas id="dashboardCategoryChart" aria-label="Meal categories chart"></canvas>
+                </div>
+            }
+        </section>
+    </div>
+
+    <div class="dashboard-split">
+        <section class="dashboard-panel">
+            <div class="dashboard-panel-header">
+                <h3 class="dashboard-panel-title mb-0">Recent Activity</h3>
+            </div>
+            @if (Model.RecentActivity.Count == 0)
+            {
+                <div class="dashboard-empty">
+                    <div class="dashboard-empty-icon" aria-hidden="true">
+                        <span class="dashboard-icon" style="--icon: url('@DashIcon("money.svg")')"></span>
+                    </div>
+                    <h5 class="mb-1">No recent activity</h5>
+                    <p class="text-muted mb-0">Orders and top-ups will show up here.</p>
+                </div>
+            }
+            else
+            {
+                <div class="dashboard-activity" role="list">
+                    @foreach (var item in Model.RecentActivity)
+                    {
+                        <a href="@item.DetailUrl" class="dashboard-activity-row @item.Tone" role="listitem">
+                            <div class="dashboard-activity-icon" aria-hidden="true">
+                                <span class="dashboard-icon" style="--icon: url('@DashIcon(item.Icon)')"></span>
+                            </div>
+                            <div class="dashboard-activity-main">
+                                <div class="dashboard-activity-title">@item.Title</div>
+                                <div class="dashboard-activity-time">@item.RelativeTime</div>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(item.StatusLabel))
+                            {
+                                <span class="dashboard-activity-status @item.StatusCss">@item.StatusLabel</span>
+                            }
+                        </a>
+                    }
+                </div>
+            }
+        </section>
+
+        <section class="dashboard-panel">
+            <div class="dashboard-panel-header">
+                <h3 class="dashboard-panel-title mb-0">Today's Meals</h3>
+            </div>
+            @if (Model.TodaysMeals.Count == 0)
+            {
+                <div class="dashboard-empty">
+                    <div class="dashboard-empty-icon" aria-hidden="true">
+                        <span class="dashboard-icon" style="--icon: url('@DashIcon("shopping.svg")')"></span>
+                    </div>
+                    <h5 class="mb-1">No meals today</h5>
+                    <p class="text-muted mb-0">Orders placed today will appear here.</p>
+                </div>
+            }
+            else
+            {
+                <div class="dashboard-todays-meals" role="list">
+                    @foreach (var meal in Model.TodaysMeals)
+                    {
+                        <a href="@meal.DetailUrl" class="dashboard-meal-row" role="listitem">
+                            <div class="dashboard-meal-icon" aria-hidden="true">
+                                <span class="dashboard-icon" style="--icon: url('@DashIcon("shopping.svg")')"></span>
+                            </div>
+                            <div class="dashboard-meal-main">
+                                <div class="dashboard-meal-name">@meal.StudentName</div>
+                                <div class="dashboard-meal-type">@meal.MealLabel</div>
+                            </div>
+                            <span class="dashboard-meal-status @meal.StatusCss">@meal.StatusLabel</span>
+                        </a>
+                    }
+                </div>
+            }
+        </section>
+    </div>
+
+    <section class="dashboard-panel">
+        <div class="dashboard-panel-header">
+            <h3 class="dashboard-panel-title mb-0">Notifications</h3>
+            <a asp-controller="Notifications" asp-action="Index" class="dashboard-panel-link">View All</a>
+        </div>
+        @if (Model.Notifications.Count == 0)
+        {
+            <div class="dashboard-empty">
+                <div class="dashboard-empty-icon" aria-hidden="true">
+                    <span class="dashboard-icon" style="--icon: url('@DashIcon("notification.svg")')"></span>
+                </div>
+                <h5 class="mb-1">No notifications</h5>
+                <p class="text-muted mb-0">Order and wallet updates will appear here.</p>
+            </div>
+        }
+        else
+        {
+            <div class="dashboard-notifications" role="list">
+                @foreach (var note in Model.Notifications)
+                {
+                    <a href="@note.DetailUrl" class="dashboard-notification-row@(note.IsRead ? "" : " is-unread")" role="listitem">
+                        <div class="dashboard-notification-icon" aria-hidden="true">
+                            <span class="dashboard-icon" style="--icon: url('@DashIcon(note.Icon)')"></span>
+                        </div>
+                        <div class="dashboard-notification-main">
+                            <div class="dashboard-notification-title">@note.Title</div>
+                            <div class="dashboard-notification-message">@note.Message</div>
+                            <div class="dashboard-notification-time">@note.RelativeTime</div>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+    </section>
 </div>
 
-<div class="row g-3">
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light-primary" style="width:48px;height:48px;">
-                            <i class="ti ti-wallet text-primary f-20"></i>
-                        </span>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h6 class="mb-1 text-muted">Account Balance</h6>
-                        <h4 class="mb-0">—</h4>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light-primary" style="width:48px;height:48px;">
-                            <i class="ti ti-school text-primary f-20"></i>
-                        </span>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h6 class="mb-1 text-muted">Students</h6>
-                        <h4 class="mb-0">—</h4>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light-primary" style="width:48px;height:48px;">
-                            <i class="ti ti-clipboard-list text-primary f-20"></i>
-                        </span>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h6 class="mb-1 text-muted">Recent Orders</h6>
-                        <h4 class="mb-0">—</h4>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+@section Styles {
+    <link href="~/css/custom/dashboard.css" asp-append-version="true" rel="stylesheet" />
+}
 
-<div class="card mt-3">
-    <div class="card-body">
-        <h5 class="card-title mb-2">Getting started</h5>
-        <p class="text-muted mb-0">Your portal is ready. Additional features and navigation items can be added to the sidebar as they become available.</p>
-    </div>
-</div>
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            var spendEl = document.getElementById('dashboardSpendChart');
+            if (spendEl && window.Chart) {
+                new Chart(spendEl, {
+                    type: 'line',
+                    data: {
+                        labels: @Html.Raw(chartLabels),
+                        datasets: [{
+                            label: 'Spending',
+                            data: @Html.Raw(chartValues),
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.18)',
+                            fill: true,
+                            tension: 0.35,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#3498db'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: { beginAtZero: true, grid: { color: 'rgba(15, 23, 42, 0.06)' } }
+                        }
+                    }
+                });
+            }
+
+            var categoryEl = document.getElementById('dashboardCategoryChart');
+            if (categoryEl && window.Chart) {
+                new Chart(categoryEl, {
+                    type: 'doughnut',
+                    data: {
+                        labels: @Html.Raw(categoryLabels),
+                        datasets: [{
+                            data: @Html.Raw(categoryValues),
+                            backgroundColor: ['#3498db', '#f59e0b', '#16a34a', '#3b82f6'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { boxWidth: 12, usePointStyle: true }
+                            }
+                        },
+                        cutout: '68%'
+                    }
+                });
+            }
+        })();
+    </script>
+}

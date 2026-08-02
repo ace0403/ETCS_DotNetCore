@@ -8,7 +8,11 @@ public sealed class TransactionHistoryItemDto
 
     public int? StudentId { get; init; }
 
+    public string StudentName { get; init; } = string.Empty;
+
     public string TransactionType { get; init; } = "topup";
+
+    public int? OrderTypeId { get; init; }
 
     public string OrderId { get; init; } = string.Empty;
 

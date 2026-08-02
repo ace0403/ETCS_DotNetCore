@@ -39,14 +39,16 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
     public async Task<PaymentSessionCreateResult> CreateTopupSessionAsync(
         StudentTopupPaymentRequest request,
         string orderId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? returnUrl = null)
     {
         return await CreateSessionInternalAsync(
             orderId,
             request.Amount,
             request.StudentId,
             "student topup",
-            cancellationToken);
+            cancellationToken,
+            returnUrl);
     }
 
     public async Task<PaymentSessionCreateResult> CreateOrderSessionAsync(
@@ -186,7 +188,8 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
         decimal amount,
         string orderInfo,
         string context,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? returnUrlOverride = null)
     {
         if (string.IsNullOrWhiteSpace(_options.BaseUrl))
         {
@@ -197,7 +200,9 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             };
         }
 
-        string returnUrl = string.Format(_options.ReturnBaseUrl, orderId);
+        string returnUrl = string.IsNullOrWhiteSpace(returnUrlOverride)
+            ? string.Format(_options.ReturnBaseUrl, orderId)
+            : string.Format(returnUrlOverride, orderId);
 
         var registration = new ComtrustRegistrationRequest
         {

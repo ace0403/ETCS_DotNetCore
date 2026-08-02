@@ -1,0 +1,234 @@
+@model ETCS.Web.Models.TopupPageViewModel
+@using System.Text.Json
+@inject Microsoft.Extensions.Options.IOptions<ETCS.Web.Options.WebOptions> WebOptions
+@{
+    ViewData["Title"] = "Wallet";
+    ViewData["PageSubtitle"] = "Balance, spending, and recent activity";
+    var currency = WebOptions.Value.DisplayCurrency;
+    var chartLabels = JsonSerializer.Serialize(Model.WeeklySpendSeries.Select(p => p.Label).ToList());
+    var chartValues = JsonSerializer.Serialize(Model.WeeklySpendSeries.Select(p => p.Value).ToList());
+}
+<div class="topup-page wallet-dashboard mt-4 mt-md-0">
+    <section class="wallet-balance-hero" aria-label="Current balance">
+        <div class="wallet-balance-hero-copy">
+            <span class="wallet-balance-label">
+                <i class="ti ti-wallet f-18" aria-hidden="true"></i>
+                Current Balance
+            </span>
+            <span class="wallet-balance-value">@currency @Model.TotalBalance.ToString("0.00")</span>
+        </div>
+        <button type="button" class="wallet-topup-btn" data-bs-toggle="modal" data-bs-target="#topupModal">
+            <i class="ti ti-plus" aria-hidden="true"></i>
+            Top Up
+        </button>
+    </section>
+
+    <section class="wallet-card wallet-spend-card" aria-label="Weekly spending">
+        <div class="wallet-card-header">
+            <h2 class="wallet-card-title">Weekly Spending</h2>
+        </div>
+        <div class="wallet-chart-wrap">
+            <canvas id="walletWeeklySpendChart" aria-label="Weekly spending chart"></canvas>
+        </div>
+    </section>
+
+    <section class="wallet-card wallet-txns-card" aria-label="Recent transactions">
+        <div class="wallet-card-header">
+            <h2 class="wallet-card-title">Recent Transactions</h2>
+            <a asp-controller="History" asp-action="Index" class="wallet-view-all">View All</a>
+        </div>
+
+        @if (Model.RecentTransactions.Count == 0)
+        {
+            <div class="wallet-txn-empty">
+                <i class="ti ti-receipt-off" aria-hidden="true"></i>
+                <p class="mb-0">No recent transactions yet.</p>
+            </div>
+        }
+        else
+        {
+            <ul class="wallet-txn-list">
+                @foreach (var item in Model.RecentTransactions)
+                {
+                    <li class="wallet-txn-item">
+                        <a href="@item.DetailUrl" class="wallet-txn-link">
+                            <span class="wallet-txn-icon @item.IconToneCss" aria-hidden="true">
+                                <i class="ti @item.IconClass"></i>
+                            </span>
+                            <span class="wallet-txn-main">
+                                <span class="wallet-txn-title">@item.Title</span>
+                                <span class="wallet-txn-ref">@item.Reference</span>
+                            </span>
+                            <span class="wallet-txn-aside">
+                                <span class="wallet-txn-amount @(item.IsCredit ? "is-credit" : "is-debit")">
+                                    @(item.IsCredit ? "+" : "−")@currency @item.Amount.ToString("0.00")
+                                </span>
+                                <span class="wallet-txn-status @item.StatusCss">@item.StatusLabel</span>
+                            </span>
+                        </a>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+</div>
+
+<div class="modal fade topup-page" id="topupModal" tabindex="-1" aria-labelledby="topupModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content topup-modal-content">
+            <div class="modal-header topup-modal-header">
+                <h5 class="modal-title" id="topupModalLabel">Top Up Wallet</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="frmTopup" class="topup-panel topup-panel-modal" autocomplete="off">
+                    @Html.AntiForgeryToken()
+
+                    <div class="topup-balance-panel" id="balancePanel" hidden>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="topup-balance-panel-top mb-0">
+                                <div class="topup-avatar" aria-hidden="true">
+                                    <i class="ti ti-user"></i>
+                                </div>
+                                <div class="topup-balance-meta">
+                                    <span class="topup-balance-label">Current balance</span>
+                                    <span class="topup-child-name" id="selectedChildName"></span>
+                                </div>
+                            </div>
+                            <div class="topup-balance-amount" id="balanceAmount">@currency 0.00</div>
+                        </div>
+                        <div class="topup-minimum-banner" id="minimumHint" hidden></div>
+                    </div>
+
+                    <div class="topup-field">
+                        <label for="StudentId" class="topup-label">
+                            <i class="ti ti-user-heart"></i> Select Child
+                        </label>
+                        <select id="StudentId" name="StudentId" class="form-select topup-select">
+                            <option value="">- Select Child -</option>
+                            @foreach (var child in Model.Children)
+                            {
+                                if (child.StudentId == Model.SelectedStudentId)
+                                {
+                                    <option value="@child.StudentId"
+                                            data-balance="@child.Balance.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                            data-minimum="@child.MinimumTopupAmount.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                            selected>
+                                        @child.Name
+                                    </option>
+                                }
+                                else
+                                {
+                                    <option value="@child.StudentId"
+                                            data-balance="@child.Balance.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                            data-minimum="@child.MinimumTopupAmount.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                                        @child.Name
+                                    </option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="topup-field">
+                        <label for="Amount" class="topup-label">
+                            <i class="ti ti-coins"></i> Amount
+                        </label>
+                        <div class="topup-amount-wrap">
+                            <span class="topup-currency" aria-hidden="true">@currency</span>
+                            <input type="number"
+                                   id="Amount"
+                                   name="Amount"
+                                   class="form-control topup-amount-input"
+                                   step="0.01"
+                                   min="0.01"
+                                   placeholder="0.00"
+                                   inputmode="decimal" />
+                        </div>
+                        <div id="amountError" class="topup-error" hidden></div>
+                    </div>
+
+                    <div class="topup-field">
+                        <span class="topup-label">
+                            <i class="ti ti-click"></i> Quick amounts
+                        </span>
+                        <div class="topup-chips" id="quickAmounts" role="group" aria-label="Quick amounts">
+                            <button type="button" class="topup-chip" data-amount="10">
+                                <span class="topup-chip-currency">@currency</span>
+                                <span class="topup-chip-value">10</span>
+                            </button>
+                            <button type="button" class="topup-chip" data-amount="25">
+                                <span class="topup-chip-currency">@currency</span>
+                                <span class="topup-chip-value">25</span>
+                            </button>
+                            <button type="button" class="topup-chip" data-amount="50">
+                                <span class="topup-chip-currency">@currency</span>
+                                <span class="topup-chip-value">50</span>
+                            </button>
+                            <button type="button" class="topup-chip" data-amount="100">
+                                <span class="topup-chip-currency">@currency</span>
+                                <span class="topup-chip-value">100</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="topup-actions">
+                        <button type="button" id="btnTopupConfirm" class="topup-confirm-btn">
+                            <i class="ti ti-credit-card"></i>
+                            <span>Confirm Top-up</span>
+                        </button>
+                        <button type="button" class="topup-cancel-link" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+
+                    <div class="topup-secure-note">
+                        <i class="ti ti-lock"></i>
+                        <span>You will be redirected to a secure payment page.</span>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link href="~/css/custom/topup.css" asp-append-version="true" rel="stylesheet" />
+}
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="~/js/custom/topup.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            var spendEl = document.getElementById('walletWeeklySpendChart');
+            if (!spendEl || !window.Chart) return;
+
+            new Chart(spendEl, {
+                type: 'bar',
+                data: {
+                    labels: @Html.Raw(chartLabels),
+                    datasets: [{
+                        label: 'Spending',
+                        data: @Html.Raw(chartValues),
+                        backgroundColor: '#3498db',
+                        borderRadius: 8,
+                        maxBarThickness: 80
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#64748b', font: { weight: '600' } }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(15, 23, 42, 0.06)' },
+                            ticks: { color: '#94a3b8', stepSize: 25 }
+                        }
+                    }
+                }
+            });
+        })();
+    </script>
+}

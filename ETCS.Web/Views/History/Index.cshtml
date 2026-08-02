@@ -1,0 +1,231 @@
+@model ETCS.Web.Models.HistoryPageViewModel
+@using ETCS.Shared.Enumeration
+@inject Microsoft.Extensions.Options.IOptions<ETCS.Web.Options.WebOptions> WebOptions
+@{
+    var isTransactions = string.Equals(Context.Request.Query["view"].ToString(), "transactions", StringComparison.OrdinalIgnoreCase);
+    ViewData["Title"] = isTransactions ? "Transactions" : "Orders";
+    ViewData["PageSubtitle"] = isTransactions ? "Wallet top-ups and payments" : "Meal orders and plans";
+    var currency = WebOptions.Value.DisplayCurrency;
+    string TypeIcon(HistoryListItemViewModel item)
+    {
+        if (string.Equals(item.TransactionType, "topup", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ti-wallet";
+        }
+
+        return item.OrderTypeId switch
+        {
+            (int)TransactionTypeEnum.A_La_Carte => "ti-tools-kitchen-2",
+            (int)TransactionTypeEnum.MealOrder => "ti-package",
+            _ => "ti-receipt"
+        };
+    }
+
+    string TypeTone(HistoryListItemViewModel item)
+    {
+        if (string.Equals(item.TransactionType, "topup", StringComparison.OrdinalIgnoreCase))
+        {
+            return "tone-topup";
+        }
+
+        return item.OrderTypeId switch
+        {
+            (int)TransactionTypeEnum.A_La_Carte => "tone-alacarte",
+            (int)TransactionTypeEnum.MealOrder => "tone-combo",
+            _ => "tone-order"
+        };
+    }
+}
+<div class="history-page">
+    <div class="">
+        <form method="get" asp-action="Index" class="history-panel history-filters" id="historyFilterForm">
+            @if (isTransactions)
+            {
+                <input type="hidden" name="view" value="transactions" />
+            }
+            <div class="history-filter-grid">
+                <div class="history-filter-field">
+                    <label for="studentId" class="history-label">Child</label>
+                    <select id="studentId" name="studentId" class="form-select history-select">
+                        <option value="">All children</option>
+                        @foreach (var child in Model.Children)
+                        {
+                            if (Model.SelectedStudentId == child.StudentId)
+                            {
+                                <option value="@child.StudentId" selected>@child.Name</option>
+                            }
+                            else
+                            {
+                                <option value="@child.StudentId">@child.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="history-filter-field">
+                    <label for="fromDate" class="history-label">From</label>
+                    <input id="fromDate"
+                           name="fromDate"
+                           type="date"
+                           class="form-control history-select"
+                           value="@(Model.FromDate?.ToString("yyyy-MM-dd"))" />
+                </div>
+
+                <div class="history-filter-field">
+                    <label for="toDate" class="history-label">To</label>
+                    <input id="toDate"
+                           name="toDate"
+                           type="date"
+                           class="form-control history-select"
+                           value="@(Model.ToDate?.ToString("yyyy-MM-dd"))" />
+                </div>
+
+                <div class="history-filter-field history-filter-types">
+                    <span class="history-label">Type</span>
+                    <div class="history-type-pills" role="group" aria-label="Transaction type">
+                        <label class="history-type-pill@(Model.SelectedType == "all" ? " is-active" : "")">
+                            <input type="radio" name="type" value="all" @(Model.SelectedType == "all" ? "checked" : null) />
+                            All
+                        </label>
+                        <label class="history-type-pill@(Model.SelectedType == "topup" ? " is-active" : "")">
+                            <input type="radio" name="type" value="topup" @(Model.SelectedType == "topup" ? "checked" : null) />
+                            Top-up
+                        </label>
+                        <label class="history-type-pill@(Model.SelectedType == "order" ? " is-active" : "")">
+                            <input type="radio" name="type" value="order" @(Model.SelectedType == "order" ? "checked" : null) />
+                            Orders
+                        </label>
+                    </div>
+                </div>
+
+                <div class="history-filter-actions">
+                    <span class="history-label history-label-spacer" aria-hidden="true">&nbsp;</span>
+                    <div class="history-filter-btn-row">
+                        @if (isTransactions)
+                        {
+                            <a asp-action="Index" asp-route-view="transactions" class="history-filter-btn history-filter-btn-clear">Clear</a>
+                        }
+                        else
+                        {
+                            <a asp-action="Index" class="history-filter-btn history-filter-btn-clear">Clear</a>
+                        }
+                        <button type="submit" class="history-filter-btn">Apply</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        <div class="history-panel history-results">
+            <div class="history-results-bar">
+                <h3 class="history-results-title mb-0">Transactions</h3>
+                <p class="history-results-meta mb-0">
+                    @Model.TotalCount @(Model.TotalCount == 1 ? "result" : "results")
+                    @if (Model.TotalPages > 1)
+                    {
+                        <span>· Page @Model.Page of @Model.TotalPages</span>
+                    }
+                </p>
+            </div>
+
+            @if (Model.Items.Count == 0)
+            {
+                <div class="history-empty">
+                    <div class="history-empty-icon" aria-hidden="true">
+                        <i class="ti ti-receipt-off"></i>
+                    </div>
+                    <h5 class="mb-1">No transactions found</h5>
+                    <p class="text-muted mb-0">Try another child, date, or type filter.</p>
+                </div>
+            }
+            else
+            {
+                <div class="history-timeline" role="list">
+                    @foreach (var item in Model.Items)
+                    {
+                        var tone = TypeTone(item);
+                        var icon = TypeIcon(item);
+                        var typeClass = tone switch
+                        {
+                            "tone-topup" => "type-topup",
+                            "tone-alacarte" => "type-alacarte",
+                            "tone-combo" => "type-combo",
+                            _ => "type-order"
+                        };
+                        <a href="@item.DetailUrl" class="history-row @tone" role="listitem">
+                            <div class="history-row-body">
+                                <div class="history-row-icon" aria-hidden="true">
+                                    <i class="ti @icon"></i>
+                                </div>
+                                <div class="history-row-main">
+                                    <div class="history-row-child">@item.StudentName</div>
+                                    <div class="history-row-meta">
+                                        <span>@item.CreatedOn.ToString("dd MMM yyyy")</span>
+                                        <span class="history-meta-sep" aria-hidden="true">·</span>
+                                        <span>@item.CreatedOn.ToString("hh:mm tt")</span>
+                                    </div>
+                                </div>
+                                <div class="history-row-side">
+                                    <div class="history-row-amount @(item.IsCredit ? "is-credit" : "is-debit")">
+                                        <span class="history-amount-sign">@(item.IsCredit ? "+" : "−")</span><span class="history-amount-currency">@currency</span>
+                                        <span class="history-amount-value">@item.Amount.ToString("0.00")</span>
+                                    </div>
+                                    <span class="history-row-cta">
+                                        View details <i class="ti ti-arrow-up-right"></i>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="history-row-footer">
+                                <span class="history-type-badge @typeClass">
+                                    <i class="ti @icon"></i> @item.TypeLabel
+                                </span>
+                                <span class="history-status-badge @item.StatusCss">
+                                    <span class="history-status-dot" aria-hidden="true"></span>
+                                    @item.StatusLabel
+                                </span>
+                            </div>
+                        </a>
+                    }
+                </div>
+
+                @if (Model.TotalPages > 1)
+                {
+                    <nav class="history-pagination" aria-label="History pagination">
+                        <a class="history-page-btn@(Model.Page <= 1 ? " is-disabled" : "")"
+                           asp-action="Index"
+                           asp-route-studentId="@Model.SelectedStudentId"
+                           asp-route-type="@Model.SelectedType"
+                           asp-route-fromDate="@(Model.FromDate?.ToString("yyyy-MM-dd"))"
+                           asp-route-toDate="@(Model.ToDate?.ToString("yyyy-MM-dd"))"
+                           asp-route-page="@(Model.Page - 1)">
+                            <i class="ti ti-chevron-left"></i> Previous
+                        </a>
+                        <span class="history-page-indicator">@Model.Page / @Model.TotalPages</span>
+                        <a class="history-page-btn@(Model.Page >= Model.TotalPages ? " is-disabled" : "")"
+                           asp-action="Index"
+                           asp-route-studentId="@Model.SelectedStudentId"
+                           asp-route-type="@Model.SelectedType"
+                           asp-route-fromDate="@(Model.FromDate?.ToString("yyyy-MM-dd"))"
+                           asp-route-toDate="@(Model.ToDate?.ToString("yyyy-MM-dd"))"
+                           asp-route-page="@(Model.Page + 1)">
+                            Next <i class="ti ti-chevron-right"></i>
+                        </a>
+                    </nav>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link href="~/css/custom/history.css" asp-append-version="true" rel="stylesheet" />
+}
+@section Scripts {
+    <script>
+        (function () {
+            $('.history-type-pill input').on('change', function () {
+                $('.history-type-pill').removeClass('is-active');
+                $(this).closest('.history-type-pill').addClass('is-active');
+            });
+        })();
+    </script>
+}

@@ -12,6 +12,8 @@ public sealed class OrderDetailDto
 
     public int GuardianId { get; init; }
 
+    public int OrderTypeId { get; init; }
+
     public decimal SubTotal { get; init; }
 
     public decimal TaxAmount { get; init; }
@@ -22,7 +24,11 @@ public sealed class OrderDetailDto
 
     public int OrderStatusId { get; init; }
 
+    public int? TransactionStatusId { get; init; }
+
     public bool IsPaid { get; init; }
+
+    public bool IsTransactionCompleted { get; init; }
 
     public string Notes { get; init; } = string.Empty;
 

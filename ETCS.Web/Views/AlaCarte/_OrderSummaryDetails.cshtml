@@ -5,6 +5,7 @@
 @{
     var currency = WebOptions.Value.DisplayCurrency;
     var showPaymentNote = ViewData["ShowPaymentNote"] as bool? ?? false;
+    var allowRemove = ViewData["AllowSummaryRemove"] as bool? ?? false;
 }
 @if (Model.SelectedMeals.Count > 0)
 {
@@ -22,7 +23,8 @@
                             data-bs-toggle="tab"
                             data-bs-target="#summary-date-@i"
                             type="button"
-                            role="tab">
+                            role="tab"
+                            data-meal-date="@group.Key.ToString("yyyy-MM-dd")">
                         <span class="date-day">@group.Key.ToString("ddd").ToUpperInvariant()</span>
                         <span class="date-number">@group.Key.ToString("dd")/@group.Key.ToString("MM")</span>
                         <span class="date-count">@itemCount</span>
@@ -37,15 +39,19 @@
             var group = grouped[i];
             var activeClass = i == 0 ? "show active" : string.Empty;
             var subtotal = group.Sum(x => x.Price);
-            <div class="tab-pane fade @activeClass" id="summary-date-@i" role="tabpanel">
+            <div class="tab-pane fade @activeClass" id="summary-date-@i" role="tabpanel" data-meal-date="@group.Key.ToString("yyyy-MM-dd")">
                 <div class="ala-carte-summary-item-list">
                     @foreach (var item in group)
                     {
                         var thumbnailPath = ImageUrlBuilder.GetThumbnailPath(MealImageKind.MealItem, item.ImageName);
                         var defaultPath = MealImagePaths.MealItemDefaultThumbnail;
                         var mealType = string.IsNullOrWhiteSpace(item.MealTypeName) ? "Meal" : item.MealTypeName;
+                        var mealDateValue = item.MealDate.ToString("yyyy-MM-dd");
 
-                        <div class="ala-carte-summary-item meal-item">
+                        <div class="ala-carte-summary-item meal-item"
+                             data-selection-id="@item.SelectionId"
+                             data-item-id="@item.Id"
+                             data-meal-date="@mealDateValue">
                             <img src="@thumbnailPath"
                                  alt="@item.ItemName"
                                  class="ala-carte-summary-thumb"
@@ -53,7 +59,21 @@
                             <div class="ala-carte-summary-item-body">
                                 <div class="ala-carte-summary-item-top">
                                     <h6 class="ala-carte-summary-item-name">@item.ItemName</h6>
-                                    <span class="ala-carte-price">@currency @item.Price.ToString("0.00")</span>
+                                    <div class="ala-carte-summary-item-aside">
+                                        <span class="ala-carte-price">@currency @item.Price.ToString("0.00")</span>
+                                        @if (allowRemove)
+                                        {
+                                            <button type="button"
+                                                    class="ala-carte-summary-remove"
+                                                    data-selection-id="@item.SelectionId"
+                                                    data-item-id="@item.Id"
+                                                    data-meal-date="@mealDateValue"
+                                                    title="Remove item"
+                                                    aria-label="Remove @item.ItemName">
+                                                <i class="ti ti-trash" aria-hidden="true"></i>
+                                            </button>
+                                        }
+                                    </div>
                                 </div>
                                 <span class="ala-carte-summary-meal-type">@mealType</span>
                             </div>

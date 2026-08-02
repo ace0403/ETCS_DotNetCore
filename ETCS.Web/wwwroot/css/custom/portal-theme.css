@@ -1,0 +1,725 @@
+/* ETCS Web — MealHub portal theme overrides */
+
+:root,
+[data-pc-preset="preset-1"] {
+    --etcs-primary: #3498db;
+    --etcs-primary-hover: #2980b9;
+    --etcs-primary-soft: #3498db99;
+    --etcs-primary-rgb: 52, 152, 219;
+    --etcs-surface: #f5f7f9;
+    --etcs-ink: #0f172a;
+    --etcs-muted: #64748b;
+    --etcs-border: rgba(15, 23, 42, 0.08);
+    --etcs-content-pad-x: 1.5rem;
+    --etcs-content-pad-top: 1.15rem;
+    --etcs-topbar-height: 100px;
+    --bs-primary: #3498db;
+    --bs-primary-rgb: 52, 152, 219;
+    --bs-link-color: #3498db;
+    --bs-link-hover-color: #2980b9;
+    --pc-sidebar-active-color: #3498db;
+    --pc-header-background: #ffffff;
+    --pc-sidebar-background: #ffffff;
+}
+
+body {
+    background: var(--etcs-surface) !important;
+}
+
+[data-pc-preset="preset-1"] .btn-primary,
+.btn-primary {
+    --bs-btn-color: #ffffff;
+    --bs-btn-bg: #3498db;
+    --bs-btn-border-color: #3498db;
+    --bs-btn-hover-color: #ffffff;
+    --bs-btn-hover-bg: #2980b9;
+    --bs-btn-hover-border-color: #2980b9;
+    --bs-btn-focus-shadow-rgb: 52, 152, 219;
+    --bs-btn-active-color: #ffffff;
+    --bs-btn-active-bg: #2471a3;
+    --bs-btn-active-border-color: #2471a3;
+    --bs-btn-disabled-color: #ffffff;
+    --bs-btn-disabled-bg: #3498db;
+    --bs-btn-disabled-border-color: #3498db;
+}
+
+[data-pc-preset="preset-1"] .btn-outline-primary,
+.btn-outline-primary {
+    --bs-btn-color: #3498db;
+    --bs-btn-border-color: #3498db;
+    --bs-btn-hover-color: #ffffff;
+    --bs-btn-hover-bg: #3498db;
+    --bs-btn-hover-border-color: #3498db;
+    --bs-btn-focus-shadow-rgb: 52, 152, 219;
+    --bs-btn-active-color: #ffffff;
+    --bs-btn-active-bg: #2471a3;
+    --bs-btn-active-border-color: #2471a3;
+    --bs-btn-disabled-color: #3498db;
+    --bs-btn-disabled-bg: transparent;
+    --bs-btn-disabled-border-color: #3498db;
+}
+
+.text-primary,
+a.text-primary {
+    color: #3498db !important;
+}
+
+.bg-primary {
+    background-color: #3498db !important;
+}
+
+/* Shell layout */
+.pc-sidebar {
+    background: #ffffff !important;
+    border-right: 1px solid var(--etcs-border);
+    box-shadow: none !important;
+    display: flex !important;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+}
+
+.pc-sidebar .navbar-wrapper {
+    display: flex !important;
+    flex-direction: column;
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
+    width: 100%;
+    padding-top: 0.5rem;
+    box-sizing: border-box;
+}
+
+.pc-sidebar .m-header {
+    /*padding: 1.25rem 1.25rem 0.75rem !important;*/
+    margin: 0 !important;
+    justify-content: flex-start !important;
+    flex-shrink: 0;
+}
+
+.pc-sidebar .navbar-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 0.75rem 0.85rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.pc-sidebar .pc-navbar {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    margin-bottom: 0;
+    padding: 0.15rem 0;
+}
+
+.pc-sidebar .pc-navbar.etcs-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.pc-sidebar .pc-link {
+    border-radius: 14px !important;
+    margin-bottom: 0;
+    color: #64748b !important;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 0.72rem 1.4rem !important;
+    display: flex !important;
+    align-items: center;
+    gap: 0.85rem;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.pc-sidebar .pc-link .pc-micon {
+    color: #94a3b8;
+    margin-right: 0 !important;
+    width: 1.35rem;
+    min-width: 1.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pc-sidebar .etcs-nav-icon {
+    width: 1.2rem;
+    height: 1.2rem;
+    background-color: currentColor;
+    -webkit-mask: var(--icon) center / contain no-repeat;
+    mask: var(--icon) center / contain no-repeat;
+}
+
+.pc-sidebar .pc-item.active > .pc-link,
+.pc-sidebar .pc-link.active,
+.pc-sidebar .pc-item:hover > .pc-link {
+    /*background: var(--etcs-primary-soft) !important;*/
+    color: var(--etcs-primary) !important;
+}
+
+.pc-sidebar .pc-item.active > .pc-link .pc-micon,
+.pc-sidebar .pc-link.active .pc-micon,
+.pc-sidebar .pc-item:hover > .pc-link .pc-micon {
+    color: var(--etcs-primary) !important;
+}
+
+.pc-sidebar .pc-link.etcs-nav-soon {
+    cursor: default;
+    opacity: 0.85;
+}
+
+.pc-sidebar .pc-link.etcs-nav-soon:hover {
+    background: transparent !important;
+    color: #64748b !important;
+}
+
+.pc-sidebar .pc-link.etcs-nav-soon:hover .pc-micon {
+    color: #94a3b8 !important;
+}
+
+.pc-header.etcs-topbar {
+    background: var(--etcs-surface) !important;
+    border-bottom: 0 !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    min-height: var(--etcs-topbar-height);
+    height: var(--etcs-topbar-height);
+}
+
+.etcs-topbar-inner {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    height: 100%;
+    padding: 0.65rem var(--etcs-content-pad-x) !important;
+    box-sizing: border-box;
+}
+
+.etcs-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.etcs-topbar-toggles {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    flex-shrink: 0;
+}
+
+.etcs-topbar-greeting {
+    min-width: 0;
+}
+
+.etcs-topbar-title {
+    margin: 0;
+    font-size: clamp(1.25rem, 2.2vw, 1.7rem);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    color: var(--etcs-ink);
+    line-height: 1.2;
+}
+
+.etcs-topbar-subtitle {
+    margin: 0.15rem 0 0;
+    color: var(--etcs-muted);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.etcs-topbar-right {
+    flex-shrink: 0;
+}
+
+.etcs-topbar-cart-btn.menu-cart-btn {
+    min-height: 42px;
+    border-radius: 12px;
+    padding: 0 1rem;
+    background: #3498db;
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 0;
+    position: relative;
+}
+
+.etcs-topbar-cart-btn.menu-cart-btn:hover {
+    background: #2471a3;
+    color: #fff;
+}
+
+.etcs-topbar-cart-btn .menu-cart-badge {
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.etcs-topbar-bell {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px !important;
+    background: #fff;
+    border: 1px solid var(--etcs-border);
+    color: #475569;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    cursor: pointer;
+    position: relative;
+    overflow: visible !important;
+}
+
+.etcs-topbar-bell::after {
+    display: none !important; /* hide Bootstrap dropdown caret if any */
+}
+
+.etcs-topbar-avatar-link {
+    padding: 0 !important;
+}
+
+.etcs-topbar-avatar {
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 999px !important;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px var(--etcs-border);
+}
+
+/* Hide desktop sidebar toggle; keep mobile menu button only */
+@media (min-width: 1025px) {
+    .etcs-topbar-toggles {
+        display: none !important;
+    }
+}
+
+@media (max-width: 1024px) {
+    .etcs-topbar .pc-sidebar-collapse {
+        display: none !important;
+    }
+}
+
+@media (max-width: 767px) {
+    .etcs-topbar-title {
+        font-size: 1.15rem;
+    }
+
+    .etcs-topbar-subtitle {
+        font-size: 0.8rem;
+    }
+
+    .etcs-topbar-inner {
+        padding: 0.6rem 1rem !important;
+    }
+
+    :root {
+        --etcs-content-pad-x: 1rem;
+        --etcs-content-pad-top: 0.85rem;
+    }
+}
+
+.pc-header {
+    background: #ffffff !important;
+    border-bottom: 1px solid var(--etcs-border);
+    box-shadow: none !important;
+}
+
+.pc-container {
+    background: var(--etcs-surface);
+    padding-top: 0 !important;
+}
+
+.pc-content {
+    background: transparent;
+    padding-top: var(--etcs-content-pad-top) !important;
+    padding-left: var(--etcs-content-pad-x) !important;
+    padding-right: var(--etcs-content-pad-x) !important;
+    box-sizing: border-box;
+}
+
+/* App shell: only main content scrolls; sidebar/header stay put */
+@media (min-width: 1025px) {
+    html,
+    body {
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .pc-sidebar .navbar-wrapper {
+        height: 100%;
+        display: flex !important;
+        flex-direction: column;
+    }
+
+    .pc-container {
+        height: calc(100vh - var(--etcs-topbar-height) - 52px);
+        max-height: calc(100vh - var(--etcs-topbar-height) - 52px);
+        min-height: 0 !important;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        top: var(--etcs-topbar-height) !important;
+        padding-top: 0 !important;
+    }
+
+    .pc-footer {
+        position: fixed;
+        left: 280px;
+        right: 0;
+        bottom: 0;
+        z-index: 1024;
+        margin: 0 !important;
+        padding: 10px 0 !important;
+        height: 52px;
+        display: flex;
+        align-items: center;
+    }
+
+    body:has(.pc-sidebar.pc-sidebar-hide) .pc-footer,
+    .pc-sidebar.pc-sidebar-hide ~ .pc-footer {
+        left: 0;
+    }
+}
+
+.pc-footer {
+    background: #ffffff;
+    border-top: 1px solid var(--etcs-border);
+}
+
+.pc-footer .footer-wrapper {
+    padding-left: var(--etcs-content-pad-x) !important;
+    padding-right: var(--etcs-content-pad-x) !important;
+}
+
+/* Brand block in sidebar */
+.etcs-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
+    color: var(--etcs-ink);
+    width: 100%;
+}
+
+.etcs-brand-logo {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    border-radius: 50%;
+    background: #3498db;
+    padding: 8px;
+}
+
+.etcs-brand-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.etcs-brand-title {
+    font-weight: 800;
+    font-size: 1.05rem;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    color: var(--etcs-ink);
+}
+
+.etcs-brand-subtitle {
+    font-size: 0.75rem;
+    color: var(--etcs-muted);
+    font-weight: 600;
+}
+
+.etcs-sidebar-help {
+    flex-shrink: 0;
+    margin: 0.5rem 0.85rem 1.15rem;
+    background: #3498db;
+    color: #fff;
+    border-radius: 18px;
+    padding: 1.15rem 1.1rem 1.1rem;
+}
+
+.etcs-sidebar-help h6 {
+    margin: 0 0 0.25rem;
+    font-weight: 700;
+    font-size: 1rem;
+    color: #fff;
+}
+
+.etcs-sidebar-help p {
+    margin: 0 0 0.95rem;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.4;
+    font-weight: 500;
+}
+
+.etcs-sidebar-help .btn {
+    background: rgba(15, 23, 42, 0.22) !important;
+    color: #fff !important;
+    border: 0 !important;
+    font-weight: 700;
+    font-size: 0.85rem;
+    border-radius: 999px !important;
+    width: 100%;
+    padding: 0.7rem 1rem;
+    line-height: 1.2;
+    box-shadow: none !important;
+}
+
+.etcs-sidebar-help .btn:hover {
+    background: rgba(15, 23, 42, 0.32) !important;
+    color: #fff !important;
+}
+
+/* Login accents */
+.login-page .login-submit {
+    background: #3498db !important;
+    border-color: #3498db !important;
+}
+
+.login-page .login-submit:hover {
+    background: #2980b9 !important;
+    border-color: #2980b9 !important;
+}
+
+.login-page .login-input-group > .btn.login-password-toggle:hover,
+.login-page .login-input-group > .btn.login-password-toggle:focus {
+    color: #3498db;
+}
+
+.login-page .login-input-group:focus-within .login-input-addon,
+.login-page .login-input-group:focus-within > .form-control {
+    border-color: #3498db !important;
+}
+
+.login-page .login-input-group:focus-within {
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+}
+
+.login-page .login-hero-bg::after {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.88) 0%, rgba(52, 152, 219, 0.78) 100%);
+}
+
+/* Portal SweetAlert — allergen consent & shared confirm chrome */
+.etcs-swal.swal2-popup {
+    width: min(420px, 92vw);
+    padding: 1.5rem 1.35rem 1.25rem;
+    border-radius: 18px;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+    font-family: inherit;
+}
+
+.etcs-swal .etcs-swal-title,
+.etcs-swal .swal2-title {
+    margin: 0.35rem 0 0.5rem;
+    padding: 0;
+    color: #0f172a;
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+}
+
+.etcs-swal .etcs-swal-content,
+.etcs-swal .swal2-content {
+    margin: 0;
+    padding: 0;
+    color: #475569;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    text-align: left;
+}
+
+.etcs-swal-simple .etcs-swal-content,
+.etcs-swal-simple .swal2-content,
+.etcs-swal-alert .etcs-swal-content,
+.etcs-swal-alert .swal2-content {
+    text-align: center;
+}
+
+.etcs-swal .etcs-swal-icon.swal2-icon {
+    width: 3.25rem;
+    height: 3.25rem;
+    margin: 0.15rem auto 0.35rem;
+    border-width: 3px;
+}
+
+.etcs-swal .etcs-swal-icon.swal2-icon .swal2-icon-content {
+    font-size: 1.75rem;
+    font-weight: 700;
+}
+
+.etcs-swal .etcs-swal-icon.swal2-icon.swal2-warning {
+    border-color: #f59e0b;
+    color: #d97706;
+}
+
+.etcs-swal .etcs-swal-icon.swal2-icon.swal2-info {
+    border-color: #38bdf8;
+    color: #0284c7;
+}
+
+.etcs-swal .etcs-swal-icon.swal2-icon.swal2-success {
+    border-color: #34d399;
+    color: #059669;
+}
+
+.etcs-swal .etcs-swal-icon.swal2-icon.swal2-error {
+    border-color: #f87171;
+    color: #dc2626;
+}
+
+.etcs-swal .etcs-swal-actions {
+    margin: 1.15rem 0 0;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.etcs-swal .etcs-swal-confirm,
+.etcs-swal .etcs-swal-cancel {
+    margin: 0;
+    border-radius: 10px;
+    font-weight: 650;
+    font-size: 0.9rem;
+    padding: 0.65rem 1.1rem;
+    min-width: 9.5rem;
+    border: 1px solid transparent;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.etcs-swal .etcs-swal-confirm {
+    background: #3498db;
+    color: #fff;
+}
+
+.etcs-swal .etcs-swal-confirm:hover,
+.etcs-swal .etcs-swal-confirm:focus {
+    background: #2980b9;
+    color: #fff;
+}
+
+.etcs-swal .etcs-swal-confirm:focus {
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.28) !important;
+}
+
+.etcs-swal .etcs-swal-cancel {
+    background: #f1f5f9;
+    color: #334155;
+    border-color: #e2e8f0;
+}
+
+.etcs-swal .etcs-swal-cancel:hover,
+.etcs-swal .etcs-swal-cancel:focus {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.etcs-swal .etcs-swal-cancel:focus {
+    box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.35) !important;
+}
+
+.etcs-allergen-dialog {
+    text-align: left;
+}
+
+.etcs-allergen-lead {
+    margin: 0 0 0.9rem;
+    color: #475569;
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+.etcs-allergen-lead strong {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.etcs-allergen-section {
+    margin: 0 0 0.95rem;
+    padding: 0.75rem 0.85rem;
+    border-radius: 12px;
+    background: #fff7ed;
+    border: 1px solid #ffedd5;
+}
+
+.etcs-allergen-section-label {
+    margin-bottom: 0.45rem;
+    color: #9a3412;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.etcs-allergen-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.etcs-allergen-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.28rem 0.65rem;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid #fed7aa;
+    color: #9a3412;
+    font-size: 0.8rem;
+    font-weight: 650;
+}
+
+.etcs-allergen-consent {
+    margin: 0;
+    padding: 0.7rem 0.8rem;
+    border-radius: 12px;
+    background: #f0fdfa;
+    border: 1px solid #ccfbf1;
+    color: #334155;
+    font-size: 0.86rem;
+    line-height: 1.45;
+}
+
+.etcs-allergen-consent strong {
+    color: #3498db;
+    font-weight: 700;
+}
+
+@media (max-width: 480px) {
+    .etcs-swal .etcs-swal-actions {
+        flex-direction: column-reverse;
+        width: 100%;
+    }
+
+    .etcs-swal .etcs-swal-confirm,
+    .etcs-swal .etcs-swal-cancel {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+.pc-sidebar .pc-navbar > .pc-item > .pc-link::after {
+    border-radius: 20px !important
+}

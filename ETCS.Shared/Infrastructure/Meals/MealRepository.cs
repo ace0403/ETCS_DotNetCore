@@ -1,7 +1,9 @@
 using Dapper;
+using ETCS.Shared.Enumeration;
 using ETCS.Shared.Helpers;
 using ETCS.Shared.Infrastructure.Data;
 using ETCS.Shared.Media;
+using Microsoft.Extensions.Caching.Memory;
 using System.Data;
 using System.Data.Common;
 using System.Text.Json;
@@ -13,6 +15,14 @@ public sealed class MealRepository : IMealRepository
     private const string GetMealItemsForStudentSp = "GetMealItemsForStudent";
     private const string GetMealPackagesForStudentSp = "GetMealPackagesForStudent";
 
+    /// <summary>How many top sellers to mark Popular per school/catalog.</summary>
+    private const int PopularTopN = 3;
+
+    /// <summary>Sales lookback window for Popular ranking.</summary>
+    private const int PopularLookbackDays = 30;
+
+    private static readonly TimeSpan PopularIdsCacheTtl = TimeSpan.FromMinutes(30);
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -20,11 +30,16 @@ public sealed class MealRepository : IMealRepository
 
     private readonly IMealDbConnectionFactory _connectionFactory;
     private readonly MealImageUrlBuilder _imageUrlBuilder;
+    private readonly IMemoryCache _cache;
 
-    public MealRepository(IMealDbConnectionFactory connectionFactory, MealImageUrlBuilder imageUrlBuilder)
+    public MealRepository(
+        IMealDbConnectionFactory connectionFactory,
+        MealImageUrlBuilder imageUrlBuilder,
+        IMemoryCache cache)
     {
         _connectionFactory = connectionFactory;
         _imageUrlBuilder = imageUrlBuilder;
+        _cache = cache;
     }
 
     public async Task<IReadOnlyList<MealItemDto>> GetMealItemsForStudentAsync(
@@ -55,10 +70,12 @@ public sealed class MealRepository : IMealRepository
                 commandType: CommandType.StoredProcedure,
                 cancellationToken: cancellationToken))).AsList();
 
+        var popularIds = await GetPopularMealItemIdsAsync(dbConnection, schoolId, cancellationToken);
+
         var items = new List<MealItemDto>(rows.Count);
         foreach (var row in rows)
         {
-            items.Add(MapToDto(row));
+            items.Add(MapToDto(row, popularIds.Contains(row.Id)));
         }
 
         return items;
@@ -92,16 +109,100 @@ public sealed class MealRepository : IMealRepository
                 commandType: CommandType.StoredProcedure,
                 cancellationToken: cancellationToken))).AsList();
 
+        var popularIds = await GetPopularPackageIdsAsync(dbConnection, schoolId, cancellationToken);
+
         var packages = new List<MealPackageDto>(rows.Count);
         foreach (var row in rows)
         {
-            packages.Add(MapToPackageDto(row));
+            packages.Add(MapToPackageDto(row, popularIds.Contains(row.Id)));
         }
 
         return packages;
     }
 
-    private MealItemDto MapToDto(MealItemDbRow row)
+    private async Task<HashSet<int>> GetPopularMealItemIdsAsync(
+        DbConnection connection,
+        int schoolId,
+        CancellationToken cancellationToken)
+    {
+        var cacheKey = $"popular-meal-items:{schoolId}:{PopularLookbackDays}:{PopularTopN}";
+        if (_cache.TryGetValue(cacheKey, out HashSet<int>? cached) && cached is not null)
+        {
+            return cached;
+        }
+
+        const string sql = """
+            SELECT TOP (@TopN) oi.ItemId AS Id
+            FROM [Order] o
+            INNER JOIN [OrderItem] oi ON oi.OrderId = o.Id
+            INNER JOIN [MealItem] mi ON mi.Id = oi.ItemId
+            WHERE ISNULL(o.IsPaid, 0) = 1
+              AND o.OrderTypeId = @OrderTypeId
+              AND oi.ItemId IS NOT NULL
+              AND mi.SchoolId = @SchoolId
+              AND o.OrderDate >= DATEADD(DAY, -@LookbackDays, GETDATE())
+            GROUP BY oi.ItemId
+            ORDER BY SUM(oi.Quantity) DESC, oi.ItemId ASC;
+            """;
+
+        var ids = (await connection.QueryAsync<int>(
+            new CommandDefinition(
+                sql,
+                new
+                {
+                    TopN = PopularTopN,
+                    SchoolId = schoolId,
+                    LookbackDays = PopularLookbackDays,
+                    OrderTypeId = (int)TransactionTypeEnum.A_La_Carte
+                },
+                cancellationToken: cancellationToken))).ToHashSet();
+
+        _cache.Set(cacheKey, ids, PopularIdsCacheTtl);
+        return ids;
+    }
+
+    private async Task<HashSet<int>> GetPopularPackageIdsAsync(
+        DbConnection connection,
+        int schoolId,
+        CancellationToken cancellationToken)
+    {
+        var cacheKey = $"popular-meal-packages:{schoolId}:{PopularLookbackDays}:{PopularTopN}";
+        if (_cache.TryGetValue(cacheKey, out HashSet<int>? cached) && cached is not null)
+        {
+            return cached;
+        }
+
+        const string sql = """
+            SELECT TOP (@TopN) oi.PackageId AS Id
+            FROM [Order] o
+            INNER JOIN [OrderItem] oi ON oi.OrderId = o.Id
+            INNER JOIN [MealPackages] mp ON mp.Id = oi.PackageId
+            WHERE ISNULL(o.IsPaid, 0) = 1
+              AND o.OrderTypeId = @OrderTypeId
+              AND oi.PackageId IS NOT NULL
+              AND mp.SchoolId = @SchoolId
+              AND o.OrderDate >= DATEADD(DAY, -@LookbackDays, GETDATE())
+            GROUP BY oi.PackageId
+            ORDER BY SUM(oi.Quantity) DESC, oi.PackageId ASC;
+            """;
+
+        var ids = (await connection.QueryAsync<int>(
+            new CommandDefinition(
+                sql,
+                new
+                {
+                    TopN = PopularTopN,
+                    SchoolId = schoolId,
+                    LookbackDays = PopularLookbackDays,
+                    OrderTypeId = (int)TransactionTypeEnum.MealOrder
+                },
+                cancellationToken: cancellationToken))).ToHashSet();
+
+        _cache.Set(cacheKey, ids, PopularIdsCacheTtl);
+        return ids;
+    }
+
+    private MealItemDto MapToDto(MealItemDbRow row, bool isPopular)
     {
         return new MealItemDto
         {
@@ -121,11 +222,12 @@ public sealed class MealRepository : IMealRepository
             CreatedOn = row.CreatedOn,
             IngredientIds = ParseIngredientIds(row.IngredientIds),
             NutritionList = ParseJsonList(row.NutritionList),
-            StudentAllergies = row.StudentAllergies ?? string.Empty
+            StudentAllergies = row.StudentAllergies ?? string.Empty,
+            IsPopular = isPopular
         };
     }
 
-    private MealPackageDto MapToPackageDto(MealPackageDbRow row)
+    private MealPackageDto MapToPackageDto(MealPackageDbRow row, bool isPopular)
     {
         return new MealPackageDto
         {
@@ -148,7 +250,8 @@ public sealed class MealRepository : IMealRepository
             WeekNo = ParseWeekNumbers(row.WeekNo),
             IngredientIds = ParseIngredientIds(row.IngredientIds),
             NutritionList = ParseJsonList(row.NutritionList),
-            StudentAllergies = row.StudentAllergies ?? string.Empty
+            StudentAllergies = row.StudentAllergies ?? string.Empty,
+            IsPopular = isPopular
         };
     }
 

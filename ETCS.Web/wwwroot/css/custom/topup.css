@@ -1,0 +1,717 @@
+/* Top-up page — scoped styles (beat theme cascade) */
+.topup-page {
+    --topup-accent: #3498db;
+    --topup-accent-dark: #2471a3;
+    --topup-accent-soft: rgba(52, 152, 219, 0.12);
+    --topup-accent-mid: rgba(52, 152, 219, 0.22);
+    --topup-text: #1d2630;
+    --topup-muted: #5b6b79;
+    --topup-border: #e3e9f0;
+    --topup-surface: #ffffff;
+    --topup-warning: #c47a0a;
+    --topup-warning-bg: rgba(254, 161, 22, 0.12);
+    --topup-radius: 16px;
+    padding-bottom: 2.5rem;
+}
+
+/* Modal is also .topup-page so form styles apply; strip page chrome. */
+#topupModal.topup-page {
+    padding-bottom: 0;
+}
+
+.topup-page .topup-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.topup-page .topup-page-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--topup-text);
+    letter-spacing: -0.02em;
+}
+
+.topup-page .topup-page-subtitle {
+    color: var(--topup-muted);
+    font-size: 0.95rem;
+}
+
+.topup-page .topup-hero-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: linear-gradient(145deg, var(--topup-accent-soft), var(--topup-accent-mid));
+    color: var(--topup-accent-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    flex-shrink: 0;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.topup-page .topup-panel {
+    background: var(--topup-surface);
+    border: 1px solid var(--topup-border);
+    border-radius: var(--topup-radius);
+    box-shadow: 0 10px 30px rgba(27, 46, 94, 0.06);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.topup-page .topup-balance-panel {
+    border-radius: 14px;
+    padding: 1.15rem 1.25rem;
+    background: var(--topup-accent);
+    color: #fff;
+    box-shadow: 0 12px 24px rgba(52, 152, 219, 0.22);
+}
+
+.topup-page .topup-balance-panel-top {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    margin-bottom: 0.85rem;
+}
+
+.topup-page .topup-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.22);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.topup-page .topup-balance-label {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.85;
+}
+
+.topup-page .topup-child-name {
+    display: block;
+    font-weight: 600;
+    font-size: 1rem;
+    line-height: 1.3;
+}
+
+.topup-page .topup-balance-amount {
+    font-size: clamp(1.75rem, 4vw, 2.15rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+}
+
+.topup-page .topup-minimum-banner {
+    margin-top: 0.85rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.18);
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.topup-page .topup-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.topup-page .topup-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 600;
+    color: var(--topup-text);
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.topup-page .topup-label i {
+    color: var(--topup-accent);
+    font-size: 1.05rem;
+}
+
+.topup-page .topup-select {
+    border-radius: 12px !important;
+    border-color: var(--topup-border) !important;
+    padding: 0.7rem 0.95rem !important;
+    font-size: 0.95rem;
+    min-height: 48px;
+    background-color: #fff;
+}
+
+.topup-page .topup-select:focus {
+    border-color: var(--topup-accent) !important;
+    box-shadow: 0 0 0 0.2rem var(--topup-accent-soft) !important;
+}
+
+.topup-page .topup-amount-wrap {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--topup-border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.topup-page .topup-amount-wrap:focus-within {
+    border-color: var(--topup-accent);
+    box-shadow: 0 0 0 0.2rem var(--topup-accent-soft);
+}
+
+.topup-page .topup-currency {
+    display: flex;
+    align-items: center;
+    padding: 0 0.95rem;
+    background: #f4f7fb;
+    color: var(--topup-muted);
+    font-weight: 700;
+    font-size: 0.9rem;
+    border-right: 1px solid var(--topup-border);
+}
+
+.topup-page .topup-amount-input {
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0.75rem 0.95rem !important;
+    font-size: 1.15rem !important;
+    font-weight: 600;
+    color: var(--topup-text);
+    min-height: 48px;
+}
+
+.topup-page .topup-amount-input:focus {
+    box-shadow: none !important;
+}
+
+.topup-page .topup-amount-input::-webkit-outer-spin-button,
+.topup-page .topup-amount-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.topup-page .topup-amount-input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.topup-page .topup-error {
+    color: #d64545;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.topup-page .topup-chips {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.6rem;
+}
+
+.topup-page .topup-chip {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1.5px solid var(--topup-border);
+    background: #fff;
+    border-radius: 12px;
+    padding: 0.7rem 0.4rem;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1rem;
+    transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+    color: var(--topup-text);
+}
+
+.topup-page .topup-chip:hover:not(:disabled) {
+    border-color: var(--topup-accent);
+    /*background: var(--topup-accent-soft);*/
+    transform: translateY(-1px);
+}
+
+.topup-page .topup-chip.is-active {
+    border-color: var(--topup-accent);
+    background: var(--topup-accent);
+    color: #fff;
+    box-shadow: 0 8px 16px rgba(52, 152, 219, 0.22);
+}
+
+.topup-page .topup-chip:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.topup-page .topup-chip-currency {
+    font-size: 0.7rem;
+    font-weight: 600;
+    opacity: 0.75;
+    line-height: 1;
+}
+
+.topup-page .topup-chip-value {
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.topup-page .topup-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.topup-page .topup-confirm-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 0;
+    border-radius: 12px;
+    background: var(--topup-accent);
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.05rem;
+    min-height: 52px;
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    box-shadow: 0 10px 20px rgba(52, 152, 219, 0.22);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.topup-page .topup-confirm-btn:hover:not(:disabled) {
+    filter: brightness(1.05);
+    transform: translateY(-1px);
+    box-shadow: 0 14px 24px rgba(52, 152, 219, 0.28);
+}
+
+.topup-page .topup-confirm-btn:disabled {
+    opacity: 0.7;
+    cursor: wait;
+    transform: none;
+}
+
+.topup-page .topup-confirm-btn i {
+    font-size: 1.2rem;
+}
+
+.topup-page .topup-cancel-link {
+    text-align: center;
+    color: var(--topup-muted);
+    font-weight: 600;
+    text-decoration: none;
+    padding: 0.35rem;
+}
+
+.topup-page .topup-cancel-link:hover {
+    color: var(--topup-text);
+    text-decoration: underline;
+}
+
+.topup-page .topup-secure-note {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    color: var(--topup-muted);
+    font-size: 0.85rem;
+    padding-top: 0.15rem;
+}
+
+.topup-page .topup-secure-note i {
+    color: #2ecc71;
+    font-size: 1rem;
+}
+
+/* Result page */
+.topup-result-page {
+    --topup-accent: #3498db;
+    --topup-text: #1d2630;
+    --topup-muted: #5b6b79;
+    --topup-border: #e3e9f0;
+    max-width: 520px;
+    margin: 0 auto;
+    padding-bottom: 2rem;
+}
+
+.topup-result-card {
+    background: #fff;
+    border: 1px solid var(--topup-border);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(27, 46, 94, 0.06);
+    padding: 2.25rem 1.5rem;
+    text-align: center;
+}
+
+.topup-result-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.25rem;
+    margin-bottom: 1rem;
+}
+
+.topup-result-icon.is-success {
+    background: rgba(46, 204, 113, 0.14);
+    color: #1fa855;
+}
+
+.topup-result-icon.is-pending {
+    background: rgba(254, 161, 22, 0.16);
+    color: #c47a0a;
+}
+
+.topup-result-icon.is-error {
+    background: rgba(214, 69, 69, 0.12);
+    color: #d64545;
+}
+
+.topup-result-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--topup-text);
+    margin-bottom: 0.5rem;
+}
+
+.topup-result-message {
+    color: var(--topup-muted);
+    margin-bottom: 1.25rem;
+}
+
+.topup-result-details {
+    background: #f6f8fb;
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+    margin-bottom: 1.5rem;
+    text-align: left;
+}
+
+.topup-result-details p {
+    margin: 0.25rem 0;
+    color: var(--topup-text);
+}
+
+.topup-result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    justify-content: center;
+}
+
+@media (max-width: 575.98px) {
+    .topup-page .topup-panel {
+        padding: 1.15rem;
+    }
+
+    .topup-page .topup-chips {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* ===== Wallet dashboard ===== */
+.wallet-dashboard {
+    --wallet-accent: #3498db;
+    --wallet-accent-dark: #2471a3;
+    --wallet-ink: #0f172a;
+    --wallet-muted: #64748b;
+    --wallet-border: rgba(15, 23, 42, 0.08);
+    max-width: 920px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+}
+
+.wallet-balance-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.1rem;
+    padding: 1.35rem 1.5rem 1.45rem;
+    border-radius: 20px;
+    background: var(--wallet-accent, #3498db);
+    color: #fff;
+    box-shadow: 0 10px 24px rgba(52, 152, 219, 0.22);
+}
+
+.wallet-balance-hero-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+}
+
+.wallet-balance-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+    opacity: 0.95;
+    color: #9dd7fb
+}
+
+.wallet-balance-value {
+    display: block;
+    margin-top: 0;
+    font-size: clamp(1.85rem, 3vw, 2.35rem);
+    font-weight: 650;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+}
+
+.wallet-topup-btn {
+    appearance: none;
+    border: 0;
+    border-radius: 22px;
+    min-height: 32px;
+    padding: 0.10rem 0.75rem;
+    background: #fff;
+    color: var(--wallet-accent-dark);
+    font-weight: 600;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.wallet-topup-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16);
+}
+
+.wallet-card {
+    background: #fff;
+    border: 1px solid var(--wallet-border);
+    border-radius: 18px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 24px rgba(15, 23, 42, 0.04);
+    padding: 1.15rem 1.25rem 1.25rem;
+}
+
+.wallet-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.9rem;
+}
+
+.wallet-card-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--wallet-ink);
+}
+
+.wallet-view-all {
+    color: var(--wallet-accent);
+    font-weight: 650;
+    font-size: 0.9rem;
+    text-decoration: none;
+}
+
+.wallet-view-all:hover {
+    text-decoration: underline;
+}
+
+.wallet-chart-wrap {
+    height: 210px;
+    position: relative;
+}
+
+.wallet-txn-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.wallet-txn-link {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.7rem 0.35rem;
+    border-radius: 12px;
+    text-decoration: none;
+    color: inherit;
+    transition: background-color 0.15s ease;
+}
+
+.wallet-txn-link:hover {
+    background: #f8fafc;
+}
+
+.wallet-txn-icon {
+    width: 2.45rem;
+    height: 2.45rem;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1.15rem;
+}
+
+.wallet-txn-icon.is-topup,
+.wallet-txn-icon.is-credit {
+    background: rgba(5, 150, 105, 0.12);
+    color: #059669;
+}
+
+.wallet-txn-icon.is-debit {
+    background: rgba(220, 38, 38, 0.1);
+    color: #dc2626;
+}
+
+.wallet-txn-main {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.wallet-txn-title {
+    font-size: 0.92rem;
+    font-weight: 650;
+    color: var(--wallet-ink);
+    line-height: 1.35;
+}
+
+.wallet-txn-ref {
+    font-size: 0.78rem;
+    color: var(--wallet-muted);
+}
+
+.wallet-txn-aside {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.15rem;
+    flex-shrink: 0;
+}
+
+.wallet-txn-amount {
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--wallet-ink);
+}
+
+.wallet-txn-amount.is-credit {
+    color: #16a34a;
+}
+
+.wallet-txn-status {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: lowercase;
+}
+
+.wallet-txn-status.is-success {
+    color: #16a34a;
+}
+
+.wallet-txn-status.is-pending {
+    color: #d97706;
+}
+
+.wallet-txn-status.is-failed {
+    color: #dc2626;
+}
+
+.wallet-txn-empty {
+    text-align: center;
+    padding: 1.5rem 1rem;
+    color: var(--wallet-muted);
+}
+
+.wallet-txn-empty i {
+    font-size: 1.6rem;
+    display: block;
+    margin-bottom: 0.4rem;
+    opacity: 0.7;
+}
+
+.topup-modal-content {
+    border: 0;
+    border-radius: 18px;
+    overflow: hidden;
+}
+
+.topup-modal-header {
+    border-bottom: 1px solid var(--wallet-border, #e3e9f0);
+    padding: 1rem 1.15rem;
+}
+
+.topup-panel-modal {
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 0.15rem 0.15rem 0.35rem !important;
+    background: transparent !important;
+}
+
+#topupModal .topup-balance-panel .topup-balance-amount {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+#topupModal .topup-cancel-link {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    width: 100%;
+    padding: 0.35rem;
+    cursor: pointer;
+    text-align: center;
+    color: var(--topup-muted);
+    font-weight: 600;
+}
+
+#topupModal .topup-cancel-link:hover {
+    color: var(--topup-text);
+    text-decoration: underline;
+}
+
+@media (max-width: 575.98px) {
+    .wallet-balance-hero {
+        padding: 1.2rem 1.15rem;
+    }
+
+    .wallet-chart-wrap {
+        height: 200px;
+    }
+}

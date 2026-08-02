@@ -380,15 +380,15 @@
 
     function setActiveRange(range) {
         activeRange = range;
-        $('.dashboard-range-group .btn').removeClass('active');
-        $('.dashboard-range-group .btn[data-range="' + range + '"]').addClass('active');
+        $('.dashboard-range-group [data-range]').removeClass('active');
+        $('.dashboard-range-group [data-range="' + range + '"]').addClass('active');
         $('#dashboardCustomDates').toggleClass('d-none', range !== 'custom');
     }
 
     $(function () {
         setActiveRange('today');
 
-        $('.dashboard-range-group .btn[data-range]').on('click', function () {
+        $('.dashboard-range-group [data-range]').on('click', function () {
             var range = $(this).data('range');
             setActiveRange(range);
             if (range !== 'custom') {

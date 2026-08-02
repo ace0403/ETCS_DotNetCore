@@ -1,0 +1,417 @@
+.my-kids-page {
+    --kids-accent: #3498db;
+    --kids-accent-dark: #2471a3;
+    --kids-accent-soft: rgba(52, 152, 219, 0.1);
+    --kids-text: #111827;
+    --kids-muted: #6b7280;
+    --kids-border: rgba(17, 24, 39, 0.08);
+    --kids-surface: #ffffff;
+    --kids-success: #059669;
+    --kids-allergy: #ea580c;
+    --kids-shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 12px 28px rgba(17, 24, 39, 0.06);
+    padding-bottom: 2.5rem;
+}
+
+.my-kids-page .my-kids-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.15rem;
+}
+
+.my-kids-page .my-kids-hero-actions {
+    justify-content: flex-end;
+}
+
+.my-kids-page .my-kids-add-btn {
+    appearance: none;
+    border: 0;
+    border-radius: 10px;
+    min-height: 42px;
+    padding: 0 1rem;
+    background: var(--kids-accent);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    flex-shrink: 0;
+}
+
+.my-kids-page .my-kids-add-btn:hover {
+    background: var(--kids-accent-dark);
+    color: #fff;
+}
+
+.my-kids-page .my-kids-panel {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+}
+
+.my-kids-page .my-kids-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.15rem;
+}
+
+@media (min-width: 768px) {
+    .my-kids-page .my-kids-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1200px) {
+    .my-kids-page .my-kids-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1400px) {
+    .my-kids-page .my-kids-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+.my-kids-page .my-kids-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--kids-surface);
+    border: 1px solid var(--kids-border);
+    border-radius: 16px;
+    box-shadow: var(--kids-shadow);
+    overflow: hidden;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.my-kids-page .my-kids-card:hover {
+    border-color: rgba(52, 152, 219, 0.28);
+    box-shadow: 0 8px 24px rgba(17, 24, 39, 0.08);
+}
+
+.my-kids-page .my-kids-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem 1rem 0.95rem;
+    background: var(--kids-accent);
+    color: #fff;
+}
+
+.my-kids-page .my-kids-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.my-kids-page .my-kids-header-info {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.my-kids-page .my-kids-name-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.55rem;
+}
+
+.my-kids-page .my-kids-name {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+}
+
+.my-kids-page .my-kids-card-id {
+    margin-top: 0.2rem;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.82);
+    letter-spacing: 0.01em;
+}
+
+.my-kids-page .my-kids-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.12rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: lowercase;
+}
+
+.my-kids-page .my-kids-status.is-active {
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--kids-success);
+}
+
+.my-kids-page .my-kids-status.is-inactive {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+.my-kids-page .my-kids-kebab {
+    flex-shrink: 0;
+    margin: -0.15rem -0.25rem 0 0;
+}
+
+.my-kids-page .my-kids-kebab-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.9);
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+}
+
+.my-kids-page .my-kids-kebab-btn:hover,
+.my-kids-page .my-kids-kebab-btn:focus-visible {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+}
+
+.my-kids-page .my-kids-kebab .dropdown-menu {
+    border-radius: 10px;
+    border-color: var(--kids-border);
+    box-shadow: var(--kids-shadow);
+    min-width: 9rem;
+}
+
+.my-kids-page .my-kids-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding: 1rem 1rem 0.35rem;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.my-kids-page .my-kids-meta-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.my-kids-page .my-kids-meta-item {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.my-kids-page .my-kids-meta-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--kids-muted);
+    margin-bottom: 0.2rem;
+}
+
+.my-kids-page .my-kids-meta-value {
+    display: block;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--kids-text);
+    line-height: 1.35;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.my-kids-page .my-kids-meta-value.is-ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.my-kids-page .my-kids-balance-box {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.75rem 0.85rem;
+    border-radius: 12px;
+    background: var(--kids-accent-soft);
+}
+
+.my-kids-page .my-kids-balance-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--kids-accent);
+    background: rgba(52, 152, 219, 0.12);
+    flex-shrink: 0;
+}
+
+.my-kids-page .my-kids-balance-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--kids-muted);
+    margin-right: auto;
+}
+
+.my-kids-page .my-kids-balance-value {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--kids-accent);
+    letter-spacing: -0.02em;
+    font-size: 1rem;
+}
+
+.my-kids-page .my-kids-allergies {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    color: var(--kids-allergy);
+    font-size: 0.86rem;
+    font-weight: 500;
+    line-height: 1.35;
+}
+
+.my-kids-page .my-kids-allergies i {
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+}
+
+.my-kids-page .my-kids-card-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+    padding: 0.85rem 1rem 1rem;
+    margin-top: auto;
+}
+
+.my-kids-page .my-kids-btn-profile,
+.my-kids-page .my-kids-btn-order {
+    appearance: none;
+    min-height: 40px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.88rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.my-kids-page .my-kids-btn-profile {
+    border: 1px solid var(--kids-border);
+    background: #fff;
+    color: var(--kids-accent);
+}
+
+.my-kids-page .my-kids-btn-profile:hover {
+    border-color: rgba(52, 152, 219, 0.35);
+    background: var(--kids-accent-soft);
+    color: var(--kids-accent-dark);
+}
+
+.my-kids-page .my-kids-btn-order {
+    border: 0;
+    background: var(--kids-accent);
+    color: #fff;
+}
+
+.my-kids-page .my-kids-btn-order:hover {
+    background: var(--kids-accent-dark);
+    color: #fff;
+}
+
+.my-kids-page .my-kids-empty {
+    text-align: center;
+    padding: 2.5rem 1rem;
+    background: var(--kids-surface);
+    border: 1px solid var(--kids-border);
+    border-radius: 16px;
+    box-shadow: var(--kids-shadow);
+}
+
+.my-kids-page .my-kids-empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 0.75rem;
+    border-radius: 14px;
+    background: var(--kids-accent-soft);
+    color: var(--kids-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+}
+
+@media (max-width: 767.98px) {
+    .my-kids-page .my-kids-hero {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .my-kids-page .my-kids-add-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Form wraps header/body/footer, so Bootstrap scrollable needs the form to flex. */
+#addKidModal .modal-dialog-scrollable .modal-content > form,
+#editKidModal .modal-dialog-scrollable .modal-content > form {
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    margin: 0;
+}
+
+#addKidModal .modal-dialog-scrollable .modal-content > form > .modal-body,
+#editKidModal .modal-dialog-scrollable .modal-content > form > .modal-body {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+#addKidModal .modal-dialog-scrollable .modal-content > form > .modal-header,
+#editKidModal .modal-dialog-scrollable .modal-content > form > .modal-header,
+#addKidModal .modal-dialog-scrollable .modal-content > form > .modal-footer,
+#editKidModal .modal-dialog-scrollable .modal-content > form > .modal-footer {
+    flex-shrink: 0;
+}
+
+@media (max-height: 760px) {
+    #addKidModal .modal-dialog,
+    #editKidModal .modal-dialog {
+        margin: 0.5rem auto;
+        height: calc(100% - 1rem);
+        max-height: calc(100dvh - 1rem);
+    }
+}

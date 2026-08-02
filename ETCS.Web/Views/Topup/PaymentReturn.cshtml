@@ -1,0 +1,68 @@
+@model ETCS.Web.Models.TopupPaymentReturnViewModel
+@inject Microsoft.Extensions.Options.IOptions<ETCS.Web.Options.WebOptions> WebOptions
+@{
+    ViewData["Title"] = "Top-up Result";
+    ViewData["PageSubtitle"] = "Payment confirmation";
+    var currency = WebOptions.Value.DisplayCurrency;
+    var statusClass = Model.IsSuccess ? "is-success" : (Model.IsPending ? "is-pending" : "is-error");
+    var statusIcon = Model.IsSuccess ? "ti-circle-check" : (Model.IsPending ? "ti-clock" : "ti-circle-x");
+    var title = Model.IsSuccess
+        ? "Top-up completed successfully"
+        : (Model.IsPending ? "Payment is still processing" : "Top-up could not be completed");
+}
+<div class="topup-result-page">
+    <div class="topup-result-card">
+        <div class="topup-result-icon @statusClass" aria-hidden="true">
+            <i class="ti @statusIcon"></i>
+        </div>
+        <h2 class="topup-result-title">@title</h2>
+        <p class="topup-result-message">@Model.Message</p>
+
+        @if (!string.IsNullOrWhiteSpace(Model.StudentName) || Model.Amount > 0 || !string.IsNullOrWhiteSpace(Model.OrderId))
+        {
+            <div class="topup-result-details">
+                @if (!string.IsNullOrWhiteSpace(Model.StudentName))
+                {
+                    <p><strong>Child:</strong> @Model.StudentName</p>
+                }
+                @if (Model.Amount > 0)
+                {
+                    <p><strong>Amount:</strong> @currency @Model.Amount.ToString("0.00")</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.OrderId))
+                {
+                    <p class="small text-muted mb-0"><strong>Reference:</strong> @Model.OrderId</p>
+                }
+            </div>
+        }
+
+        <div class="topup-result-actions">
+            <a asp-controller="Topup" asp-action="Index" class="btn btn-primary">
+                <i class="ti ti-wallet me-1"></i> New Top-up
+            </a>
+            <a asp-controller="Topup" asp-action="Index" class="btn btn-outline-secondary">Wallet</a>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link href="~/css/custom/topup.css" asp-append-version="true" rel="stylesheet" />
+}
+@section Scripts {
+    <script>
+        $(function () {
+            @if (Model.IsSuccess)
+            {
+                <text>toastMsg('Top-up completed successfully.', true);</text>
+            }
+            else if (Model.IsPending)
+            {
+                <text>toastMsg('Payment is still processing. Please check back shortly.', false, 'Processing');</text>
+            }
+            else
+            {
+                <text>toastMsg('@Html.Raw((Model.Message ?? string.Empty).Replace("'", "\\'"))', false);</text>
+            }
+        });
+    </script>
+}

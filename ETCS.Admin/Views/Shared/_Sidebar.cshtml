@@ -4,10 +4,11 @@
     <div class="navbar-wrapper pt-2">
         <div class="m-header mt-3 mb-3 d-flex justify-content-center">
             <a asp-controller="Dashboard" asp-action="Index" class="b-brand text-primary">
-                <img src="~/images/logo.png" width="120" class="img-fluid logo-lg" alt="ETCS" />
+                <img src="~/images/logo.png" width="100" class="img-fluid logo-lg" alt="ETCS" />
             </a>
         </div>
-        <div class="navbar-content">
+        <hr class="m-2 mt-3 mb-3 line-devider" />
+        <div class="navbar-content pt-1">
             <ul class="pc-navbar">
                 @if (AdminPermissionViewHelper.CanView(User, "Dashboard"))
                 {
@@ -22,7 +23,8 @@
                     || AdminPermissionViewHelper.CanView(User, "Guardian")
                     || AdminPermissionViewHelper.CanView(User, "Student")
                     || AdminPermissionViewHelper.CanView(User, "Staff")
-                    || AdminPermissionViewHelper.CanView(User, "EmailTemplate"))
+                    || AdminPermissionViewHelper.CanView(User, "EmailTemplate")
+                    || AdminPermissionViewHelper.CanView(User, "InAppNotification"))
                 {
                     <li class="pc-item pc-caption"><label>Master</label></li>
                 }
@@ -68,6 +70,15 @@
                         <a asp-controller="EmailTemplate" asp-action="Index" class="pc-link">
                             <span class="pc-micon"><i class="ti ti-mail"></i></span>
                             <span class="pc-mtext">Email Templates</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "InAppNotification"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="InAppNotification" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-bell"></i></span>
+                            <span class="pc-mtext">Notifications</span>
                         </a>
                     </li>
                 }
@@ -170,7 +181,7 @@
                 }
                 @if (AdminPermissionViewHelper.CanView(User, "Report.MealOrders"))
                 {
-                    <li class="pc-item mb-5">
+                    <li class="pc-item mb-3">
                         <a asp-controller="Report" asp-action="MealOrders" class="pc-link">
                             <span class="pc-micon"><i class="ti ti-clipboard-list"></i></span>
                             <span class="pc-mtext">Meal Order Report <small class="text-red-600"><i>(OLD)</i></small></span>

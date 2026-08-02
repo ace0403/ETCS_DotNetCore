@@ -11,4 +11,10 @@ public sealed class TopupPendingTransactionState
     public int StatusId { get; init; }
 
     public decimal Amount { get; init; }
+
+    public int StudentId { get; init; }
+
+    public int GuardianId { get; init; }
+
+    public string GatewayTransactionId { get; init; } = string.Empty;
 }

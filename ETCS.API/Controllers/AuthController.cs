@@ -41,6 +41,11 @@ public sealed class AuthController : ControllerBase
             return BadRequest(new { message = "First name and last name are required." });
         }
 
+        if (string.IsNullOrWhiteSpace(request.Username))
+        {
+            return BadRequest(new { message = "Username is required." });
+        }
+
         if (string.IsNullOrWhiteSpace(request.Email))
         {
             return BadRequest(new { message = "Email is required." });

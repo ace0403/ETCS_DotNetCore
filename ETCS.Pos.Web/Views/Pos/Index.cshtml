@@ -6,31 +6,68 @@
 <div class="pos-app">
     <section class="pos-main">
         <header class="pos-page-header">
-            <div class="pos-page-header-left">
-                <img src="~/images/logo.png" alt="ETCS" class="pos-logo" width="120" />
-                <div>
-                    <h2 class="pos-page-title">Point of Sale</h2>
-                    <p class="pos-page-subtitle">School canteen terminal</p>
+            <div class="pos-page-header-bar">
+                <div class="pos-page-header-brand">
+                    <img src="~/images/logo.png" alt="ETCS" class="pos-logo" width="120" />
+                    <div class="pos-page-header-titles">
+                        <h2 class="pos-page-title">Point of Sale</h2>
+                        <p class="pos-page-subtitle">School canteen terminal</p>
+                    </div>
+                </div>
+
+                <button type="button"
+                        id="btnPosSetup"
+                        class="pos-context-summary"
+                        aria-expanded="false"
+                        aria-controls="posSetupPanel"
+                        title="Change branch and terminal">
+                    <span class="pos-context-text" id="posContextText">Select branch…</span>
+                    <span class="pos-context-action">
+                        <span class="pos-context-action-label">Setup</span>
+                        <svg class="pos-context-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.7 9.3a1 1 0 011.4 0L12 13.2l3.9-3.9a1 1 0 111.4 1.4l-4.6 4.6a1 1 0 01-1.4 0L6.7 10.7a1 1 0 010-1.4z"/></svg>
+                    </span>
+                </button>
+
+                <div class="pos-page-header-actions">
+                    <div class="pos-status-dots" role="group" aria-label="Connection status">
+                        <button type="button"
+                                id="apiStatus"
+                                class="pos-status-dot @(Model.ApiOnline ? "" : "is-offline")"
+                                title="@(Model.ApiOnline ? "ETCS server reachable" : Model.ApiStatusMessage)"
+                                aria-label="@(Model.ApiOnline ? "Server connected" : "Server offline")">
+                            <span class="pos-status-dot-label">Server</span>
+                        </button>
+                        <button type="button"
+                                id="bridgeStatus"
+                                class="pos-status-dot is-offline"
+                                title="Bridge status"
+                                aria-label="Checking bridge">
+                            <span class="pos-status-dot-label">Bridge</span>
+                        </button>
+                    </div>
+                    <form asp-controller="Home" asp-action="Logout" method="post" class="pos-logout-form">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="pos-logout-btn" title="Sign out">Sign out</button>
+                    </form>
                 </div>
             </div>
-            <div class="pos-setup">
-                <label class="pos-setup-field">
-                    <span>&nbsp;Branch</span>
-                    <select id="ddlSchool" asp-items="Model.Schools" disabled="@(!Model.ApiOnline)"></select>
-                </label>
-                <label class="pos-setup-field">
-                    <span>&nbsp;Terminal</span>
-                    <div id="terminalContainer" class="pos-setup-terminal">
-                        <select id="ddlTerminal" asp-items="Model.Terminals"></select>
-                    </div>
-                </label>
-                <label class="pos-setup-field pos-setup-field--compact">
-                    <span>&nbsp;IP</span>
-                    <input id="txtTerminalIp" type="text" placeholder="192.168.x.x" />
-                </label>
-                <div class="pos-status-chips">
-                    <span id="apiStatus" class="pos-status-chip @(Model.ApiOnline ? "" : "is-offline")" title="@(Model.ApiOnline ? "ETCS server reachable" : Model.ApiStatusMessage)">@(Model.ApiOnline ? "Server connected" : "Server offline")</span>
-                    <span id="bridgeStatus" class="pos-status-chip is-offline" title="Bridge status">Checking…</span>
+
+            <div id="posSetupPanel" class="pos-setup-panel" hidden>
+                <div class="pos-setup">
+                    <label class="pos-setup-field">
+                        <span>Branch</span>
+                        <select id="ddlSchool" asp-items="Model.Schools" disabled="@(!Model.ApiOnline)"></select>
+                    </label>
+                    <label class="pos-setup-field">
+                        <span>Terminal</span>
+                        <div id="terminalContainer" class="pos-setup-terminal">
+                            <select id="ddlTerminal" asp-items="Model.Terminals"></select>
+                        </div>
+                    </label>
+                    <label class="pos-setup-field pos-setup-field--compact">
+                        <span>IP</span>
+                        <input id="txtTerminalIp" type="text" placeholder="192.168.x.x" />
+                    </label>
                 </div>
             </div>
         </header>

@@ -1,0 +1,82 @@
+@model ETCS.Web.Models.HistoryTopupDetailViewModel
+@inject Microsoft.Extensions.Options.IOptions<ETCS.Web.Options.WebOptions> WebOptions
+@{
+    ViewData["Title"] = "Top-up Detail";
+    ViewData["PageSubtitle"] = "Wallet top-up status and amount";
+    var currency = WebOptions.Value.DisplayCurrency;
+}
+<div class="history-detail-page">
+    <div class="history-detail-toolbar">
+        <a asp-controller="History" asp-action="Index" class="history-back-link">
+            <i class="ti ti-arrow-left"></i> Back to History
+        </a>
+    </div>
+
+    <div class="history-topup-card card border-0">
+        <div class="history-topup-hero">
+            <div class="history-topup-icon @Model.StatusCss" aria-hidden="true">
+                @if (Model.IsCompleted)
+                {
+                    <i class="ti ti-circle-check"></i>
+                }
+                else if (Model.IsPending)
+                {
+                    <i class="ti ti-clock"></i>
+                }
+                else
+                {
+                    <i class="ti ti-circle-x"></i>
+                }
+            </div>
+            <div class="history-topup-title">Top-up · @Model.StatusLabel</div>
+            <p class="history-topup-amount">+@currency @Model.Amount.ToString("0.00")</p>
+        </div>
+
+        <div class="history-topup-body">
+            <div class="history-topup-details">
+                @if (!string.IsNullOrWhiteSpace(Model.StudentName))
+                {
+                    <div class="history-detail-row">
+                        <span>Child</span>
+                        <span>@Model.StudentName</span>
+                    </div>
+                }
+                <div class="history-detail-row">
+                    <span>Date</span>
+                    <span>@Model.CreatedOn.ToString("dd MMM yyyy, hh:mm tt")</span>
+                </div>
+                <div class="history-detail-row">
+                    <span>Reference</span>
+                    <span>@Model.Reference</span>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(Model.GatewayTransactionId))
+                {
+                    <div class="history-detail-row">
+                        <span>Payment ref</span>
+                        <span>@Model.GatewayTransactionId</span>
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Remarks))
+                {
+                    <div class="history-detail-row">
+                        <span>Notes</span>
+                        <span>@Model.Remarks</span>
+                    </div>
+                }
+            </div>
+
+            <div class="history-topup-actions">
+                <a asp-controller="History" asp-action="Index" class="btn btn-primary">
+                    <i class="ti ti-history me-1"></i> Back to History
+                </a>
+                <a asp-controller="Topup" asp-action="Index" class="btn btn-outline-secondary">
+                    <i class="ti ti-wallet me-1"></i> New Top-up
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link href="~/css/custom/history.css" asp-append-version="true" rel="stylesheet" />
+}

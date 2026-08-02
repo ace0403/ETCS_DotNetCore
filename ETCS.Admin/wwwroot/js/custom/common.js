@@ -42,24 +42,98 @@ function removeURLParameter(url, parameter) {
     }
 }
 
-async function showConfirmation(message, buttonText) {
-    var result = await Swal.fire({
-        title: "Are you sure?",
+async function showConfirmation(message, buttonText, options) {
+    options = options || {};
+    var result = await fireStyledSwal({
+        title: options.title || 'Are you sure?',
         text: message,
-        icon: "warning",
+        icon: options.icon || 'warning',
         showCancelButton: true,
-        confirmButtonText: buttonText,
+        confirmButtonText: buttonText || 'Yes',
+        cancelButtonText: options.cancelButtonText || 'Cancel',
+        variant: 'simple'
+    });
+
+    return {
+        isConfirmed: isSwalConfirmed(result),
+        value: result.value,
+        dismiss: result.dismiss
+    };
+}
+
+/** SweetAlert2 v8/v9 compatibility — bundled v9.10.x uses `value`, not `isConfirmed`. */
+function isSwalConfirmed(result) {
+    if (!result) {
+        return false;
+    }
+
+    if (result.isConfirmed === true) {
+        return true;
+    }
+
+    return typeof result.value !== 'undefined' && !result.dismiss;
+}
+
+/** Shared options so Bootstrap modals can open after a SweetAlert closes. */
+function getSwalBootstrapSafeOptions() {
+    return {
         returnFocus: false,
         didOpen: function () {
             $(document).off('focusin.bs.modal');
         }
-    });
+    };
+}
+
+function getSwalCustomClass(variant) {
+    var popupClass = 'etcs-swal';
+    if (variant === 'alert') {
+        popupClass += ' etcs-swal-alert';
+    } else {
+        popupClass += ' etcs-swal-simple';
+    }
 
     return {
-        isConfirmed: result.isConfirmed === true || (typeof result.value !== 'undefined' && !result.dismiss),
-        value: result.value,
-        dismiss: result.dismiss
+        popup: popupClass,
+        title: 'etcs-swal-title',
+        content: 'etcs-swal-content',
+        confirmButton: 'etcs-swal-confirm',
+        cancelButton: 'etcs-swal-cancel',
+        actions: 'etcs-swal-actions',
+        icon: 'etcs-swal-icon'
     };
+}
+
+function fireStyledSwal(options) {
+    options = options || {};
+    var variant = options.variant || 'simple';
+    var merged = $.extend(true, {}, getSwalBootstrapSafeOptions(), {
+        icon: 'warning',
+        focusConfirm: false,
+        buttonsStyling: false,
+        reverseButtons: false,
+        customClass: getSwalCustomClass(variant)
+    }, options);
+
+    delete merged.variant;
+    merged.customClass = $.extend({}, getSwalCustomClass(variant), options.customClass || {});
+    if (!(options.customClass && options.customClass.popup)) {
+        merged.customClass.popup = getSwalCustomClass(variant).popup;
+    }
+
+    return Swal.fire(merged);
+}
+
+async function showStyledAlert(title, options) {
+    options = options || {};
+    return fireStyledSwal({
+        title: title,
+        text: options.text,
+        html: options.html,
+        icon: options.icon || 'warning',
+        showCancelButton: false,
+        confirmButtonText: options.confirmButtonText || 'OK',
+        variant: 'alert'
+    });
 }
 
 function getQueryString(n) {

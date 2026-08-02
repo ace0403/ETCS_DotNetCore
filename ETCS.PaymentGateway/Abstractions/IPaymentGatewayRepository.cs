@@ -7,7 +7,8 @@ public interface IPaymentGatewayRepository
     Task<PaymentSessionCreateResult> CreateTopupSessionAsync(
         StudentTopupPaymentRequest request,
         string orderId,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        string? returnUrl = null);
 
     Task<PaymentSessionCreateResult> CreateOrderSessionAsync(
         OrderPaymentSessionRequest request,

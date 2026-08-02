@@ -7,6 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="wwwroot\icons\**" />
+    <Content Remove="wwwroot\icons\**" />
+    <EmbeddedResource Remove="wwwroot\icons\**" />
+    <None Remove="wwwroot\icons\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\ETCS.PaymentGateway\ETCS.PaymentGateway.csproj" />
     <ProjectReference Include="..\ETCS.Shared\ETCS.Shared.csproj" />
   </ItemGroup>

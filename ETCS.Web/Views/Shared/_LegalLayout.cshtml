@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - MealHub</title>
+    <link rel="icon" href="~/favicon.ico" type="image/svg+xml" />
+    <link rel="stylesheet" href="~/fonts/inter/inter.css" />
+    <link rel="stylesheet" href="~/fonts/tabler-icons.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/custom/dev-style.css" />
+    <link rel="stylesheet" href="~/css/custom/legal.css" asp-append-version="true" />
+</head>
+<body class="legal-page">
+    <header class="legal-topbar">
+        <div class="legal-topbar-inner">
+            <a asp-controller="@(User.Identity?.IsAuthenticated == true ? "Dashboard" : "Home")"
+               asp-action="Index"
+               class="legal-brand"
+               aria-label="MealHub Parent Portal home">
+                <img src="~/images/icons/cutlery_w.svg" class="legal-brand-logo" alt="" />
+                <span class="legal-brand-text">
+                    <span class="legal-brand-title">MealHub</span>
+                    <span class="legal-brand-subtitle">Parent Portal</span>
+                </span>
+            </a>
+            <nav class="legal-nav" aria-label="Policies">
+                <a asp-controller="Legal" asp-action="Terms" class="legal-nav-link@(string.Equals(ViewContext.RouteData.Values["action"]?.ToString(), "Terms", StringComparison.OrdinalIgnoreCase) ? " is-active" : "")">Terms</a>
+                <a asp-controller="Legal" asp-action="Privacy" class="legal-nav-link@(string.Equals(ViewContext.RouteData.Values["action"]?.ToString(), "Privacy", StringComparison.OrdinalIgnoreCase) ? " is-active" : "")">Privacy</a>
+                <a asp-controller="Legal" asp-action="Cancellation" class="legal-nav-link@(string.Equals(ViewContext.RouteData.Values["action"]?.ToString(), "Cancellation", StringComparison.OrdinalIgnoreCase) ? " is-active" : "")">Cancellation</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="legal-main">
+        @RenderBody()
+    </main>
+
+    <footer class="legal-footer">
+        <div class="legal-footer-inner">
+            <p class="mb-0">&copy; @DateTime.Now.Year ETCS. All rights reserved.</p>
+            <div class="legal-footer-links">
+                <a asp-controller="Legal" asp-action="Terms">Terms</a>
+                <a asp-controller="Legal" asp-action="Privacy">Privacy</a>
+                <a asp-controller="Legal" asp-action="Cancellation">Cancellation</a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

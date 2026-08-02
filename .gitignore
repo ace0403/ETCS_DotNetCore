@@ -364,3 +364,4 @@ FodyWeavers.xsd
 /ETCS.API/Database/MealStoredProcedures/DEPLOY.md
 /ETCS.Pos.Bridge/Installer/Output
 /ETCS.Pos.Bridge/Installer/POSBridge
+/.build-check
