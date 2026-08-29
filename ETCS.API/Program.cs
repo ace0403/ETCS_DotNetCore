@@ -1,5 +1,6 @@
 using System.Text;
 using System.Threading.RateLimiting;
+using Asp.Versioning;
 using ETCS.API.Features.Auth;
 using ETCS.API.Features.Payment;
 using ETCS.Shared.Application.Email;
@@ -7,6 +8,7 @@ using ETCS.Shared.Application.Notifications;
 using ETCS.Shared.Application.Orders;
 using ETCS.Shared.Application.Topup;
 using ETCS.Shared.Application.Pos;
+using ETCS.API.Infrastructure.ApiVersioning;
 using ETCS.API.Infrastructure.Auth;
 using ETCS.API.Infrastructure.Background;
 using ETCS.API.Infrastructure.Caching;
@@ -19,17 +21,24 @@ using ETCS.Shared.Infrastructure.Auth;
 using ETCS.Shared.Infrastructure.Data;
 using ETCS.Shared.Infrastructure.HealthChecks;
 using ETCS.Shared.Infrastructure.Enums;
+using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
+using ETCS.Shared.Infrastructure.Legal;
 using ETCS.Shared.Infrastructure.Meals;
 using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Students;
+using ETCS.Shared.Infrastructure.Schools.Calendar;
+using ETCS.Shared.Infrastructure.Admin.Master.Schools;
+using ETCS.Shared.Infrastructure.Admin.Master.Students;
 using ETCS.Shared.Infrastructure.Transaction;
 using ETCS.Shared.Options;
 using ETCS.Shared.Media;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,8 +50,9 @@ builder.Services.Configure<ApiKeyOptions>(builder.Configuration.GetSection(ApiKe
 builder.Services.Configure<PosOptions>(builder.Configuration.GetSection(PosOptions.SectionName));
 builder.Services.ConfigureMediaOptions(builder.Configuration);
 builder.Services.Configure<RefreshTokenStoreOptions>(builder.Configuration.GetSection(RefreshTokenStoreOptions.SectionName));
-builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+builder.Services.Configure<ParentPortalOptions>(builder.Configuration.GetSection(ParentPortalOptions.SectionName));
 builder.Services.Configure<PendingPaymentReconcileOptions>(builder.Configuration.GetSection(PendingPaymentReconcileOptions.SectionName));
+builder.Services.Configure<LegalContentCacheClearOptions>(builder.Configuration.GetSection(LegalContentCacheClearOptions.SectionName));
 builder.Services.AddPaymentGateway(builder.Configuration);
 builder.Services.AddMemoryCache();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -50,12 +60,19 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddScoped<IDbHealthRepository, DbHealthRepository>();
 builder.Services.AddScoped<IGuardianPasswordResetTokenStore, SqlGuardianPasswordResetTokenStore>();
+builder.Services.AddScoped<IGuardianOtpStore, SqlGuardianOtpStore>();
+builder.Services.AddScoped<IRegistrationOtpService, RegistrationOtpService>();
+builder.Services.AddScoped<IDeleteAccountOtpService, DeleteAccountOtpService>();
 builder.Services.AddScoped<IParentLoginRepository, ParentLoginRepository>();
 builder.Services.AddScoped<IEnumRepository, EnumRepository>();
+builder.Services.AddScoped<IMealEnumAdminRepository, MealEnumAdminRepository>();
+builder.Services.AddScoped<ILegalContentRepository, LegalContentRepository>();
 builder.Services.AddScoped<MealRepository>();
 builder.Services.AddScoped<IMealRepository, CachedMealRepository>();
 builder.Services.AddScoped<IMealOrderRepository, MealOrderRepository>();
 builder.Services.AddScoped<IMainOrderRepository, MainOrderRepository>();
+builder.Services.AddScoped<ISchoolCalendarRepository, SchoolCalendarRepository>();
+builder.Services.AddScoped<ISchoolCalendarService, SchoolCalendarService>();
 builder.Services.AddOrderFlowServices();
 builder.Services.AddTopupFlowServices();
 builder.Services.AddPosServices();
@@ -65,11 +82,15 @@ builder.Services.AddPendingPaymentReconcileServices();
 builder.Services.AddScoped<IPaymentStatusService, PaymentStatusService>();
 builder.Services.AddScoped<StudentRepository>();
 builder.Services.AddScoped<IStudentRepository, CachedStudentRepository>();
+builder.Services.AddScoped<IStudentAllergyAdminRepository, StudentAllergyAdminRepository>();
+builder.Services.AddScoped<IStudentOrderTypeAdminRepository, StudentOrderTypeAdminRepository>();
+builder.Services.AddScoped<ISchoolOrderTypeAdminRepository, SchoolOrderTypeAdminRepository>();
+builder.Services.AddScoped<IGuardianChildEnrollmentService, GuardianChildEnrollmentService>();
+builder.Services.AddScoped<IReplaceCardRequestRepository, ReplaceCardRequestRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddSingleton<PaymentBackgroundQueue>();
 builder.Services.AddSingleton<IPaymentBackgroundQueue>(sp => sp.GetRequiredService<PaymentBackgroundQueue>());
 builder.Services.AddHostedService<PaymentBackgroundService>();
-builder.Services.AddHostedService<EmailDeliveryBackgroundService>();
 builder.Services.AddHostedService<PendingPaymentReconcileBackgroundService>();
 builder.Services.AddSingleton<IDbConnectionFactory, SqlConnectionFactory>();
 builder.Services.AddSingleton<IMealDbConnectionFactory, SqlMealConnectionFactory>();
@@ -175,7 +196,30 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
+builder.Services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ReportApiVersions = true;
+    options.ApiVersionReader = ApiVersionReader.Combine(
+        new UrlSegmentApiVersionReader(),
+        new HeaderApiVersionReader("X-Api-Version"),
+        new QueryStringApiVersionReader("api-version"));
+})
+.AddMvc()
+.AddApiExplorer(options =>
+{
+    options.GroupNameFormat = "'v'VVV";
+    options.SubstituteApiVersionInUrl = true;
+});
+
 builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Keep `&` unescaped in payment RedirectUrl so iOS/Android WebViews get a clean query string.
+        options.JsonSerializerOptions.Encoder =
+            System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
+    })
     .ConfigureApiBehaviorOptions(options =>
     {
         options.InvalidModelStateResponseFactory = context =>
@@ -191,13 +235,10 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Title = "ETCS",
-        Version = "v1"
-    });
+    options.OperationFilter<SwaggerDefaultValuesOperationFilter>();
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -212,7 +253,7 @@ builder.Services.AddSwaggerGen(options =>
     options.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
     {
         Name = "X-API-KEY",
-        Description = "Required for /api/Auth endpoints only. Use the key from ApiKey:Keys in appsettings.",
+        Description = "Required for /api/Auth and /api/v{version}/Auth endpoints. Use the key from ApiKey:Keys in appsettings.",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey
     });
@@ -260,7 +301,14 @@ if (true) // (app.Environment.IsDevelopment())
     });
     app.UseSwaggerUI(options =>
     {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "ETCS API v1");
+        var descriptions = app.DescribeApiVersions();
+        foreach (var description in descriptions)
+        {
+            options.SwaggerEndpoint(
+                $"/swagger/{description.GroupName}/swagger.json",
+                $"ETCS API {description.GroupName}");
+        }
+
         options.UseRequestInterceptor(
             "(req) => {" +
             " try {" +

@@ -1,21 +1,40 @@
 using ETCS.API.Infrastructure.Auth;
 using ETCS.API.Infrastructure.Students;
+using ETCS.Shared.Application.Email;
+using ETCS.Shared.Infrastructure.Admin.Master.Students;
 using ETCS.Shared.Infrastructure.Students;
+using ETCS.Shared.Media;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ETCS.API.Controllers;
 
 [ApiController]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/[controller]")]
 [Route("api/[controller]")]
 [Authorize]
 public sealed class StudentsController : ControllerBase
 {
     private readonly IStudentRepository _studentRepository;
+    private readonly IReplaceCardRequestRepository _replaceCardRequestRepository;
+    private readonly IGuardianChildEnrollmentService _childEnrollmentService;
+    private readonly IGuardianEmailNotificationService _emailNotificationService;
+    private readonly MealImageUrlBuilder _imageUrlBuilder;
 
-    public StudentsController(IStudentRepository studentRepository)
+    public StudentsController(
+        IStudentRepository studentRepository,
+        IReplaceCardRequestRepository replaceCardRequestRepository,
+        IGuardianChildEnrollmentService childEnrollmentService,
+        IGuardianEmailNotificationService emailNotificationService,
+        MealImageUrlBuilder imageUrlBuilder)
     {
         _studentRepository = studentRepository;
+        _replaceCardRequestRepository = replaceCardRequestRepository;
+        _childEnrollmentService = childEnrollmentService;
+        _emailNotificationService = emailNotificationService;
+        _imageUrlBuilder = imageUrlBuilder;
     }
 
     /// <summary>
@@ -51,7 +70,11 @@ public sealed class StudentsController : ControllerBase
         }
 
         var students = await _studentRepository.GetStudentsByGuardianAsync(guardianId, null, cancellationToken);
-        var children = await ChildBalanceItemFactory.CreateAsync(students, _studentRepository, cancellationToken);
+        var children = await ChildBalanceItemFactory.CreateAsync(
+            students,
+            _studentRepository,
+            _imageUrlBuilder,
+            cancellationToken);
 
         return Ok(new GuardianChildrenBalancesResponse
         {
@@ -131,49 +154,143 @@ public sealed class StudentsController : ControllerBase
         return Ok(schools);
     }
 
-    /// <summary>Creates a student (<c>spInsertStudentInfo</c>). Password is hashed (MD5) before calling the database.</summary>
-    [HttpPost]
-    public async Task<IActionResult> CreateStudent(
-        [FromBody] UpsertStudentRequest request,
-        CancellationToken cancellationToken)
+    [HttpGet("add-child-form")]
+    public async Task<IActionResult> GetAddChildForm(CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.StudCode))
+        if (!User.TryGetGuardianId(out _))
         {
-            return BadRequest(new { message = "StudCode is required." });
+            return Unauthorized(new { message = "Guardian claim is missing in token." });
         }
 
-        try
-        {
-            await _studentRepository.SaveStudentAsync(request, isInsert: true, cancellationToken);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-
-        return Ok(new { message = "Student created." });
+        var form = await _childEnrollmentService.GetAddChildFormAsync(cancellationToken);
+        return Ok(form);
     }
 
-    /// <summary>Updates a student (<c>spInsertStudentInfo</c>). Omit <c>studPassword</c> to leave the password unchanged (NULL sent to SQL).</summary>
-    [HttpPut]
-    public async Task<IActionResult> UpdateStudent(
-        [FromBody] UpsertStudentRequest request,
+    [HttpGet("edit-child")]
+    public async Task<IActionResult> GetEditChildForm(
+        [FromQuery] string studentId,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.StudCode))
+        if (!User.TryGetGuardianId(out var guardianId))
         {
-            return BadRequest(new { message = "StudCode is required." });
+            return Unauthorized(new { message = "Guardian claim is missing in token." });
         }
 
-        try
+        if (!decimal.TryParse(studentId, out var userId) || userId <= 0)
         {
-            await _studentRepository.SaveStudentAsync(request, isInsert: false, cancellationToken);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { message = "StudentId is required." });
         }
 
-        return Ok(new { message = "Student updated." });
+        var form = await _childEnrollmentService.GetEditChildFormAsync(guardianId, userId, cancellationToken);
+        if (form is null)
+        {
+            return NotFound(new { message = "Student was not found for this parent." });
+        }
+
+        return Ok(form);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateStudent(
+        [FromBody] GuardianChildUpsertRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetGuardianId(out var guardianId))
+        {
+            return Unauthorized(new { message = "Guardian claim is missing in token." });
+        }
+
+        var result = await _childEnrollmentService.CreateAsync(guardianId, request, cancellationToken);
+        if (!result.Success)
+        {
+            return BadRequest(new { message = result.Message });
+        }
+
+        return Ok(new { message = result.Message });
+    }
+
+    [HttpPut]
+    public async Task<IActionResult> UpdateStudent(
+        [FromBody] GuardianChildUpsertRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetGuardianId(out var guardianId))
+        {
+            return Unauthorized(new { message = "Guardian claim is missing in token." });
+        }
+
+        var result = await _childEnrollmentService.UpdateAsync(guardianId, request, cancellationToken);
+        if (!result.Success)
+        {
+            return BadRequest(new { message = result.Message });
+        }
+
+        return Ok(new { message = result.Message });
+    }
+
+    /// <summary>
+    /// Submits a replace-card request for a child card owned by the logged-in guardian.
+    /// </summary>
+    [HttpPost("replace-card")]
+    public async Task<IActionResult> SubmitReplaceCard(
+        [FromBody] ReplaceCardSubmitRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetGuardianId(out var guardianId))
+        {
+            return Unauthorized(new { message = "Guardian claim is missing in token." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.CustomerId))
+        {
+            return BadRequest(new { message = "CustomerId is required." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.CardNumber))
+        {
+            return BadRequest(new { message = "CardNumber is required." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            return BadRequest(new { message = "Reason is required." });
+        }
+
+        var result = await _replaceCardRequestRepository.CreateAsync(
+            guardianId,
+            request.CustomerId,
+            request.CardNumber,
+            request.Reason,
+            cancellationToken);
+
+        if (!result.Success)
+        {
+            return BadRequest(new { message = result.Message });
+        }
+
+        await _emailNotificationService.QueueReplaceCardRequestAsync(
+            guardianId,
+            request.CustomerId,
+            request.CardNumber,
+            request.Reason,
+            result.RefCode,
+            cancellationToken);
+
+        return Ok(new { message = result.Message, refCode = result.RefCode });
+    }
+
+    /// <summary>
+    /// Lists replace-card requests for children linked to the logged-in guardian.
+    /// </summary>
+    [HttpGet("replace-card")]
+    public async Task<IActionResult> ListReplaceCardRequests(CancellationToken cancellationToken)
+    {
+        if (!User.TryGetGuardianId(out var guardianId))
+        {
+            return Unauthorized(new { message = "Guardian claim is missing in token." });
+        }
+
+        var requests = await _replaceCardRequestRepository.GetByGuardianAsync(guardianId, cancellationToken);
+        return Ok(requests);
     }
 }

@@ -10,10 +10,19 @@ var myTable = initAdminDataTable('#grid_table', 'school/getlist', [
     }
 ]);
 
+function initSchoolMultiSelect(id) {
+    initAdminMultiSelect(id);
+}
+
+function initSchoolMultiSelects() {
+    initSchoolMultiSelect('OrderTypeIds');
+}
+
 function loadData(id) {
     $.get(SiteUrl + 'school/get?id=' + id, function (html) {
         $('#div_add').html(html);
         $('#addDataModal').modal('show');
+        initSchoolMultiSelects();
         bindSave();
     });
 }

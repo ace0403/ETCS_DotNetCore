@@ -84,18 +84,14 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
             };
         }
 
-        if (paymentState.IsTransactionCompleted
-            || paymentState.TransactionStatusId == (int)TransactionStatusEnum.Success)
+        var alreadyMarkedSuccess = paymentState.IsPaid
+            || paymentState.IsTransactionCompleted
+            || paymentState.TransactionStatusId == (int)TransactionStatusEnum.Success;
+
+        // Resume path: Success/IsPaid without AccessLogId — finish ledger attach without re-capturing.
+        if (alreadyMarkedSuccess && !paymentState.AccessLogId.HasValue)
         {
-            return new OrderCompleteResponse
-            {
-                IsSuccess = true,
-                IsAlreadyProcessed = true,
-                Message = "Order payment already completed.",
-                OrderId = request.OrderId,
-                GatewayTransactionId = request.TransactionId,
-                AccessLogId = paymentState.AccessLogId ?? 0
-            };
+            return await ResumeAccessLogAttachAsync(request, paymentState, cancellationToken);
         }
 
         if (paymentState.TransactionStatusId is not ((int)TransactionStatusEnum.Initiated or (int)TransactionStatusEnum.Pending))
@@ -111,7 +107,7 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
 
         var captureResult = await _paymentGatewayRepository.CapturePaymentAsync(
             new PaymentCaptureRequest(request.TransactionId, request.OrderId, request.StudentId),
-            _completionCancellation.CaptureToken(cancellationToken));
+            cancellationToken);
 
         var pgResponse = JsonSerializer.Serialize(captureResult, JsonOptions);
         _paymentBackgroundQueue.EnqueuePaymentLog(request.OrderId, pgResponse ?? string.Empty);
@@ -145,14 +141,8 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
             };
         }
 
-        var dbToken = _completionCancellation.DbToken();
-
-        await _mealOrderRepository.MarkPaymentCompletedAsync(
-            request.OrderId,
-            captureResult.TransactionId,
-            (int)TransactionStatusEnum.Success,
-            (int)TransactionStatusEnum.Success,
-            dbToken);
+        using var dbTimeout = _completionCancellation.CreateDbTimeoutSource();
+        var dbToken = dbTimeout.Token;
 
         var guardianDetail = await _studentRepository.GetGuardianBasicDetailByStudentIdAsync(
             request.StudentId.ToString(CultureInfo.InvariantCulture),
@@ -168,25 +158,26 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
             };
         }
 
-        var (accessLogTypeId, orderDescription) = OrderAccessLogResolver.Resolve(paymentState.OrderTypeId);
-
-        var accessLogId = await _mainOrderRepository.ApplySuccessfulOrderAsync(
-            guardianDetail.CustomerId,
-            request.OrderId,
-            captureResult.TransactionId,
-            paymentState.Total,
-            orderDescription,
-            (short)accessLogTypeId,
-            _orderFlowOptions.AccessLogDescription,
-            "777",
-            "240",
-            dbToken);
-
-        await _mealOrderRepository.AttachAccessLogIdAsync(request.OrderId, accessLogId, dbToken);
-
-        var paymentDetails = string.IsNullOrWhiteSpace(captureResult.TransactionId)
+        var gatewayTransactionId = string.IsNullOrWhiteSpace(captureResult.TransactionId)
             ? request.TransactionId
             : captureResult.TransactionId;
+
+        await _mealOrderRepository.MarkPaymentCompletedAsync(
+            request.OrderId,
+            gatewayTransactionId,
+            (int)TransactionStatusEnum.Success,
+            (int)TransactionStatusEnum.Success,
+            dbToken);
+
+        var accessLogId = await EnsureAccessLogAttachedAsync(
+            request.OrderId,
+            guardianDetail.CustomerId,
+            gatewayTransactionId,
+            paymentState.Total,
+            paymentState.OrderTypeId,
+            dbToken);
+
+        var paymentDetails = gatewayTransactionId;
 
         await _transactionRepository.UpdatePendingTransactionAsync(
             new UpdatePendingTransactionRequest
@@ -241,8 +232,106 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
             IsSuccess = true,
             Message = "Order payment completed successfully.",
             OrderId = request.OrderId,
-            GatewayTransactionId = captureResult.TransactionId,
+            GatewayTransactionId = gatewayTransactionId,
             AccessLogId = accessLogId
         };
+    }
+
+    private async Task<OrderCompleteResponse> ResumeAccessLogAttachAsync(
+        OrderCompleteRequest request,
+        MealOrderPaymentState paymentState,
+        CancellationToken cancellationToken)
+    {
+        using var dbTimeout = _completionCancellation.CreateDbTimeoutSource();
+        var dbToken = dbTimeout.Token;
+
+        var guardianDetail = await _studentRepository.GetGuardianBasicDetailByStudentIdAsync(
+            request.StudentId.ToString(CultureInfo.InvariantCulture),
+            dbToken);
+        if (guardianDetail is null || string.IsNullOrWhiteSpace(guardianDetail.CustomerId))
+        {
+            return new OrderCompleteResponse
+            {
+                IsSuccess = false,
+                Message = "Unable to resolve customer profile for this student.",
+                OrderId = request.OrderId,
+                GatewayTransactionId = request.TransactionId ?? string.Empty
+            };
+        }
+
+        var gatewayTransactionId = (request.TransactionId ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(gatewayTransactionId))
+        {
+            gatewayTransactionId = await _mealOrderRepository.GetGatewayTransactionIdByOrderIdAsync(
+                request.OrderId,
+                dbToken) ?? string.Empty;
+        }
+
+        if (string.IsNullOrWhiteSpace(gatewayTransactionId))
+        {
+            return new OrderCompleteResponse
+            {
+                IsSuccess = false,
+                Message = "Unable to resolve gateway transaction id for AccessLog attach.",
+                OrderId = request.OrderId,
+                GatewayTransactionId = request.TransactionId ?? string.Empty
+            };
+        }
+
+        var accessLogId = await EnsureAccessLogAttachedAsync(
+            request.OrderId,
+            guardianDetail.CustomerId,
+            gatewayTransactionId,
+            paymentState.Total,
+            paymentState.OrderTypeId,
+            dbToken);
+
+        return new OrderCompleteResponse
+        {
+            IsSuccess = true,
+            IsAlreadyProcessed = true,
+            Message = "Order payment already completed; AccessLog linked.",
+            OrderId = request.OrderId,
+            GatewayTransactionId = gatewayTransactionId,
+            AccessLogId = accessLogId
+        };
+    }
+
+    private async Task<long> EnsureAccessLogAttachedAsync(
+        string orderId,
+        string customerId,
+        string gatewayTransactionId,
+        decimal total,
+        int orderTypeId,
+        CancellationToken cancellationToken)
+    {
+        var existing = await _mainOrderRepository.FindAccessLogIdByGatewayTransactionAsync(
+            customerId,
+            gatewayTransactionId,
+            cancellationToken);
+
+        long accessLogId;
+        if (existing is > 0)
+        {
+            accessLogId = existing.Value;
+        }
+        else
+        {
+            var (accessLogTypeId, orderDescription) = OrderAccessLogResolver.Resolve(orderTypeId);
+            accessLogId = await _mainOrderRepository.ApplySuccessfulOrderAsync(
+                customerId,
+                orderId,
+                gatewayTransactionId,
+                total,
+                orderDescription,
+                (short)accessLogTypeId,
+                _orderFlowOptions.AccessLogDescription,
+                "777",
+                "240",
+                cancellationToken);
+        }
+
+        await _mealOrderRepository.AttachAccessLogIdAsync(orderId, accessLogId, cancellationToken);
+        return accessLogId;
     }
 }

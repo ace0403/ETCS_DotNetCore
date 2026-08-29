@@ -22,11 +22,27 @@ public interface IStudentRepository
 
     Task<decimal?> GetStudentMinimumTopupAsync(int studentId, CancellationToken cancellationToken = default);
 
+    Task<StudentCardBalanceMetaDto?> GetStudentCardBalanceMetaAsync(
+        int studentId,
+        CancellationToken cancellationToken = default);
+
+    Task<string?> GetSchoolLogoFileNameByNameAsync(
+        string schoolName,
+        CancellationToken cancellationToken = default);
+
     Task<StudentGuardianBasicDetailDto?> GetGuardianBasicDetailByStudentIdAsync(
         string studentId,
         CancellationToken cancellationToken);
 
     Task<StudentGuardianBasicDetailDto?> GetGuardianBasicDetailByCustomerIdAsync(
+        string customerId,
+        CancellationToken cancellationToken);
+
+    Task<StudentIdentityByCustomerDto?> GetStudentIdentityByCustomerIdAsync(
+        string customerId,
+        CancellationToken cancellationToken);
+
+    Task<decimal> GetPrepaidBalanceByCustomerIdAsync(
         string customerId,
         CancellationToken cancellationToken);
 

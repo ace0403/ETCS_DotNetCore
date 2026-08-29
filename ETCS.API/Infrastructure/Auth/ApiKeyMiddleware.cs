@@ -62,9 +62,37 @@ public sealed class ApiKeyMiddleware
         }
 
         var value = path.Value!;
-        return value.StartsWith("/api/Auth", StringComparison.OrdinalIgnoreCase)
-            || value.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase)
-            || value.StartsWith("/api/pos", StringComparison.OrdinalIgnoreCase);
+
+        // Supports both /api/Auth and /api/v{version}/Auth (same for pos).
+        return IsApiControllerPath(value, "Auth")
+            || IsApiControllerPath(value, "pos");
+    }
+
+    private static bool IsApiControllerPath(string path, string controllerSegment)
+    {
+        if (path.StartsWith($"/api/{controllerSegment}", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // /api/v1/Auth..., /api/v1.0/pos...
+        const string prefix = "/api/v";
+        if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var remainder = path[prefix.Length..];
+        var slashIndex = remainder.IndexOf('/');
+        if (slashIndex <= 0 || slashIndex >= remainder.Length - 1)
+        {
+            return false;
+        }
+
+        var afterVersion = remainder[(slashIndex + 1)..];
+        return afterVersion.StartsWith(controllerSegment, StringComparison.OrdinalIgnoreCase)
+            && (afterVersion.Length == controllerSegment.Length
+                || afterVersion[controllerSegment.Length] is '/' or '?' or '#');
     }
 
     private static byte[][] BuildKeyHashes(IEnumerable<string> apiKeys, string? posApiKey)

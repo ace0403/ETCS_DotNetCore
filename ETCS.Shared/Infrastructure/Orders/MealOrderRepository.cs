@@ -141,11 +141,18 @@ public sealed class MealOrderRepository : IMealOrderRepository
 
             foreach (var line in request.MealList)
             {
+                var hasItem = line.ItemId is > 0;
+                var hasPackage = line.PackageId is > 0;
+                if (hasItem == hasPackage)
+                {
+                    throw new InvalidOperationException("Each order line must have exactly one of ItemId or PackageId.");
+                }
+
                 lineParams.Add(new
                 {
                     OrderId = dborderId,
-                    ItemId = request.OrderTypeId == (int)TransactionTypeEnum.A_La_Carte ? line.ItemId : null,
-                    PackageId = request.OrderTypeId == (int)TransactionTypeEnum.MealOrder ? line.PackageId : null,
+                    ItemId = hasItem ? line.ItemId : null,
+                    PackageId = hasPackage ? line.PackageId : null,
                     MealDate = line.MealDate.Date,
                     Price = line.Price,
                     Total = line.Total,
@@ -550,5 +557,151 @@ public sealed class MealOrderRepository : IMealOrderRepository
             CreatedOn = order.CreatedOn,
             LineItems = lineItems
         };
+    }
+
+    public async Task<MealActivitySummaryRow> GetMealActivitySummaryAsync(
+        int guardianId,
+        int? studentId,
+        DateTime fromDateInclusive,
+        DateTime toDateExclusive,
+        CancellationToken cancellationToken)
+    {
+        // AccessLog is the source of truth for parent-app meal activity.
+        // Meal Plan / Parent Orders are matched on Description (case-insensitive);
+        // Canteen Purchases are matched on TransactionType 1004 and 2004.
+        const string sql = """
+            SELECT
+                MealPlanMealsUsed = ISNULL(SUM(CASE
+                    WHEN LOWER(LTRIM(RTRIM(ISNULL(a.Description, '')))) = N'meal plan'
+                    THEN 1
+                    ELSE 0
+                END), 0),
+                AlaCarteAmount = ISNULL(SUM(CASE
+                    WHEN LOWER(LTRIM(RTRIM(ISNULL(a.Description, '')))) = N'meal order'
+                    THEN ISNULL(a.Amount, 0)
+                    ELSE 0
+                END), 0),
+                PosAmount = ISNULL(SUM(CASE
+                    WHEN a.TransactionType IN (1004, 2004)
+                    THEN ISNULL(a.Amount, 0)
+                    ELSE 0
+                END), 0)
+            FROM ibonus.dbo.AccessLog a
+            INNER JOIN ibonus.dbo.StudentLogin sl
+                ON LTRIM(RTRIM(ISNULL(sl.CustomerID, ''))) = LTRIM(RTRIM(ISNULL(a.CustomerID, '')))
+            WHERE sl.GrdId = @GuardianId
+              AND (@StudentId IS NULL OR CONVERT(int, sl.UserId) = @StudentId)
+              AND a.LogDateTimeServer >= @FromDate
+              AND a.LogDateTimeServer < @ToDate;
+            """;
+
+        using var connection = _connectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+
+        var row = await dbConnection.QuerySingleOrDefaultAsync<MealActivitySummaryRow>(
+            new CommandDefinition(
+                sql,
+                new
+                {
+                    GuardianId = guardianId,
+                    StudentId = studentId,
+                    FromDate = fromDateInclusive,
+                    ToDate = toDateExclusive
+                },
+                commandType: CommandType.Text,
+                cancellationToken: cancellationToken));
+
+        return row ?? new MealActivitySummaryRow();
+    }
+
+    public async Task<IReadOnlyList<OrderCalendarItemDto>> GetOrderCalendarItemsAsync(
+        int guardianId,
+        int? studentId,
+        DateTime fromDateInclusive,
+        DateTime toDateExclusive,
+        CancellationToken cancellationToken)
+    {
+        if (guardianId <= 0)
+        {
+            return [];
+        }
+
+        const string sql = """
+            SELECT
+                oi.MealDate,
+                o.StudentId,
+                StudentName = CAST('' AS nvarchar(256)),
+                o.OrderId,
+                o.OrderTypeId,
+                ItemName = ISNULL(COALESCE(mi.ItemName, mp.PackageName), ''),
+                oi.ItemPrice,
+                Quantity = ISNULL(oi.Quantity, 1)
+            FROM [OrderItem] oi
+            INNER JOIN [Order] o ON o.Id = oi.OrderId
+            LEFT JOIN [MealItem] mi ON mi.Id = oi.ItemId
+            LEFT JOIN [MealPackages] mp ON mp.Id = oi.PackageId
+            WHERE o.GuardianId = @GuardianId
+              AND ISNULL(o.IsPaid, 0) = 1
+              AND (@StudentId IS NULL OR o.StudentId = @StudentId)
+              AND oi.MealDate >= @FromDate
+              AND oi.MealDate < @ToDate
+            ORDER BY oi.MealDate, o.StudentId, oi.Id;
+            """;
+
+        using var connection = _connectionFactory.CreateConnection();
+        var items = (await connection.QueryAsync<OrderCalendarItemDto>(new CommandDefinition(
+            sql,
+            new
+            {
+                GuardianId = guardianId,
+                StudentId = studentId,
+                FromDate = fromDateInclusive.Date,
+                ToDate = toDateExclusive.Date
+            },
+            commandType: CommandType.Text,
+            cancellationToken: cancellationToken))).ToList();
+
+        if (items.Count == 0)
+        {
+            return items;
+        }
+
+        var studentIds = items
+            .Select(x => x.StudentId)
+            .Distinct()
+            .ToList();
+
+        const string namesSql = """
+            SELECT
+                sl.UserId AS StudentId,
+                Name = LTRIM(RTRIM(
+                    LTRIM(RTRIM(ISNULL(sl.StudFirstName, ''))) + ' ' + LTRIM(RTRIM(ISNULL(sl.StudLastName, '')))
+                ))
+            FROM ibonus.dbo.StudentLogin sl
+            WHERE sl.UserId IN @StudentIds;
+            """;
+
+        var nameRows = await connection.QueryAsync<(int StudentId, string Name)>(new CommandDefinition(
+            namesSql,
+            new { StudentIds = studentIds },
+            commandType: CommandType.Text,
+            cancellationToken: cancellationToken));
+
+        var nameMap = nameRows.ToDictionary(x => x.StudentId, x => x.Name?.Trim() ?? string.Empty);
+
+        return items
+            .Select(item => new OrderCalendarItemDto
+            {
+                MealDate = item.MealDate,
+                StudentId = item.StudentId,
+                StudentName = nameMap.TryGetValue(item.StudentId, out var name) ? name : string.Empty,
+                OrderId = item.OrderId,
+                OrderTypeId = item.OrderTypeId,
+                ItemName = item.ItemName,
+                ItemPrice = item.ItemPrice,
+                Quantity = item.Quantity
+            })
+            .ToList();
     }
 }

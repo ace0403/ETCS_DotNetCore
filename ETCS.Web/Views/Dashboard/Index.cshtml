@@ -25,15 +25,21 @@
             : $"{percent.Value:0}%";
     }
 }
-<div class="dashboard-page">
+<div class="dashboard-page mt-2 mt-md-0">
     <section class="dashboard-balance-hero">
         <div class="dashboard-balance-decor" aria-hidden="true"></div>
         <div class="dashboard-balance-content">
             <span class="dashboard-balance-label">Total Wallet Balance</span>
             <span class="dashboard-balance-value">@currency @Model.TotalBalance.ToString("0.00")</span>
             <div class="dashboard-balance-actions">
-                <a asp-controller="Topup" asp-action="Index" class="btn dashboard-balance-btn-primary">Top Up</a>
-                <a asp-controller="AlaCarte" asp-action="Index" class="btn dashboard-balance-btn-ghost">Order Food</a>
+                @if (Model.ShowWallet)
+                {
+                    <a asp-controller="Topup" asp-action="Index" class="btn dashboard-balance-btn-primary">Top Up</a>
+                }
+                @if (Model.ShowPreOrderMeal)
+                {
+                    <a asp-controller="mealcombo" asp-action="Index" class="btn dashboard-balance-btn-ghost">Order Food</a>
+                }
             </div>
         </div>
     </section>
@@ -108,30 +114,39 @@
             <h3 class="dashboard-panel-title mb-0">Quick Actions</h3>
         </div>
         <div class="dashboard-quick-actions" aria-label="Quick actions">
-            <a asp-controller="Topup" asp-action="Index" class="dashboard-action tone-topup">
-                <span class="dashboard-action-icon" aria-hidden="true">
-                    <span class="dashboard-action-plus">+</span>
-                </span>
-                <span class="dashboard-action-label">Top-Up Wallet</span>
-            </a>
-            <a asp-controller="AlaCarte" asp-action="Index" class="dashboard-action tone-alacarte">
-                <span class="dashboard-action-icon" aria-hidden="true">
-                    <span class="dashboard-icon" style="--icon: url('@DashIcon("cutlery.svg")')"></span>
-                </span>
-                <span class="dashboard-action-label">Order Food</span>
-            </a>
+            @if (Model.ShowWallet)
+            {
+                <a asp-controller="Topup" asp-action="Index" class="dashboard-action tone-topup">
+                    <span class="dashboard-action-icon" aria-hidden="true">
+                        <span class="dashboard-action-plus">+</span>
+                    </span>
+                    <span class="dashboard-action-label">Top-Up Wallet</span>
+                </a>
+            }
+            @if (Model.ShowPreOrderMeal)
+            {
+                <a asp-controller="AlaCarte" asp-action="Index" class="dashboard-action tone-alacarte">
+                    <span class="dashboard-action-icon" aria-hidden="true">
+                        <span class="dashboard-icon" style="--icon: url('@DashIcon("cutlery.svg")')"></span>
+                    </span>
+                    <span class="dashboard-action-label">Order Food</span>
+                </a>
+            }
             <a asp-controller="MyKids" asp-action="Index" class="dashboard-action tone-kids">
                 <span class="dashboard-action-icon" aria-hidden="true">
                     <span class="dashboard-icon" style="--icon: url('@DashIcon("users.svg")')"></span>
                 </span>
                 <span class="dashboard-action-label">Manage Children</span>
             </a>
-            <a asp-controller="MealCombo" asp-action="Index" class="dashboard-action tone-combo">
-                <span class="dashboard-action-icon" aria-hidden="true">
-                    <span class="dashboard-icon" style="--icon: url('@DashIcon("plan.svg")')"></span>
-                </span>
-                <span class="dashboard-action-label">Meal Plans</span>
-            </a>
+            @if (Model.ShowPreOrderMeal)
+            {
+                <a asp-controller="MealCombo" asp-action="Index" class="dashboard-action tone-combo">
+                    <span class="dashboard-action-icon" aria-hidden="true">
+                        <span class="dashboard-icon" style="--icon: url('@DashIcon("plan.svg")')"></span>
+                    </span>
+                    <span class="dashboard-action-label">Meal Plans</span>
+                </a>
+            }
             <a asp-controller="History" asp-action="Index" class="dashboard-action tone-history">
                 <span class="dashboard-action-icon" aria-hidden="true">
                     <span class="dashboard-icon" style="--icon: url('@DashIcon("money.svg")')"></span>
@@ -199,19 +214,38 @@
                 <div class="dashboard-activity" role="list">
                     @foreach (var item in Model.RecentActivity)
                     {
-                        <a href="@item.DetailUrl" class="dashboard-activity-row @item.Tone" role="listitem">
-                            <div class="dashboard-activity-icon" aria-hidden="true">
-                                <span class="dashboard-icon" style="--icon: url('@DashIcon(item.Icon)')"></span>
+                        if (item.HasDetail)
+                        {
+                            <a href="@item.DetailUrl" class="dashboard-activity-row @item.Tone" role="listitem">
+                                <div class="dashboard-activity-icon" aria-hidden="true">
+                                    <span class="dashboard-icon" style="--icon: url('@DashIcon(item.Icon)')"></span>
+                                </div>
+                                <div class="dashboard-activity-main">
+                                    <div class="dashboard-activity-title">@item.Title</div>
+                                    <div class="dashboard-activity-time">@item.RelativeTime</div>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(item.StatusLabel))
+                                {
+                                    <span class="dashboard-activity-status @item.StatusCss">@item.StatusLabel</span>
+                                }
+                            </a>
+                        }
+                        else
+                        {
+                            <div class="dashboard-activity-row @item.Tone is-static" role="listitem">
+                                <div class="dashboard-activity-icon" aria-hidden="true">
+                                    <span class="dashboard-icon" style="--icon: url('@DashIcon(item.Icon)')"></span>
+                                </div>
+                                <div class="dashboard-activity-main">
+                                    <div class="dashboard-activity-title">@item.Title</div>
+                                    <div class="dashboard-activity-time">@item.RelativeTime</div>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(item.StatusLabel))
+                                {
+                                    <span class="dashboard-activity-status @item.StatusCss">@item.StatusLabel</span>
+                                }
                             </div>
-                            <div class="dashboard-activity-main">
-                                <div class="dashboard-activity-title">@item.Title</div>
-                                <div class="dashboard-activity-time">@item.RelativeTime</div>
-                            </div>
-                            @if (!string.IsNullOrWhiteSpace(item.StatusLabel))
-                            {
-                                <span class="dashboard-activity-status @item.StatusCss">@item.StatusLabel</span>
-                            }
-                        </a>
+                        }
                     }
                 </div>
             }

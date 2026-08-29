@@ -24,6 +24,22 @@ public sealed class QueueEmailNotificationRequest
 
     public string ExpiryMinutes { get; init; } = string.Empty;
 
+    public string OtpCode { get; init; } = string.Empty;
+
+    public string AddChildLink { get; init; } = string.Empty;
+
+    public string LogoUrl { get; init; } = string.Empty;
+
+    public string CardNumber { get; init; } = string.Empty;
+
+    public string CustomerId { get; init; } = string.Empty;
+
+    public string Reason { get; init; } = string.Empty;
+
+    public string RefCode { get; init; } = string.Empty;
+
+    public string SchoolName { get; init; } = string.Empty;
+
     /// <summary>When set with OrderId, order line items are loaded in the background worker.</summary>
     public int GuardianId { get; init; }
 

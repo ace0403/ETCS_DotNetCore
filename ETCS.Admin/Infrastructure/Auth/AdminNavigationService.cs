@@ -11,18 +11,23 @@ public sealed class AdminNavigationService : IAdminNavigationService
         "School",
         "Guardian",
         "Student",
+        "BlacklistCard",
         "Staff",
         "EmailTemplate",
         "Category",
+        "MealType",
         "Ingredient",
         "MealItem",
         "MealCombo",
         "MealServingPeriod",
+        "SchoolCalendar",
         "Report.CanteenTransactions",
         "Report.AdminTransaction",
         "Report.TerminalSalesSummary",
         "Report.MealOrdersMealDb",
         "Report.MealOrders",
+        "Report.MealOrderPaymentsMealDb",
+        "Report.MealOrderPayments",
         "Role"
     ];
 

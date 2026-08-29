@@ -29,4 +29,31 @@ public interface IGuardianEmailNotificationService
         string resetLink,
         int expiryMinutes,
         CancellationToken cancellationToken);
+
+    Task QueueRegistrationOtpAsync(
+        string email,
+        string otpCode,
+        int expiryMinutes,
+        CancellationToken cancellationToken);
+
+    Task QueueDeleteAccountOtpAsync(
+        string email,
+        string guardianName,
+        string otpCode,
+        int expiryMinutes,
+        CancellationToken cancellationToken);
+
+    Task QueueRegistrationSuccessAsync(
+        string email,
+        string guardianName,
+        string addChildLink,
+        CancellationToken cancellationToken);
+
+    Task QueueReplaceCardRequestAsync(
+        int guardianId,
+        string customerId,
+        string cardNumber,
+        string reason,
+        int? refCode,
+        CancellationToken cancellationToken);
 }

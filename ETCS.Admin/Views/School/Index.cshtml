@@ -10,12 +10,7 @@
         <div class="admin-grid-toolbar">
             <partial name="_AdminGridSearch" />
             <div class="admin-grid-actions">
-                @if (AdminPermissionViewHelper.CanAdd(User, "School"))
-                {
-                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addDataModal" onclick="loadData(0)">
-                        <i class="ti ti-plus me-1"></i>Add
-                    </button>
-                }
+                <partial name="_AdminAddButton" />
             </div>
         </div>
         <div class="table-responsive admin-grid-table-scroll">
@@ -36,10 +31,12 @@
 </div>
 <div class="modal fade" id="addDataModal" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content" id="div_add"><partial name="_AddUpdate" model="Model" /></div>
+        <div class="modal-content" id="div_add"></div>
     </div>
 </div>
 @section Scripts {
+    <link href="~/css/bootstrap-multiselect.css" rel="stylesheet" />
+    <script src="~/js/bootstrap-multiselect.js"></script>
     <script>window.adminModuleKey = 'School';</script>
     <script src="~/js/custom/school.js"></script>
 }

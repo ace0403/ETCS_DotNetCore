@@ -4,6 +4,10 @@ public sealed class TopupPageViewModel
 {
     public IReadOnlyList<TopupChildItem> Children { get; init; } = [];
 
+    public IReadOnlyList<TopupChildItem> TopupChildren { get; init; } = [];
+
+    public bool CanTopup => TopupChildren.Count > 0;
+
     public int SelectedStudentId { get; init; }
 
     public decimal TotalBalance { get; init; }
@@ -69,6 +73,8 @@ public sealed class WalletRecentTransactionItem
     public string StatusLabel { get; init; } = string.Empty;
 
     public string StatusCss { get; init; } = string.Empty;
+
+    public bool HasDetail { get; init; }
 
     public string DetailUrl { get; init; } = string.Empty;
 }

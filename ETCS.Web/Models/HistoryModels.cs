@@ -62,6 +62,8 @@ public sealed class HistoryListItemViewModel
 
     public DateTime CreatedOn { get; init; }
 
+    public bool HasDetail { get; init; }
+
     public string DetailUrl { get; init; } = string.Empty;
 }
 

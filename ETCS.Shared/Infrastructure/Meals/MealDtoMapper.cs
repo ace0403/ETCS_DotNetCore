@@ -9,6 +9,7 @@ public static class MealDtoMapper
         {
             Id = item.Id,
             ItemName = item.ItemName,
+            MealSessionName = item.MealSessionName,
             MealTypeName = item.MealTypeName,
             Detail = item.Detail,
             Price = item.Price,
@@ -21,6 +22,7 @@ public static class MealDtoMapper
         {
             Id = package.Id,
             PackageName = package.PackageName,
+            MealSessionName = package.MealSessionName,
             MealTypeName = package.MealTypeName,
             Detail = package.Detail,
             ItemsName = package.ItemsName,

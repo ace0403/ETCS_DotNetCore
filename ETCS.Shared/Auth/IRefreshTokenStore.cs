@@ -8,5 +8,7 @@ public interface IRefreshTokenStore
 
     Task RevokeAsync(string refreshToken, CancellationToken cancellationToken);
 
+    Task RevokeAllByUserIdAsync(int userId, CancellationToken cancellationToken);
+
     Task RemoveAsync(string refreshToken, CancellationToken cancellationToken);
 }

@@ -1,4 +1,5 @@
 using ETCS.Admin.Infrastructure.Auth;
+using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
 using ETCS.Shared.Infrastructure.Admin.Models;
 using ETCS.Shared.Infrastructure.Admin.Master.Schools;
 using ETCS.Shared.Options;
@@ -15,15 +16,18 @@ public class SchoolController : Controller
     private readonly ISchoolAdminRepository _repository;
     private readonly IAdminSchoolScopeService _schoolScope;
     private readonly AdminOptions _adminOptions;
+    private readonly IMealEnumAdminRepository _mealEnumRepository;
 
     public SchoolController(
         ISchoolAdminRepository repository,
         IAdminSchoolScopeService schoolScope,
-        IOptions<AdminOptions> adminOptions)
+        IOptions<AdminOptions> adminOptions,
+        IMealEnumAdminRepository mealEnumRepository)
     {
         _repository = repository;
         _schoolScope = schoolScope;
         _adminOptions = adminOptions.Value;
+        _mealEnumRepository = mealEnumRepository;
     }
 
     public IActionResult Index() => View(new SchoolSaveRequest());
@@ -39,6 +43,8 @@ public class SchoolController : Controller
     public async Task<IActionResult> Get(int id, CancellationToken cancellationToken)
     {
         ViewBag.Countries = await _repository.CountryLookupsAsync(cancellationToken);
+        var orderTypes = await _mealEnumRepository.GetStudentOrderTypesAsync(cancellationToken);
+        ViewBag.OrderTypes = new Microsoft.AspNetCore.Mvc.Rendering.SelectList(orderTypes, "Id", "Name");
         var model = id > 0
             ? await _repository.GetAsync(id, cancellationToken) ?? new SchoolSaveRequest()
             : new SchoolSaveRequest();

@@ -19,6 +19,7 @@ public sealed class TransactionRepository : ITransactionRepository
     private const string InsertPendingTransInfoSp = "spInsertPendingTransInfo";
     private const string UpdatePendingTransInfoSp = "spUpdatePendingTransInfo";
     private const string UpdateTopupTransInfoSp = "spUpdatePreOrderResTransInfo";
+    private const string UpdatePrepaidBalanceSp = "spUpdatePrepaidBalance";
     private const string QueueEmailNotificationSp = "spQueueEmailNotification";
 
     private readonly IDbConnectionFactory _connectionFactory;
@@ -183,6 +184,38 @@ public sealed class TransactionRepository : ITransactionRepository
         await transaction.CommitAsync(cancellationToken);
     }
 
+    public async Task UpdatePrepaidBalanceAsync(
+        string customerId,
+        decimal rechargeAmount,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(customerId))
+        {
+            throw new ArgumentException("Customer ID is required.", nameof(customerId));
+        }
+
+        if (rechargeAmount <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(rechargeAmount), rechargeAmount, "Recharge amount must be greater than zero.");
+        }
+
+        using var connection = _connectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+
+        var parameters = new DynamicParameters();
+        parameters.Add("CustomerID", customerId.Trim());
+        parameters.Add("RechargeAmount", rechargeAmount);
+
+        await dbConnection.ExecuteAsync(
+            new CommandDefinition(
+                UpdatePrepaidBalanceSp,
+                parameters,
+                commandType: System.Data.CommandType.StoredProcedure,
+                commandTimeout: DefaultCommandTimeoutSeconds,
+                cancellationToken: cancellationToken));
+    }
+
     public async Task UpdateTopupTransactionAsync(UpdateTopupTransactionRequest request, CancellationToken cancellationToken)
     {
         using var connection = _connectionFactory.CreateConnection();
@@ -206,9 +239,9 @@ public sealed class TransactionRepository : ITransactionRepository
     {
         const string sql = """
             INSERT INTO [Transaction]
-                (GuardianId, StudentId, TransactionType, Amount, Remarks, IsTransactionCompleted, IsDebit, StatusId, CreatedOn, CreatedBy)
+                (GuardianId, StudentId, TransactionType, Amount, Remarks, IsTransactionCompleted, IsDebit, StatusId, CreatedOn, CreatedBy, ReconcileAttemptCount)
             VALUES
-                (@GuardianId, @StudentId, NULL, @Amount, @Remarks, 0, 1, @StatusId, GETDATE(), @CreatedBy);
+                (@GuardianId, @StudentId, NULL, @Amount, @Remarks, 0, 1, @StatusId, GETDATE(), @CreatedBy, 0);
             SELECT CAST(SCOPE_IDENTITY() AS int);
             """;
 
@@ -236,6 +269,10 @@ public sealed class TransactionRepository : ITransactionRepository
             SET TransactionId = @GatewayTransactionId,
                 StatusId = @StatusId,
                 IsTransactionCompleted = @IsTransactionCompleted,
+                Remarks = CASE
+                    WHEN @Remarks IS NULL OR LTRIM(RTRIM(@Remarks)) = '' THEN Remarks
+                    ELSE @Remarks
+                END,
                 UpdatedOn = GETDATE(),
                 UpdatedBy = @UpdatedBy
             WHERE Id = @TransactionPkId;
@@ -250,6 +287,7 @@ public sealed class TransactionRepository : ITransactionRepository
                 request.GatewayTransactionId,
                 request.StatusId,
                 request.IsTransactionCompleted,
+                request.Remarks,
                 request.UpdatedBy
             },
             commandType: System.Data.CommandType.Text,
@@ -280,24 +318,46 @@ public sealed class TransactionRepository : ITransactionRepository
         CancellationToken cancellationToken)
     {
         var lockHint = forUpdate ? "WITH (UPDLOCK, ROWLOCK)" : string.Empty;
+        // Remarks should hold OrderId, but older rows may have overwritten it with status text.
+        // Fall back: match MealDB.TransactionId to ibonus.PendingTransInfo.PaymentDetails by OrderId.
         var sql = $"""
             SELECT TOP (1)
                 t.Id AS TransactionPkId,
-                t.Remarks AS OrderId,
+                COALESCE(
+                    NULLIF(LTRIM(RTRIM(p.Remarks)), ''),
+                    NULLIF(LTRIM(RTRIM(t.Remarks)), ''),
+                    @OrderId
+                ) AS OrderId,
                 IsTransactionCompleted = ISNULL(t.IsTransactionCompleted, 0),
                 t.StatusId,
                 ISNULL(t.Amount, 0) AS Amount,
                 ISNULL(t.StudentId, 0) AS StudentId,
                 ISNULL(t.GuardianId, 0) AS GuardianId,
-                LTRIM(RTRIM(ISNULL(t.TransactionId, ''))) AS GatewayTransactionId
+                LTRIM(RTRIM(ISNULL(t.TransactionId, ''))) AS GatewayTransactionId,
+                t.AccessLogId
             FROM [Transaction] t {lockHint}
             LEFT JOIN [Order] o ON o.TransactionId = t.Id
+            LEFT JOIN ibonus.dbo.PendingTransInfo p
+                ON LTRIM(RTRIM(ISNULL(p.PaymentDetails, ''))) = LTRIM(RTRIM(ISNULL(t.TransactionId, '')))
+               AND (
+                    LTRIM(RTRIM(ISNULL(p.Remarks, ''))) = @OrderId
+                    OR LTRIM(RTRIM(ISNULL(t.Remarks, ''))) = @OrderId
+                   )
             WHERE o.Id IS NULL
               AND (
-                    ISNULL(t.Remarks, '') = @OrderId
+                    LTRIM(RTRIM(ISNULL(t.Remarks, ''))) = @OrderId
                     OR (
                         @GatewayTransactionId IS NOT NULL
-                        AND ISNULL(t.TransactionId, '') = @GatewayTransactionId
+                        AND LTRIM(RTRIM(ISNULL(t.TransactionId, ''))) = @GatewayTransactionId
+                    )
+                    OR (
+                        NULLIF(@OrderId, '') IS NOT NULL
+                        AND LTRIM(RTRIM(ISNULL(t.TransactionId, ''))) IN (
+                            SELECT LTRIM(RTRIM(p2.PaymentDetails))
+                            FROM ibonus.dbo.PendingTransInfo p2
+                            WHERE LTRIM(RTRIM(ISNULL(p2.Remarks, ''))) = @OrderId
+                              AND NULLIF(LTRIM(RTRIM(ISNULL(p2.PaymentDetails, ''))), '') IS NOT NULL
+                        )
                     )
                   )
             ORDER BY t.Id DESC;
@@ -501,7 +561,15 @@ public sealed class TransactionRepository : ITransactionRepository
                 request.EventDate,
                 request.OrderItems,
                 request.ResetLink,
-                request.ExpiryMinutes
+                request.ExpiryMinutes,
+                request.OtpCode,
+                request.AddChildLink,
+                request.LogoUrl,
+                request.CardNumber,
+                request.CustomerId,
+                request.Reason,
+                request.RefCode,
+                request.SchoolName
             })
             : request.PayloadJson;
 
@@ -517,6 +585,14 @@ public sealed class TransactionRepository : ITransactionRepository
         parameters.Add("OrderItems", request.OrderItems);
         parameters.Add("ResetLink", request.ResetLink);
         parameters.Add("ExpiryMinutes", request.ExpiryMinutes);
+        parameters.Add("OtpCode", request.OtpCode);
+        parameters.Add("AddChildLink", request.AddChildLink);
+        parameters.Add("LogoUrl", request.LogoUrl);
+        parameters.Add("CardNumber", request.CardNumber);
+        parameters.Add("CustomerId", request.CustomerId);
+        parameters.Add("Reason", request.Reason);
+        parameters.Add("RefCode", request.RefCode);
+        parameters.Add("SchoolName", request.SchoolName);
         parameters.Add("PayloadJson", payload);
 
         await dbConnection.ExecuteAsync(
@@ -526,6 +602,56 @@ public sealed class TransactionRepository : ITransactionRepository
                 commandType: System.Data.CommandType.StoredProcedure,
                 commandTimeout: DefaultCommandTimeoutSeconds,
                 cancellationToken: cancellationToken));
+    }
+
+    public async Task AttachAccessLogIdByTransactionPkAsync(
+        int transactionPkId,
+        long accessLogId,
+        CancellationToken cancellationToken)
+    {
+        if (transactionPkId <= 0 || accessLogId <= 0)
+        {
+            return;
+        }
+
+        const string sql = """
+            UPDATE [Transaction]
+            SET AccessLogId = @AccessLogId,
+                UpdatedOn = GETDATE()
+            WHERE Id = @TransactionPkId;
+            """;
+
+        using var connection = _mealDbConnectionFactory.CreateConnection();
+        await connection.ExecuteAsync(new CommandDefinition(
+            sql,
+            new { TransactionPkId = transactionPkId, AccessLogId = accessLogId },
+            commandType: System.Data.CommandType.Text,
+            commandTimeout: DefaultCommandTimeoutSeconds,
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task<long?> GetAccessLogIdByTransactionPkAsync(
+        int transactionPkId,
+        CancellationToken cancellationToken)
+    {
+        if (transactionPkId <= 0)
+        {
+            return null;
+        }
+
+        const string sql = """
+            SELECT TOP (1) AccessLogId
+            FROM [Transaction]
+            WHERE Id = @TransactionPkId;
+            """;
+
+        using var connection = _mealDbConnectionFactory.CreateConnection();
+        return await connection.QueryFirstOrDefaultAsync<long?>(new CommandDefinition(
+            sql,
+            new { TransactionPkId = transactionPkId },
+            commandType: System.Data.CommandType.Text,
+            commandTimeout: DefaultCommandTimeoutSeconds,
+            cancellationToken: cancellationToken));
     }
 
     public async Task<TransactionHistoryResponse> GetTransactionHistoryAsync(
@@ -557,49 +683,85 @@ public sealed class TransactionRepository : ITransactionRepository
             toDateExclusive = fromDate?.Date.AddDays(1);
         }
 
+        // Driven from ibonus.AccessLog (all types for the guardian's students);
+        // MealDB status/details via LEFT JOIN on gateway TransactionId.
         const string countSql = """
             SELECT COUNT(1)
-            FROM [Transaction] t
-            LEFT JOIN [Order] o ON o.TransactionId = t.Id
-            WHERE (@StudentId IS NULL OR t.StudentId = @StudentId)
-              AND (@GuardianId IS NULL OR t.GuardianId = @GuardianId)
-              AND (@FromDate IS NULL OR t.CreatedOn >= @FromDate)
-              AND (@ToDateExclusive IS NULL OR t.CreatedOn < @ToDateExclusive)
+            FROM ibonus.dbo.AccessLog a
+            INNER JOIN ibonus.dbo.StudentLogin sl
+                ON LTRIM(RTRIM(ISNULL(sl.CustomerID, ''))) = LTRIM(RTRIM(ISNULL(a.CustomerID, '')))
+            WHERE (@GuardianId IS NULL OR sl.GrdId = @GuardianId)
+              AND (@StudentId IS NULL OR CONVERT(int, sl.UserId) = @StudentId)
+              AND (@FromDate IS NULL OR a.LogDateTimeServer >= @FromDate)
+              AND (@ToDateExclusive IS NULL OR a.LogDateTimeServer < @ToDateExclusive)
               AND (
                     @Type = 'all'
-                    OR (@Type = 'order' AND o.Id IS NOT NULL)
-                    OR (@Type = 'topup' AND o.Id IS NULL)
+                    OR (@Type = 'topup' AND a.TransactionType IN (23, 1004, 10001, 21004, 1007, 21007))
+                    OR (@Type = 'order' AND a.TransactionType NOT IN (23, 1004, 10001, 21004, 1007, 21007))
                   );
             """;
 
         const string dataSql = """
             SELECT
-                t.Id,
-                t.GuardianId,
-                t.StudentId,
+                Id = ISNULL(t.Id, 0),
+                AccessLogId = ISNULL(t.AccessLogId, 0),
+                HasMealTransaction = CAST(CASE WHEN t.Id IS NULL THEN 0 ELSE 1 END AS bit),
+                GuardianId = ISNULL(t.GuardianId, sl.GrdId),
+                StudentId = CONVERT(int, sl.UserId),
                 StudentName = CAST('' AS nvarchar(256)),
-                TransactionType = CASE WHEN o.Id IS NULL THEN 'topup' ELSE 'order' END,
-                o.OrderTypeId,
+                TransactionType = CASE
+                    WHEN a.TransactionType IN (23, 1004, 10001, 21004, 1007, 21007) THEN 'topup'
+                    ELSE 'order'
+                END,
+                OrderTypeId = CASE
+                    WHEN o.OrderTypeId IS NOT NULL THEN o.OrderTypeId
+                    WHEN a.TransactionType = 24 THEN 24
+                    WHEN a.TransactionType = 42 THEN 42
+                    WHEN a.TransactionType = 61 THEN 24
+                    WHEN a.TransactionType = 43 THEN 43
+                    ELSE NULL
+                END,
                 OrderId = ISNULL(o.OrderId, ''),
-                GatewayTransactionId = ISNULL(t.TransactionId, ''),
-                t.Amount,
-                Remarks = ISNULL(t.Remarks, ''),
-                IsTransactionCompleted = ISNULL(t.IsTransactionCompleted, 0),
-                t.StatusId,
-                t.CreatedOn,
-                t.UpdatedOn
-            FROM [Transaction] t
+                GatewayTransactionId = COALESCE(
+                    NULLIF(LTRIM(RTRIM(ISNULL(t.TransactionId, ''))), ''),
+                    NULLIF(LTRIM(RTRIM(ISNULL(a.TransactionID, ''))), ''),
+                    ''),
+                Amount = ISNULL(t.Amount, ISNULL(a.Amount, 0)),
+                Remarks = COALESCE(
+                    NULLIF(LTRIM(RTRIM(ISNULL(t.Remarks, ''))), ''),
+                    NULLIF(LTRIM(RTRIM(ISNULL(a.Description, ''))), ''),
+                    ''),
+                IsTransactionCompleted = CASE
+                    WHEN t.Id IS NULL THEN CAST(1 AS bit)
+                    ELSE CAST(ISNULL(t.IsTransactionCompleted, 0) AS bit)
+                END,
+                StatusId = CASE
+                    WHEN t.Id IS NULL THEN 21
+                    ELSE t.StatusId
+                END,
+                CreatedOn = ISNULL(t.CreatedOn, a.LogDateTimeServer),
+                UpdatedOn = t.UpdatedOn
+            FROM ibonus.dbo.AccessLog a
+            INNER JOIN ibonus.dbo.StudentLogin sl
+                ON LTRIM(RTRIM(ISNULL(sl.CustomerID, ''))) = LTRIM(RTRIM(ISNULL(a.CustomerID, '')))
+            LEFT JOIN [Transaction] t
+                ON NULLIF(LTRIM(RTRIM(ISNULL(a.TransactionID, ''))), '') IS NOT NULL
+               AND LTRIM(RTRIM(ISNULL(t.TransactionId, ''))) = LTRIM(RTRIM(ISNULL(a.TransactionID, '')))
+               AND (
+                    ISNULL(t.StudentId, 0) = CONVERT(int, sl.UserId)
+                    OR (@GuardianId IS NOT NULL AND t.GuardianId = @GuardianId)
+                   )
             LEFT JOIN [Order] o ON o.TransactionId = t.Id
-            WHERE (@StudentId IS NULL OR t.StudentId = @StudentId)
-              AND (@GuardianId IS NULL OR t.GuardianId = @GuardianId)
-              AND (@FromDate IS NULL OR t.CreatedOn >= @FromDate)
-              AND (@ToDateExclusive IS NULL OR t.CreatedOn < @ToDateExclusive)
+            WHERE (@GuardianId IS NULL OR sl.GrdId = @GuardianId)
+              AND (@StudentId IS NULL OR CONVERT(int, sl.UserId) = @StudentId)
+              AND (@FromDate IS NULL OR a.LogDateTimeServer >= @FromDate)
+              AND (@ToDateExclusive IS NULL OR a.LogDateTimeServer < @ToDateExclusive)
               AND (
                     @Type = 'all'
-                    OR (@Type = 'order' AND o.Id IS NOT NULL)
-                    OR (@Type = 'topup' AND o.Id IS NULL)
+                    OR (@Type = 'topup' AND a.TransactionType IN (23, 1004, 10001, 21004, 1007, 21007))
+                    OR (@Type = 'order' AND a.TransactionType NOT IN (23, 1004, 10001, 21004, 1007, 21007))
                   )
-            ORDER BY t.Id DESC
+            ORDER BY a.LogDateTimeServer DESC, a.TransactionID DESC
             OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
             """;
 
@@ -661,6 +823,8 @@ public sealed class TransactionRepository : ITransactionRepository
         const string sql = """
             SELECT TOP (1)
                 t.Id,
+                AccessLogId = ISNULL(t.AccessLogId, 0),
+                HasMealTransaction = CAST(1 AS bit),
                 t.GuardianId,
                 t.StudentId,
                 StudentName = CAST('' AS nvarchar(256)),
@@ -755,6 +919,8 @@ public sealed class TransactionRepository : ITransactionRepository
                 return new TransactionHistoryItemDto
                 {
                     Id = item.Id,
+                    AccessLogId = item.AccessLogId,
+                    HasMealTransaction = item.HasMealTransaction,
                     GuardianId = item.GuardianId,
                     StudentId = item.StudentId,
                     StudentName = studentName,

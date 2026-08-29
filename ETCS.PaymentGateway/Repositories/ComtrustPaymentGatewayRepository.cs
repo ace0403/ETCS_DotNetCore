@@ -72,7 +72,8 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             return new PaymentCaptureResult
             {
                 IsSuccess = false,
-                Message = "Payment gateway base URL is not configured."
+                Message = "Payment gateway base URL is not configured.",
+                TransactionId = request.TransactionId
             };
         }
 
@@ -87,12 +88,19 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             }
         };
 
+        var captureTimeoutSeconds = _options.CaptureTimeoutSeconds > 0
+            ? _options.CaptureTimeoutSeconds
+            : 90;
+
         try
         {
-            using var httpRequest = CreateJsonPostRequest(finalization);
-            using var httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(captureTimeoutSeconds));
 
-            var rawResponse = await ReadResponseBodyAsync(httpResponse, cancellationToken);
+            using var httpRequest = CreateJsonPostRequest(finalization);
+            using var httpResponse = await _httpClient.SendAsync(httpRequest, timeoutCts.Token);
+
+            var rawResponse = await ReadResponseBodyAsync(httpResponse, timeoutCts.Token);
             if (string.IsNullOrWhiteSpace(rawResponse))
             {
                 _logger.LogWarning(
@@ -124,10 +132,11 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             if (!httpResponse.IsSuccessStatusCode && !isSuccess && !isPending)
             {
                 _logger.LogWarning(
-                    "Payment capture failed for transaction {TransactionId}. Status={StatusCode}; Class={ResponseClass}",
+                    "Payment capture failed for transaction {TransactionId}. Status={StatusCode}; Class={ResponseClass}; Description={Description}",
                     request.TransactionId,
                     (int)httpResponse.StatusCode,
-                    responseClass);
+                    responseClass,
+                    responseDescription);
             }
 
             return new PaymentCaptureResult
@@ -141,13 +150,20 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
                 Status = responseClass
             };
         }
-        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException ex)
         {
-            _logger.LogError(ex, "Timeout while capturing payment status for transaction {TransactionId}. Timeout={TimeoutSeconds}s", request.TransactionId, _options.TimeoutSeconds);
+            _logger.LogError(
+                ex,
+                "Timeout/cancel while capturing payment for transaction {TransactionId}. CaptureTimeout={TimeoutSeconds}s; RequestCancelled={RequestCancelled}",
+                request.TransactionId,
+                captureTimeoutSeconds,
+                cancellationToken.IsCancellationRequested);
             return new PaymentCaptureResult
             {
                 IsSuccess = false,
-                Message = $"Payment gateway timeout after {_options.TimeoutSeconds} seconds.",
+                Message = cancellationToken.IsCancellationRequested
+                    ? "Payment capture request was cancelled."
+                    : $"Payment gateway timeout after {captureTimeoutSeconds} seconds.",
                 TransactionId = request.TransactionId
             };
         }
@@ -196,7 +212,8 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             return new PaymentSessionCreateResult
             {
                 IsSuccess = false,
-                Message = "Payment gateway base URL is not configured."
+                Message = "Payment gateway base URL is not configured.",
+                OrderId = orderId
             };
         }
 
@@ -222,11 +239,18 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             }
         };
 
+        var sessionTimeoutSeconds = _options.SessionTimeoutSeconds > 0
+            ? _options.SessionTimeoutSeconds
+            : 60;
+
         try
         {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(sessionTimeoutSeconds));
+
             using var httpRequest = CreateJsonPostRequest(registration);
-            using var httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
-            var rawResponse = await ReadResponseBodyAsync(httpResponse, cancellationToken);
+            using var httpResponse = await _httpClient.SendAsync(httpRequest, timeoutCts.Token);
+            var rawResponse = await ReadResponseBodyAsync(httpResponse, timeoutCts.Token);
             if (string.IsNullOrWhiteSpace(rawResponse))
             {
                 _logger.LogWarning(
@@ -251,6 +275,8 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             var isSuccess =
                 httpResponse.IsSuccessStatusCode &&
                 !string.IsNullOrWhiteSpace(redirectUrl) &&
+                Uri.TryCreate(redirectUrl, UriKind.Absolute, out var redirectUri) &&
+                (redirectUri.Scheme == Uri.UriSchemeHttps || redirectUri.Scheme == Uri.UriSchemeHttp) &&
                 (string.IsNullOrWhiteSpace(responseClass) ||
                  responseClass.Equals("success", StringComparison.OrdinalIgnoreCase) ||
                  responseClass.Equals("pending", StringComparison.OrdinalIgnoreCase));
@@ -258,11 +284,13 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             if (!isSuccess)
             {
                 _logger.LogWarning(
-                    "Comtrust payment session creation failed for {Context}. OrderId={OrderId}; Status={StatusCode}; Class={ResponseClass}",
+                    "Comtrust payment session creation failed for {Context}. OrderId={OrderId}; Status={StatusCode}; Class={ResponseClass}; Description={Description}; RedirectUrl={RedirectUrl}",
                     context,
                     orderId,
                     (int)httpResponse.StatusCode,
-                    responseClass);
+                    responseClass,
+                    responseDescription,
+                    redirectUrl);
             }
 
             return new PaymentSessionCreateResult
@@ -276,13 +304,22 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
                 RedirectUrl = redirectUrl
             };
         }
-        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException ex)
         {
-            _logger.LogError(ex, "Timeout while creating Comtrust payment session for {Context}. OrderId={OrderId}. Timeout={TimeoutSeconds}s", context, orderId, _options.TimeoutSeconds);
+            _logger.LogError(
+                ex,
+                "Timeout/cancel while creating Comtrust payment session for {Context}. OrderId={OrderId}. SessionTimeout={TimeoutSeconds}s; RequestCancelled={RequestCancelled}",
+                context,
+                orderId,
+                sessionTimeoutSeconds,
+                cancellationToken.IsCancellationRequested);
             return new PaymentSessionCreateResult
             {
                 IsSuccess = false,
-                Message = $"Payment gateway timeout after {_options.TimeoutSeconds} seconds. Please retry."
+                Message = cancellationToken.IsCancellationRequested
+                    ? "Payment session request was cancelled."
+                    : $"Payment gateway timeout after {sessionTimeoutSeconds} seconds. Please retry.",
+                OrderId = orderId
             };
         }
         catch (IOException ex)
@@ -291,7 +328,8 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             return new PaymentSessionCreateResult
             {
                 IsSuccess = false,
-                Message = "Payment gateway connection was interrupted. Please retry."
+                Message = "Payment gateway connection was interrupted. Please retry.",
+                OrderId = orderId
             };
         }
         catch (HttpRequestException ex)
@@ -300,7 +338,8 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             return new PaymentSessionCreateResult
             {
                 IsSuccess = false,
-                Message = "Unable to reach payment gateway. Please retry."
+                Message = "Unable to reach payment gateway. Please retry.",
+                OrderId = orderId
             };
         }
         catch (Exception ex)
@@ -309,7 +348,8 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             return new PaymentSessionCreateResult
             {
                 IsSuccess = false,
-                Message = "Unable to create payment session at the moment."
+                Message = "Unable to create payment session at the moment.",
+                OrderId = orderId
             };
         }
     }

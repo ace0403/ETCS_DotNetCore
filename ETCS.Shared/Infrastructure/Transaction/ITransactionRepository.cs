@@ -17,6 +17,8 @@ public interface ITransactionRepository
         UpdateTopupTransactionRequest topupRequest,
         CancellationToken cancellationToken);
 
+    Task UpdatePrepaidBalanceAsync(string customerId, decimal rechargeAmount, CancellationToken cancellationToken);
+
     Task<int> CreateTopupPendingTransactionAsync(TopupTransactionCreateRequest request, CancellationToken cancellationToken);
 
     Task UpdateTopupTransactionStatusAsync(TopupTransactionUpdateRequest request, CancellationToken cancellationToken);
@@ -40,6 +42,15 @@ public interface ITransactionRepository
     Task BumpReconcileAttemptAsync(int transactionPkId, CancellationToken cancellationToken);
 
     Task QueueEmailNotificationAsync(QueueEmailNotificationRequest request, CancellationToken cancellationToken);
+
+    Task AttachAccessLogIdByTransactionPkAsync(
+        int transactionPkId,
+        long accessLogId,
+        CancellationToken cancellationToken);
+
+    Task<long?> GetAccessLogIdByTransactionPkAsync(
+        int transactionPkId,
+        CancellationToken cancellationToken);
 
     Task<TransactionHistoryResponse> GetTransactionHistoryAsync(
         int? studentId,

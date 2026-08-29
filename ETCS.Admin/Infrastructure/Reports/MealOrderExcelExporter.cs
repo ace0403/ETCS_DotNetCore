@@ -13,6 +13,7 @@ public static class MealOrderExcelExporter
         "Section",
         "Student Name",
         "Payment Status",
+        "Meal Session",
         "Meal Type",
         "Choice",
         "Meal Date",
@@ -42,11 +43,12 @@ public static class MealOrderExcelExporter
             worksheet.Cell(excelRow, 4).Value = row.StudDiv;
             worksheet.Cell(excelRow, 5).Value = row.StudFullName;
             worksheet.Cell(excelRow, 6).Value = row.PaymentStatus;
-            worksheet.Cell(excelRow, 7).Value = row.Category;
-            worksheet.Cell(excelRow, 8).Value = row.Choice;
-            worksheet.Cell(excelRow, 9).Value = row.DeliveryDate;
-            worksheet.Cell(excelRow, 10).Value = row.Day;
-            worksheet.Cell(excelRow, 11).Value = row.Items;
+            worksheet.Cell(excelRow, 7).Value = row.MealSession;
+            worksheet.Cell(excelRow, 8).Value = row.Category;
+            worksheet.Cell(excelRow, 9).Value = row.Choice;
+            worksheet.Cell(excelRow, 10).Value = row.DeliveryDate;
+            worksheet.Cell(excelRow, 11).Value = row.Day;
+            worksheet.Cell(excelRow, 12).Value = row.Items;
         }
 
         worksheet.Columns().AdjustToContents();

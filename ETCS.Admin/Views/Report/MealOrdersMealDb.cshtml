@@ -1,8 +1,10 @@
+@using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums
 @using ETCS.Shared.Infrastructure.Admin.Reports.MealOrders
 @{
     ViewData["Title"] = "Meal Order Report";
     Layout = "~/Views/Shared/_Layout.cshtml";
     var schools = ViewBag.Schools as IReadOnlyList<MealOrderSchoolLookupDto> ?? Array.Empty<MealOrderSchoolLookupDto>();
+    var mealSessions = ViewBag.MealSessions as IReadOnlyList<MealEnumLookupDto> ?? Array.Empty<MealEnumLookupDto>();
     var startDate = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd");
     var endDate = DateTime.Today.ToString("yyyy-MM-dd");
     var reportError = TempData["ReportError"] as string;
@@ -34,6 +36,22 @@
                     }
                 </select>
             </div>
+            <div class="col-12 col-md-6 col-lg-4">
+                <label for="ddlMealSession" class="form-label">Meal session</label>
+                <select id="ddlMealSession" class="form-select">
+                    <option value="">All Sessions</option>
+                    @foreach (var session in mealSessions)
+                    {
+                        <option value="@session.Id">@session.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+                <label for="ddlMealType" class="form-label">Meal type</label>
+                <select id="ddlMealType" class="form-select" disabled>
+                    <option value="">All Meal Types</option>
+                </select>
+            </div>
             <div class="col-12">
                 <button type="button" class="btn btn-primary" id="btnViewReport">
                     <span class="btn-label">View Report</span>
@@ -50,6 +68,8 @@
     <input type="hidden" name="StartDate" id="exportStartDate" />
     <input type="hidden" name="EndDate" id="exportEndDate" />
     <input type="hidden" name="SchoolId" id="exportSchoolId" />
+    <input type="hidden" name="MealSessionId" id="exportMealSessionId" />
+    <input type="hidden" name="MealTypeId" id="exportMealTypeId" />
 </form>
 
 <div id="mealOrderReportLoader" class="canteen-report-screen-loader d-none" aria-live="polite" aria-busy="true">
@@ -72,10 +92,11 @@
                             <th>S No</th>
                             <th>Order Date</th>
                             <th>Student Card No.</th>
-                            <th>Grade</th>
-                            <th>Section</th>
                             <th>Student Name</th>
+                            <th>Grade</th>
+                            <th>Section</th>                            
                             <th>Payment Status</th>
+                            <th>Meal Session</th>
                             <th>Meal Type</th>
                             <th>Choice</th>
                             <th>Meal Date</th>

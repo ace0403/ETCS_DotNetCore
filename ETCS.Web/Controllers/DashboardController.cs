@@ -3,6 +3,7 @@ using ETCS.Shared.Infrastructure.Notifications;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Infrastructure.Transaction;
 using ETCS.Web.Infrastructure.Auth;
+using ETCS.Web.Infrastructure.Navigation;
 using ETCS.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,15 +22,18 @@ public sealed class DashboardController : Controller
     private readonly IStudentRepository _studentRepository;
     private readonly ITransactionRepository _transactionRepository;
     private readonly IGuardianNotificationRepository _notificationRepository;
+    private readonly IParentPortalNavigationService _navigationService;
 
     public DashboardController(
         IStudentRepository studentRepository,
         ITransactionRepository transactionRepository,
-        IGuardianNotificationRepository notificationRepository)
+        IGuardianNotificationRepository notificationRepository,
+        IParentPortalNavigationService navigationService)
     {
         _studentRepository = studentRepository;
         _transactionRepository = transactionRepository;
         _notificationRepository = notificationRepository;
+        _navigationService = navigationService;
     }
 
     [HttpGet]
@@ -53,11 +57,13 @@ public sealed class DashboardController : Controller
             page: 1,
             pageSize: HistoryWindowPageSize,
             cancellationToken);
+        var navAccessTask = _navigationService.GetAccessAsync(guardianId, cancellationToken);
 
-        await Task.WhenAll(studentsTask, historyTask);
+        await Task.WhenAll(studentsTask, historyTask, navAccessTask);
 
         var students = await studentsTask;
         var history = await historyTask;
+        var navAccess = await navAccessTask;
         var items = history.Items.ToList();
 
         var children = students
@@ -143,7 +149,9 @@ public sealed class DashboardController : Controller
             TodaysMeals = BuildTodaysMeals(orderItems, today),
             Notifications = notifications.Select(MapNotification).ToList(),
             MonthlySpendSeries = monthlySpendSeries,
-            CategoryBreakdown = BuildCategoryBreakdown(items)
+            CategoryBreakdown = BuildCategoryBreakdown(items),
+            ShowWallet = navAccess.ShowWallet,
+            ShowPreOrderMeal = navAccess.ShowPreOrderMeal
         };
 
         return View(model);
@@ -309,9 +317,15 @@ public sealed class DashboardController : Controller
     {
         var isTopup = string.Equals(item.TransactionType, "topup", StringComparison.OrdinalIgnoreCase);
         var studentName = string.IsNullOrWhiteSpace(item.StudentName) ? "your child" : item.StudentName.Trim();
-        var detailUrl = isTopup
-            ? Url.Action("TopupDetail", "History", new { id = item.Id }) ?? "#"
-            : Url.Action("Detail", "History", new { orderId = item.OrderId }) ?? "#";
+        var hasDetail = item.HasMealTransaction
+            && (isTopup
+                ? item.Id > 0
+                : !string.IsNullOrWhiteSpace(item.OrderId));
+        var detailUrl = !hasDetail
+            ? string.Empty
+            : isTopup
+                ? Url.Action("TopupDetail", "History", new { id = item.Id }) ?? string.Empty
+                : Url.Action("Detail", "History", new { orderId = item.OrderId }) ?? string.Empty;
         var status = HistoryStatusHelper.Resolve(item.StatusId, item.IsTransactionCompleted);
 
         if (isTopup)
@@ -324,6 +338,7 @@ public sealed class DashboardController : Controller
                 Tone = "tone-topup",
                 StatusLabel = status.Label,
                 StatusCss = status.Css,
+                HasDetail = hasDetail,
                 DetailUrl = detailUrl
             };
         }
@@ -338,6 +353,7 @@ public sealed class DashboardController : Controller
                 Tone = "tone-combo",
                 StatusLabel = status.Label,
                 StatusCss = status.Css,
+                HasDetail = hasDetail,
                 DetailUrl = detailUrl
             };
         }
@@ -350,6 +366,7 @@ public sealed class DashboardController : Controller
             Tone = "tone-order",
             StatusLabel = status.Label,
             StatusCss = status.Css,
+            HasDetail = hasDetail,
             DetailUrl = detailUrl
         };
     }

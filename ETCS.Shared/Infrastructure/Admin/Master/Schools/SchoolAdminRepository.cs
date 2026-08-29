@@ -56,10 +56,14 @@ public sealed class SchoolAdminRepository : ISchoolAdminRepository
         """;
 
     private readonly IDbConnectionFactory _connectionFactory;
+    private readonly ISchoolOrderTypeAdminRepository _orderTypeRepository;
 
-    public SchoolAdminRepository(IDbConnectionFactory connectionFactory)
+    public SchoolAdminRepository(
+        IDbConnectionFactory connectionFactory,
+        ISchoolOrderTypeAdminRepository orderTypeRepository)
     {
         _connectionFactory = connectionFactory;
+        _orderTypeRepository = orderTypeRepository;
     }
 
     public async Task<DataTableResponse<SchoolListItemDto>> GetDataAsync(
@@ -88,8 +92,12 @@ public sealed class SchoolAdminRepository : ISchoolAdminRepository
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
-        return await dbConnection.QuerySingleOrDefaultAsync<SchoolSaveRequest>(
+        var request = await dbConnection.QuerySingleOrDefaultAsync<SchoolSaveRequest>(
             new CommandDefinition(GetSql, new { Id = id }, cancellationToken: cancellationToken));
+        if (request is null) return null;
+
+        request.OrderTypeIds = (await _orderTypeRepository.GetOrderTypeIdsAsync(id, cancellationToken)).ToList();
+        return request;
     }
 
     public async Task<IReadOnlyList<SchoolCountryLookupDto>> CountryLookupsAsync(CancellationToken cancellationToken = default)
@@ -129,9 +137,13 @@ public sealed class SchoolAdminRepository : ISchoolAdminRepository
                 """;
             var rows = await dbConnection.ExecuteAsync(
                 new CommandDefinition(updateSql, request, cancellationToken: cancellationToken));
-            return rows > 0
-                ? AdminOperationResult.Ok("School updated successfully.")
-                : AdminOperationResult.Fail("School was not updated.");
+            if (rows <= 0)
+            {
+                return AdminOperationResult.Fail("School was not updated.");
+            }
+
+            await _orderTypeRepository.SaveOrderTypesAsync(request.Id, request.OrderTypeIds ?? [], cancellationToken);
+            return AdminOperationResult.Ok("School updated successfully.");
         }
 
         const string insertSql = """
@@ -143,9 +155,13 @@ public sealed class SchoolAdminRepository : ISchoolAdminRepository
         var newId = await dbConnection.ExecuteScalarAsync<int>(
             new CommandDefinition(insertSql, request, cancellationToken: cancellationToken));
         request.Id = newId;
-        return newId > 0
-            ? AdminOperationResult.Ok("School added successfully.")
-            : AdminOperationResult.Fail("School was not added.");
+        if (newId <= 0)
+        {
+            return AdminOperationResult.Fail("School was not added.");
+        }
+
+        await _orderTypeRepository.SaveOrderTypesAsync(newId, request.OrderTypeIds ?? [], cancellationToken);
+        return AdminOperationResult.Ok("School added successfully.");
     }
 
     public async Task<AdminOperationResult> DeleteAsync(int id, CancellationToken cancellationToken = default)
@@ -161,9 +177,13 @@ public sealed class SchoolAdminRepository : ISchoolAdminRepository
                     "DELETE FROM SchoolInfo WHERE SchoolId = @Id;",
                     new { Id = id },
                     cancellationToken: cancellationToken));
-            return rows > 0
-                ? AdminOperationResult.Ok("Record deleted successfully.")
-                : AdminOperationResult.Fail("Record was not deleted.");
+            if (rows <= 0)
+            {
+                return AdminOperationResult.Fail("Record was not deleted.");
+            }
+
+            await _orderTypeRepository.DeleteOrderTypesAsync(id, cancellationToken);
+            return AdminOperationResult.Ok("Record deleted successfully.");
         }
         catch
         {

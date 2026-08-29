@@ -6,11 +6,19 @@ public sealed class MealPackageDto
 
     public string PackageName { get; init; } = string.Empty;
 
+    public string MealSessionId { get; init; } = string.Empty;
+
+    public string MealSessionName { get; init; } = string.Empty;
+
+    public string MealSessionCssClass { get; init; } = string.Empty;
+
     public string MealTypeId { get; init; } = string.Empty;
 
     public string MealTypeName { get; init; } = string.Empty;
 
     public string MealCssClass { get; init; } = string.Empty;
+
+    public int MealTypeSortOrder { get; init; } = int.MaxValue;
 
     public int? MealCategoryId { get; init; }
 
@@ -39,6 +47,10 @@ public sealed class MealPackageDto
     public int[]? WeekNo { get; init; }
 
     public int[]? IngredientIds { get; init; }
+
+    public IReadOnlyList<MealIngredientDto> Ingredients { get; init; } = [];
+
+    public IReadOnlyList<string> IngredientNames { get; init; } = [];
 
     public IReadOnlyList<NutritionItemDto> NutritionList { get; init; } = [];
 

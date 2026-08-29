@@ -12,15 +12,42 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/toastr.min.css" />
     <link rel="stylesheet" href="~/css/custom/dev-style.css" />
+    <link rel="stylesheet" href="~/css/custom/portal-theme.css" asp-append-version="true" />
 </head>
 <body class="login-page">
     <div class="login-shell">
-        <section class="login-hero" aria-hidden="true">
-            <div class="login-hero-bg"></div>
+        <section class="login-hero" aria-label="ETCS Admin Portal highlights">
+            <div class="login-hero-bg" aria-hidden="true"></div>
             <div class="login-hero-content">
-                <img src="~/images/logo.png" alt="ETCS" class="login-hero-logo" />
-                <h1 class="login-hero-title">ETCS Admin Portal</h1>
-                <p class="login-hero-text">Manage schools, students, staff, and meal services from one secure dashboard.</p>
+            </div>
+            <div class="login-features" role="list">
+                <article class="login-feature-card" role="listitem">
+                    <span class="login-feature-icon" aria-hidden="true">
+                        <i class="ti ti-school"></i>
+                    </span>
+                    <div class="login-feature-body">
+                        <h3 class="login-feature-title">Schools &amp; Students</h3>
+                        <p class="login-feature-text">Manage enrollments and student profiles.</p>
+                    </div>
+                </article>
+                <article class="login-feature-card" role="listitem">
+                    <span class="login-feature-icon" aria-hidden="true">
+                        <i class="ti ti-tools-kitchen-2"></i>
+                    </span>
+                    <div class="login-feature-body">
+                        <h3 class="login-feature-title">Meals &amp; Menus</h3>
+                        <p class="login-feature-text">Configure items, combos, and meal plans.</p>
+                    </div>
+                </article>
+                <article class="login-feature-card" role="listitem">
+                    <span class="login-feature-icon" aria-hidden="true">
+                        <i class="ti ti-chart-bar"></i>
+                    </span>
+                    <div class="login-feature-body">
+                        <h3 class="login-feature-title">Reports &amp; Operations</h3>
+                        <p class="login-feature-text">Transactions, guardians, and notifications.</p>
+                    </div>
+                </article>
             </div>
         </section>
 
@@ -63,7 +90,7 @@
                     </button>
                 </form>
 
-                <p class="login-footer text-center">&copy; @DateTime.Now.Year ETCS. All rights reserved.</p>
+                <p class="login-footer text-center mb-0 mt-3">&copy; @DateTime.Now.Year ETCS. All rights reserved.</p>
             </div>
         </section>
     </div>

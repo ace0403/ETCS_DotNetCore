@@ -40,6 +40,7 @@ function setTerminalSalesReportLoading(isLoading, message) {
     $viewBtn.prop('disabled', isLoading);
     $viewBtn.find('.btn-spinner').toggleClass('d-none', !isLoading);
     $('#btnExportReport').prop('disabled', isLoading);
+    $('#btnPrintReport').prop('disabled', isLoading);
 }
 
 function syncTerminalSelectTitle() {
@@ -224,6 +225,123 @@ function exportTerminalSalesReport() {
     $('#frmExport').trigger('submit');
 }
 
+function getReportPrintFrame() {
+    var frame = document.getElementById('reportPrintFrame');
+    if (frame) {
+        return frame;
+    }
+
+    frame = document.createElement('iframe');
+    frame.id = 'reportPrintFrame';
+    frame.setAttribute('title', 'Sales Summary Print');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.position = 'fixed';
+    frame.style.right = '0';
+    frame.style.bottom = '0';
+    frame.style.width = '0';
+    frame.style.height = '0';
+    frame.style.border = '0';
+    frame.style.visibility = 'hidden';
+    document.body.appendChild(frame);
+    return frame;
+}
+
+function buildTerminalSalesPrintHtml(filters, rows) {
+    var schoolLabel = $('#ddlSchool option:selected').text() || 'All Schools';
+    var terminalLabel = $('#ddlTerminal option:selected').text() || 'All Terminals';
+    var transactionLabel = $('#ddlTransactionType option:selected').text() || 'ALL';
+
+    var html = '<!DOCTYPE html><html><head><title>Sales Summary</title>';
+    html += '<style>';
+    html += 'body{font-family:Arial,sans-serif;font-size:12px;color:#111;margin:24px;}';
+    html += 'h1{font-size:18px;margin:0 0 8px;}';
+    html += '.meta{margin:0 0 16px;color:#444;}';
+    html += 'table{border-collapse:collapse;width:100%;}';
+    html += 'th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;}';
+    html += 'th{background:#f3f4f6;}';
+    html += '.text-end{text-align:right;}';
+    html += '</style></head><body>';
+    html += '<h1>Sales Summary</h1>';
+    html += '<p class="meta">Date range: ' + escapeHtml(filters.StartDate) + ' to ' + escapeHtml(filters.EndDate) + '<br>';
+    html += 'School: ' + escapeHtml(schoolLabel) + '<br>';
+    html += 'Terminal: ' + escapeHtml(terminalLabel) + '<br>';
+    html += 'Transaction type: ' + escapeHtml(transactionLabel) + '</p>';
+    html += '<table><thead><tr>';
+    html += '<th>S No</th><th>Terminal Code</th><th>Terminal Name</th><th>Date</th><th>Students Count</th>';
+    html += '<th class="text-end">Student-Card Purchase</th><th class="text-end">Cash Purchase</th>';
+    html += '<th class="text-end">Credit Card Purchase</th><th class="text-end">Manual Topup</th>';
+    html += '<th class="text-end">Undo Topup</th><th class="text-end">Online Topup</th><th class="text-end">Undo Cash</th>';
+    html += '</tr></thead><tbody>';
+
+    (rows || []).forEach(function (row, index) {
+        html += '<tr>';
+        html += '<td>' + (index + 1) + '</td>';
+        html += '<td>' + escapeHtml(row.TerminalCode) + '</td>';
+        html += '<td>' + escapeHtml(row.TerminalName) + '</td>';
+        html += '<td>' + escapeHtml(row.Date) + '</td>';
+        html += '<td>' + escapeHtml(row.StudentsCount) + '</td>';
+        html += '<td class="text-end">' + formatReportCurrency(row.StudentCardPurchase) + '</td>';
+        html += '<td class="text-end">' + formatReportCurrency(row.CashPurchase) + '</td>';
+        html += '<td class="text-end">' + formatReportCurrency(row.CreditCardPurchase) + '</td>';
+        html += '<td class="text-end">' + formatReportCurrency(row.StudentCardManualTopup) + '</td>';
+        html += '<td class="text-end">' + formatReportCurrency(row.StudentCardUndoTopup) + '</td>';
+        html += '<td class="text-end">' + formatReportCurrency(row.OnlineStudentCardTopup) + '</td>';
+        html += '<td class="text-end">' + formatReportCurrency(row.UndoCashPurchase) + '</td>';
+        html += '</tr>';
+    });
+
+    html += '</tbody></table></body></html>';
+    return html;
+}
+
+function printTerminalSalesReport() {
+    var filters = getTerminalSalesReportFilters();
+    if (!validateTerminalSalesReportFilters(filters)) return;
+
+    setTerminalSalesReportLoading(true, 'Preparing print...');
+
+    $.ajax({
+        url: SiteUrl + 'report/getterminalsalessummarylist',
+        type: 'POST',
+        data: {
+            Draw: 1,
+            Start: 0,
+            Length: 1000000,
+            StartDate: filters.StartDate,
+            EndDate: filters.EndDate,
+            SchoolCode: filters.SchoolCode,
+            TerminalCode: filters.TerminalCode,
+            TransactionType: filters.TransactionType
+        }
+    }).done(function (response) {
+        var rows = response.Data || response.data || [];
+        if (!rows.length) {
+            toastMsg('No data available..', false);
+            return;
+        }
+
+        var printFrame = getReportPrintFrame();
+        var printWindow = printFrame.contentWindow;
+        if (!printWindow || !printWindow.document) {
+            toastMsg('Unable to prepare the print view.', false);
+            return;
+        }
+
+        printWindow.document.open();
+        printWindow.document.write(buildTerminalSalesPrintHtml(filters, rows));
+        printWindow.document.close();
+
+        setTimeout(function () {
+            printWindow.focus();
+            printWindow.print();
+        }, 250);
+    }).fail(function () {
+        toastMsg('Unable to load report data for printing.', false);
+    }).always(function () {
+        setTerminalSalesReportLoading(false);
+    });
+}
+
 $(function () {
     syncTerminalSelectTitle();
 
@@ -235,4 +353,5 @@ $(function () {
 
     $('#btnViewReport').on('click', viewTerminalSalesReport);
     $('#btnExportReport').on('click', exportTerminalSalesReport);
+    $('#btnPrintReport').on('click', printTerminalSalesReport);
 });

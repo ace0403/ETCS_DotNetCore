@@ -8,10 +8,10 @@ internal static class OrderAccessLogResolver
     {
         return orderTypeId switch
         {
-            (int)TransactionTypeEnum.A_La_Carte => ((int)AccessLogTypeEnum.A_La_Carte, "A La Carte Order"),
-            (int)TransactionTypeEnum.POS => ((int)AccessLogTypeEnum.A_La_Carte, "POS Order"),
-            (int)TransactionTypeEnum.MealOrder => ((int)AccessLogTypeEnum.MealOrder, "Meal plan"),
-            _ => ((int)AccessLogTypeEnum.MealOrder, "Meal plan")
+            (int)TransactionTypeEnum.A_La_Carte => ((int)AccessLogTypeEnum.A_La_Carte, "Ala Carte Order"),
+            (int)TransactionTypeEnum.POS => ((int)AccessLogTypeEnum.A_La_Carte, "POS"),
+            (int)TransactionTypeEnum.MealOrder => ((int)AccessLogTypeEnum.MealOrder, "Pre-Order Meal"),
+            _ => ((int)AccessLogTypeEnum.MealOrder, "Pre-Order Meal")
         };
     }
 }

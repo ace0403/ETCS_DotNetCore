@@ -7,6 +7,8 @@ public sealed class MealOrderReportFilter
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public string? SchoolId { get; set; }
+    public int? MealSessionId { get; set; }
+    public int? MealTypeId { get; set; }
 }
 
 public sealed class MealOrderReportListRequest
@@ -17,6 +19,8 @@ public sealed class MealOrderReportListRequest
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public string? SchoolId { get; set; }
+    public int? MealSessionId { get; set; }
+    public int? MealTypeId { get; set; }
 
     public int PageSize => Length <= 0 ? DataTableRequest.DefaultPageSize : Length;
 }
@@ -29,6 +33,7 @@ public sealed class MealOrderReportRowDto
     public string StudDiv { get; init; } = string.Empty;
     public string StudFullName { get; init; } = string.Empty;
     public string PaymentStatus { get; init; } = string.Empty;
+    public string MealSession { get; init; } = string.Empty;
     public string Category { get; init; } = string.Empty;
     public string Choice { get; init; } = string.Empty;
     public string DeliveryDate { get; init; } = string.Empty;

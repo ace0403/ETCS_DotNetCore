@@ -17,7 +17,8 @@ public sealed class ParentLoginRepository : IParentLoginRepository
             LTRIM(RTRIM(ISNULL(g.LastName, ''))) AS LastName,
             LTRIM(RTRIM(ISNULL(g.Email, ''))) AS Email
         FROM GuardianInfo g
-        WHERE LOWER(LTRIM(RTRIM(ISNULL(g.Email, '')))) = @Email;
+        WHERE LOWER(LTRIM(RTRIM(ISNULL(g.Email, '')))) = @Email
+          AND ISNULL(g.IsDelete, 0) = 0;
         """;
     private const string ExistingGuardianIdByEmailSql = """
         SELECT TOP (1) g.GrdID
@@ -39,6 +40,26 @@ public sealed class ParentLoginRepository : IParentLoginRepository
         SELECT TOP (1) Password
         FROM GuardianInfo
         WHERE GrdID = @GuardianId;
+        """;
+    private const string GetAccountEmailSql = """
+        SELECT TOP (1)
+            LTRIM(RTRIM(ISNULL(Email, ''))) AS Email,
+            LTRIM(RTRIM(ISNULL(FirstName, ''))) AS FirstName,
+            LTRIM(RTRIM(ISNULL(LastName, ''))) AS LastName,
+            CAST(ISNULL(IsDelete, 0) AS bit) AS IsDelete
+        FROM GuardianInfo
+        WHERE GrdID = @GuardianId;
+        """;
+    private const string IsAccountDeletedSql = """
+        SELECT CAST(CASE WHEN ISNULL(IsDelete, 0) = 1 THEN 1 ELSE 0 END AS bit)
+        FROM GuardianInfo
+        WHERE GrdID = @GuardianId;
+        """;
+    private const string SoftDeleteAccountSql = """
+        UPDATE GuardianInfo
+        SET IsDelete = 1
+        WHERE GrdID = @GuardianId
+          AND ISNULL(IsDelete, 0) = 0;
         """;
     private const string UpdatePasswordSql = """
         UPDATE GuardianInfo
@@ -303,6 +324,101 @@ public sealed class ParentLoginRepository : IParentLoginRepository
         return new ParentChangePasswordResult(true, "Password updated successfully.");
     }
 
+    public async Task<bool> IsAccountDeletedAsync(int guardianId, CancellationToken cancellationToken = default)
+    {
+        if (guardianId <= 0)
+        {
+            return false;
+        }
+
+        using var connection = _connectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+
+        return await dbConnection.ExecuteScalarAsync<bool?>(
+            new CommandDefinition(
+                IsAccountDeletedSql,
+                new { GuardianId = guardianId },
+                cancellationToken: cancellationToken)) ?? false;
+    }
+
+    public async Task<GuardianAccountEmailInfo?> GetActiveAccountEmailAsync(
+        int guardianId,
+        CancellationToken cancellationToken = default)
+    {
+        if (guardianId <= 0)
+        {
+            return null;
+        }
+
+        using var connection = _connectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+
+        var row = await dbConnection.QuerySingleOrDefaultAsync<GuardianAccountEmailRow>(
+            new CommandDefinition(
+                GetAccountEmailSql,
+                new { GuardianId = guardianId },
+                cancellationToken: cancellationToken));
+
+        if (row is null)
+        {
+            return null;
+        }
+
+        var displayName = $"{row.FirstName} {row.LastName}".Trim();
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            displayName = string.IsNullOrWhiteSpace(row.Email) ? "Guardian" : row.Email.Trim();
+        }
+
+        return new GuardianAccountEmailInfo(row.Email.Trim(), displayName, row.IsDelete);
+    }
+
+    public async Task<ParentSoftDeleteResult> SoftDeleteAccountAsync(
+        int guardianId,
+        CancellationToken cancellationToken = default)
+    {
+        if (guardianId <= 0)
+        {
+            return new ParentSoftDeleteResult(false, false, "Account not found.");
+        }
+
+        using var connection = _connectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+
+        var account = await dbConnection.QuerySingleOrDefaultAsync<GuardianAccountEmailRow>(
+            new CommandDefinition(
+                GetAccountEmailSql,
+                new { GuardianId = guardianId },
+                cancellationToken: cancellationToken));
+
+        if (account is null)
+        {
+            return new ParentSoftDeleteResult(false, false, "Account not found.");
+        }
+
+        if (account.IsDelete)
+        {
+            return new ParentSoftDeleteResult(false, true, "Account is already deleted.");
+        }
+
+        var rows = await dbConnection.ExecuteAsync(
+            new CommandDefinition(
+                SoftDeleteAccountSql,
+                new { GuardianId = guardianId },
+                cancellationToken: cancellationToken));
+
+        if (rows <= 0)
+        {
+            return new ParentSoftDeleteResult(false, true, "Account is already deleted.");
+        }
+
+        await _passwordResetTokenStore.RevokeUnusedForGuardianAsync(guardianId, cancellationToken);
+        return new ParentSoftDeleteResult(true, false, "Account deleted successfully.");
+    }
+
     private static bool PasswordMatches(string stored, string md5Hash, string plainPassword) =>
         string.Equals(stored.Trim(), md5Hash, StringComparison.OrdinalIgnoreCase)
         || string.Equals(stored.Trim(), plainPassword, StringComparison.Ordinal);
@@ -316,5 +432,16 @@ public sealed class ParentLoginRepository : IParentLoginRepository
         public string LastName { get; init; } = string.Empty;
 
         public string Email { get; init; } = string.Empty;
+    }
+
+    private sealed class GuardianAccountEmailRow
+    {
+        public string Email { get; init; } = string.Empty;
+
+        public string FirstName { get; init; } = string.Empty;
+
+        public string LastName { get; init; } = string.Empty;
+
+        public bool IsDelete { get; init; }
     }
 }

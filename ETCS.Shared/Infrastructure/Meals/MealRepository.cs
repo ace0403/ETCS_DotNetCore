@@ -46,6 +46,7 @@ public sealed class MealRepository : IMealRepository
         int studentId,
         int schoolId,
         DateTime mealDate,
+        int? mealSessionId = null,
         int? mealTypeId = null,
         CancellationToken cancellationToken = default)
     {
@@ -65,6 +66,7 @@ public sealed class MealRepository : IMealRepository
                     WeekNo = weekNo,
                     DayId = dayId,
                     MealDate = effectiveMealDate,
+                    MealSessionId = mealSessionId,
                     MealTypeId = mealTypeId
                 },
                 commandType: CommandType.StoredProcedure,
@@ -85,6 +87,7 @@ public sealed class MealRepository : IMealRepository
         int studentId,
         int schoolId,
         DateTime mealDate,
+        int? mealSessionId = null,
         int? mealTypeId = null,
         CancellationToken cancellationToken = default)
     {
@@ -104,6 +107,7 @@ public sealed class MealRepository : IMealRepository
                     WeekNo = weekNo,
                     DayId = dayId,
                     MealDate = effectiveMealDate,
+                    MealSessionId = mealSessionId,
                     MealTypeId = mealTypeId
                 },
                 commandType: CommandType.StoredProcedure,
@@ -139,7 +143,19 @@ public sealed class MealRepository : IMealRepository
             WHERE ISNULL(o.IsPaid, 0) = 1
               AND o.OrderTypeId = @OrderTypeId
               AND oi.ItemId IS NOT NULL
-              AND mi.SchoolId = @SchoolId
+              AND oi.ItemId IS NOT NULL
+              AND (
+                  EXISTS (
+                      SELECT 1
+                      FROM MealItemSchools mis
+                      WHERE mis.MealItemId = mi.Id
+                        AND mis.SchoolId = @SchoolId
+                  )
+                  OR (
+                      NOT EXISTS (SELECT 1 FROM MealItemSchools mis2 WHERE mis2.MealItemId = mi.Id)
+                      AND mi.SchoolId = @SchoolId
+                  )
+              )
               AND o.OrderDate >= DATEADD(DAY, -@LookbackDays, GETDATE())
             GROUP BY oi.ItemId
             ORDER BY SUM(oi.Quantity) DESC, oi.ItemId ASC;
@@ -204,13 +220,18 @@ public sealed class MealRepository : IMealRepository
 
     private MealItemDto MapToDto(MealItemDbRow row, bool isPopular)
     {
+        var ingredients = ParseIngredients(row.Ingredients);
         return new MealItemDto
         {
             Id = row.Id,
             ItemName = row.ItemName,
+            MealSessionId = row.MealSessionId,
+            MealSessionName = row.MealSessionName,
+            MealSessionCssClass = row.MealSessionCssClass,
             MealTypeId = row.MealTypeId,
             MealTypeName = row.MealTypeName,
             MealCssClass = row.MealCssClass,
+            MealTypeSortOrder = row.MealTypeSortOrder,
             MealCategoryId = row.MealCategoryId,
             MealCategoryName = row.MealCategoryName,
             SchoolId = row.SchoolId,
@@ -221,6 +242,8 @@ public sealed class MealRepository : IMealRepository
             Price = row.Price,
             CreatedOn = row.CreatedOn,
             IngredientIds = ParseIngredientIds(row.IngredientIds),
+            Ingredients = ingredients,
+            IngredientNames = ingredients.Select(x => x.Name).ToList(),
             NutritionList = ParseJsonList(row.NutritionList),
             StudentAllergies = row.StudentAllergies ?? string.Empty,
             IsPopular = isPopular
@@ -229,13 +252,18 @@ public sealed class MealRepository : IMealRepository
 
     private MealPackageDto MapToPackageDto(MealPackageDbRow row, bool isPopular)
     {
+        var ingredients = ParseIngredients(row.Ingredients);
         return new MealPackageDto
         {
             Id = row.Id,
             PackageName = row.PackageName,
+            MealSessionId = row.MealSessionId,
+            MealSessionName = row.MealSessionName,
+            MealSessionCssClass = row.MealSessionCssClass,
             MealTypeId = row.MealTypeId,
             MealTypeName = row.MealTypeName,
             MealCssClass = row.MealCssClass,
+            MealTypeSortOrder = row.MealTypeSortOrder,
             MealCategoryId = row.MealCategoryId,
             MealCategoryName = row.MealCategoryName,
             SchoolId = row.SchoolId,
@@ -249,6 +277,8 @@ public sealed class MealRepository : IMealRepository
             ItemsName = row.ItemsName,
             WeekNo = ParseWeekNumbers(row.WeekNo),
             IngredientIds = ParseIngredientIds(row.IngredientIds),
+            Ingredients = ingredients,
+            IngredientNames = ingredients.Select(x => x.Name).ToList(),
             NutritionList = ParseJsonList(row.NutritionList),
             StudentAllergies = row.StudentAllergies ?? string.Empty,
             IsPopular = isPopular
@@ -267,6 +297,37 @@ public sealed class MealRepository : IMealRepository
             .Select(int.Parse)
             .Distinct()
             .ToArray();
+    }
+
+    private static IReadOnlyList<MealIngredientDto> ParseIngredients(string? rawJson)
+    {
+        if (string.IsNullOrWhiteSpace(rawJson))
+        {
+            return [];
+        }
+
+        try
+        {
+            var list = JsonSerializer.Deserialize<List<MealIngredientDto>>(rawJson, JsonOptions);
+            if (list is null || list.Count == 0)
+            {
+                return [];
+            }
+
+            return list
+                .Where(x => !string.IsNullOrWhiteSpace(x.Name))
+                .GroupBy(x => x.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(g => new MealIngredientDto
+                {
+                    Name = g.First().Name.Trim(),
+                    Icon = string.IsNullOrWhiteSpace(g.First().Icon) ? null : g.First().Icon.Trim()
+                })
+                .ToList();
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
     }
 
     private static int[]? ParseWeekNumbers(string? rawWeekNumbers)
@@ -312,9 +373,13 @@ public sealed class MealRepository : IMealRepository
     {
         public int Id { get; init; }
         public string ItemName { get; init; } = string.Empty;
+        public string MealSessionId { get; init; } = string.Empty;
+        public string MealSessionName { get; init; } = string.Empty;
+        public string MealSessionCssClass { get; init; } = string.Empty;
         public string MealTypeId { get; init; } = string.Empty;
         public string MealTypeName { get; init; } = string.Empty;
         public string MealCssClass { get; init; } = string.Empty;
+        public int MealTypeSortOrder { get; init; }
         public int? MealCategoryId { get; init; }
         public string MealCategoryName { get; init; } = string.Empty;
         public int SchoolId { get; init; }
@@ -323,6 +388,7 @@ public sealed class MealRepository : IMealRepository
         public decimal Price { get; init; }
         public DateTime CreatedOn { get; init; }
         public string? IngredientIds { get; init; }
+        public string? Ingredients { get; init; }
         public string? NutritionList { get; init; }
         public string? StudentAllergies { get; init; }
     }
@@ -331,9 +397,13 @@ public sealed class MealRepository : IMealRepository
     {
         public int Id { get; init; }
         public string PackageName { get; init; } = string.Empty;
+        public string MealSessionId { get; init; } = string.Empty;
+        public string MealSessionName { get; init; } = string.Empty;
+        public string MealSessionCssClass { get; init; } = string.Empty;
         public string MealTypeId { get; init; } = string.Empty;
         public string MealTypeName { get; init; } = string.Empty;
         public string MealCssClass { get; init; } = string.Empty;
+        public int MealTypeSortOrder { get; init; }
         public int? MealCategoryId { get; init; }
         public string MealCategoryName { get; init; } = string.Empty;
         public int SchoolId { get; init; }
@@ -345,6 +415,7 @@ public sealed class MealRepository : IMealRepository
         public string ItemsName { get; init; } = string.Empty;
         public string? WeekNo { get; init; }
         public string? IngredientIds { get; init; }
+        public string? Ingredients { get; init; }
         public string? NutritionList { get; init; }
         public string? StudentAllergies { get; init; }
     }

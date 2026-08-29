@@ -9,4 +9,6 @@ public sealed class MealEnumLookupDto
     public string Description { get; init; } = string.Empty;
 
     public int SortOrder { get; init; }
+
+    public int? ParentId { get; init; }
 }

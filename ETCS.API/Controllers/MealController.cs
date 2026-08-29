@@ -2,6 +2,7 @@ using System.Diagnostics;
 using ETCS.API.Infrastructure.Caching;
 using ETCS.Shared.Infrastructure.Meals;
 using ETCS.Shared.Infrastructure.Students;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
@@ -9,6 +10,8 @@ using Microsoft.Extensions.Caching.Memory;
 namespace ETCS.API.Controllers;
 
 [ApiController]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/[controller]")]
 [Route("api/[controller]")]
 [Authorize]
 public sealed class MealController : ControllerBase
@@ -37,6 +40,7 @@ public sealed class MealController : ControllerBase
     public async Task<IActionResult> GetMealList(
         [FromQuery] int studentId,
         [FromQuery] DateTime mealDate,
+        [FromQuery] int? mealSessionId = null,
         [FromQuery] int? mealTypeId = null,
         [FromQuery] bool slim = false,
         CancellationToken cancellationToken = default)
@@ -57,7 +61,7 @@ public sealed class MealController : ControllerBase
             return BadRequest(new { message = "Unable to resolve school for this student." });
         }
 
-        var cacheKey = CachedMealRepository.BuildItemsCacheKey(studentId, schoolId.Value, mealDate, mealTypeId);
+        var cacheKey = CachedMealRepository.BuildItemsCacheKey(studentId, schoolId.Value, mealDate, mealSessionId, mealTypeId);
         var cacheHit = _cache.TryGetValue(cacheKey, out _);
         var stopwatch = Stopwatch.StartNew();
 
@@ -65,21 +69,24 @@ public sealed class MealController : ControllerBase
             studentId,
             schoolId.Value,
             mealDate,
+            mealSessionId,
             mealTypeId,
             cancellationToken);
 
         stopwatch.Stop();
         _logger.LogDebug(
-            "Meal list studentId={StudentId} date={MealDate} mealTypeId={MealTypeId} took {ElapsedMs}ms ({CacheState})",
+            "Meal list studentId={StudentId} date={MealDate} mealSessionId={MealSessionId} mealTypeId={MealTypeId} took {ElapsedMs}ms ({CacheState})",
             studentId,
             mealDate.Date,
+            mealSessionId,
             mealTypeId,
             stopwatch.ElapsedMilliseconds,
             cacheHit ? "cache hit" : "cache miss");
 
-        Console.Write(string.Format("Meal list studentId={0} date={1} mealTypeId={2} took {3}ms ({4})",
+        Console.Write(string.Format("Meal list studentId={0} date={1} mealSessionId={2} mealTypeId={3} took {4}ms ({5})",
             studentId,
             mealDate.Date,
+            mealSessionId,
             mealTypeId,
             stopwatch.ElapsedMilliseconds,
             cacheHit ? "cache hit" : "cache miss"));
@@ -99,6 +106,7 @@ public sealed class MealController : ControllerBase
     public async Task<IActionResult> GetMealPackages(
         [FromQuery] int studentId,
         [FromQuery] DateTime mealDate,
+        [FromQuery] int? mealSessionId = null,
         [FromQuery] int? mealTypeId = null,
         [FromQuery] bool slim = false,
         CancellationToken cancellationToken = default)
@@ -119,7 +127,7 @@ public sealed class MealController : ControllerBase
             return BadRequest(new { message = "Unable to resolve school for this student." });
         }
 
-        var cacheKey = CachedMealRepository.BuildPackagesCacheKey(studentId, schoolId.Value, mealDate, mealTypeId);
+        var cacheKey = CachedMealRepository.BuildPackagesCacheKey(studentId, schoolId.Value, mealDate, mealSessionId, mealTypeId);
         var cacheHit = _cache.TryGetValue(cacheKey, out _);
         var stopwatch = Stopwatch.StartNew();
 
@@ -127,14 +135,16 @@ public sealed class MealController : ControllerBase
             studentId,
             schoolId.Value,
             mealDate,
+            mealSessionId,
             mealTypeId,
             cancellationToken);
 
         stopwatch.Stop();
         _logger.LogDebug(
-            "Meal packages studentId={StudentId} date={MealDate} mealTypeId={MealTypeId} took {ElapsedMs}ms ({CacheState})",
+            "Meal packages studentId={StudentId} date={MealDate} mealSessionId={MealSessionId} mealTypeId={MealTypeId} took {ElapsedMs}ms ({CacheState})",
             studentId,
             mealDate.Date,
+            mealSessionId,
             mealTypeId,
             stopwatch.ElapsedMilliseconds,
             cacheHit ? "cache hit" : "cache miss");

@@ -1,41 +1,69 @@
 var selectedIds = [];
 var dateSwiper = null;
 var MENU_DURATION_DAYS = 30;
-var activeMealTypeFilter = 'all';
+var activeMealSessionId = '';
+var activeMealCategoryFilter = 'all';
 
 $(function () {
     initChildSelect();
 
     $('#StudentId').on('change', function () {
         resetSelection();
-        var currentDate = getSelectedMealDate();
-        if (currentDate) {
-            selectDateSlide(currentDate, true);
-        }
+        initDates();
     });
 
     $(document).on('input', '#menuSearchInput', function () {
         applyMenuFilters();
     });
 
-    $(document).on('click', '.menu-category-chip', function () {
-        var $chip = $(this);
-        activeMealTypeFilter = String($chip.data('meal-type') || 'all');
-        $('.menu-category-chip').removeClass('is-active').attr('aria-selected', 'false');
-        $chip.addClass('is-active').attr('aria-selected', 'true');
+    $(document).on('click', '.meal-session-tab', function () {
+        var $tab = $(this);
+        var sessionId = String($tab.data('meal-session-id') || '');
+        if (!sessionId) {
+            return;
+        }
+
+        activeMealSessionId = sessionId;
+        activeMealCategoryFilter = 'all';
+        $('.meal-session-tab').removeClass('is-active').attr('aria-selected', 'false');
+        $tab.addClass('is-active').attr('aria-selected', 'true');
+
+        $('.menu-session-panel').removeClass('is-active');
+        $('.menu-session-panel[data-meal-session-id="' + sessionId + '"]').addClass('is-active');
+
+        $('.meal-combo-category-chips').addClass('d-none');
+        var $chipBar = $('.meal-combo-category-chips[data-meal-session-id="' + sessionId + '"]');
+        if ($chipBar.length) {
+            $chipBar.removeClass('d-none');
+            $chipBar.find('.menu-category-chip').removeClass('is-active').attr('aria-selected', 'false');
+            $chipBar.find('.menu-category-chip[data-meal-type="all"]').addClass('is-active').attr('aria-selected', 'true');
+        }
+
+        $('.meal-combo-menu-inner').addClass('is-showing-all');
         applyMenuFilters();
     });
 
-    $(document).on('click', '#div-packagelist .meal-item', async function () {
+    $(document).on('click', '.meal-combo-category-chips .menu-category-chip', function () {
+        var $chip = $(this);
+        var $chipBar = $chip.closest('.meal-combo-category-chips');
+        activeMealCategoryFilter = String($chip.data('meal-type') || 'all');
+        $chipBar.find('.menu-category-chip').removeClass('is-active').attr('aria-selected', 'false');
+        $chip.addClass('is-active').attr('aria-selected', 'true');
+        $('.meal-combo-menu-inner').toggleClass('is-showing-all', activeMealCategoryFilter === 'all');
+        applyMenuFilters();
+    });
+
+    $(document).on('click', '#div-packagelist .meal-combo-package-item, #div-packagelist .meal-combo-addon-item', async function () {
         var $item = $(this);
-        var packageId = parseInt($item.find('input[type="checkbox"]').val(), 10);
+        var lineType = String($item.find('.meal-line-checkbox').data('line-type') || '');
+        var lineId = parseInt($item.find('.meal-line-checkbox').val(), 10);
         var mealDate = getSelectedMealDate();
-        var $checkbox = $item.find('input[type="checkbox"]');
+        var $checkbox = $item.find('.meal-line-checkbox');
 
         if ($checkbox.is(':checked')) {
             $checkbox.prop('checked', false);
             $item.removeClass('selected').attr('aria-pressed', 'false');
-            selectedIds = excludeSelection(selectedIds, packageId, mealDate);
+            selectedIds = excludeSelection(selectedIds, lineType, lineId, mealDate);
             updateSelectionBar();
             return;
         }
@@ -51,7 +79,8 @@ $(function () {
                 });
             }
             var childName = $('#StudentId option:selected').text();
-            var consent = await showAllergenConsent(childName, allergies, 'combo');
+            var consentType = lineType === 'addon' ? 'meal' : 'combo';
+            var consent = await showAllergenConsent(childName, allergies, consentType);
             if (!consent.isConfirmed) {
                 return;
             }
@@ -59,12 +88,12 @@ $(function () {
 
         $checkbox.prop('checked', true);
         $item.addClass('selected').attr('aria-pressed', 'true');
-        selectedIds = excludeSelection(selectedIds, packageId, mealDate);
-        selectedIds.push({ PackageId: packageId, MealDate: mealDate, Id: GUID() });
+        selectedIds = excludeSelection(selectedIds, lineType, lineId, mealDate);
+        selectedIds.push(buildSelection(lineType, lineId, mealDate));
         updateSelectionBar();
     });
 
-    $(document).on('keydown', '#div-packagelist .meal-item', function (e) {
+    $(document).on('keydown', '#div-packagelist .meal-combo-package-item, #div-packagelist .meal-combo-addon-item', function (e) {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             $(this).trigger('click');
@@ -73,7 +102,7 @@ $(function () {
 
     $(document).on('click', '#btnPlaceOrder', async function () {
         if (selectedIds.length === 0) {
-            await showStyledAlert('Please select at least one combo.');
+            await showStyledAlert('Please select at least one combo or add-on.');
             return;
         }
 
@@ -86,7 +115,7 @@ $(function () {
             return;
         }
         if (selectedIds.length === 0) {
-            showStyledAlert('Please select at least one combo.');
+            showStyledAlert('Please select at least one combo or add-on.');
             return;
         }
         showPageOverlay('Processing your order...');
@@ -102,6 +131,23 @@ $(function () {
 
     initDates();
 });
+
+function buildSelection(lineType, lineId, mealDate) {
+    var selection = {
+        MealDate: mealDate,
+        Id: GUID(),
+        PackageId: 0,
+        ItemId: 0
+    };
+
+    if (lineType === 'addon') {
+        selection.ItemId = lineId;
+    } else {
+        selection.PackageId = lineId;
+    }
+
+    return selection;
+}
 
 function initChildSelect() {
     var $student = $('#StudentId');
@@ -119,11 +165,9 @@ function initChildSelect() {
         placeholder: 'Select child',
         allowClear: false,
         dropdownParent: $(document.body),
-        // Dropdown is attached to body (scroll-jump fix), so theme via this class — not .menu-browse-child nesting.
         dropdownCssClass: 'menu-child-select2-dropdown'
     });
 
-    // Prevent Select2's hidden <select> from pulling the page scroll to the top.
     $student.on('select2:opening select2:open select2:closing select2:close select2:select', function () {
         var pos = captureMenuScroll();
         window.requestAnimationFrame(function () {
@@ -169,9 +213,12 @@ function resetSelection() {
     $('#summary_div').empty();
 }
 
-function excludeSelection(arrayList, packageId, mealDate) {
+function excludeSelection(arrayList, lineType, lineId, mealDate) {
     return arrayList.filter(function (x) {
-        return !(x.PackageId == packageId && x.MealDate == mealDate);
+        if (lineType === 'addon') {
+            return !(parseInt(x.ItemId, 10) === lineId && x.MealDate === mealDate);
+        }
+        return !(parseInt(x.PackageId, 10) === lineId && x.MealDate === mealDate);
     });
 }
 
@@ -191,40 +238,93 @@ function searchPackages() {
         },
         success: function (result) {
             $('#div-packagelist').html(result);
-            activeMealTypeFilter = 'all';
+            activeMealCategoryFilter = 'all';
             $('#menuSearchInput').val('');
+            initMealSessionTabs();
             initSelection();
             applyMenuFilters();
             updateSelectionBar();
             restoreMenuScroll(scrollPos);
         },
         error: function () {
-            toastMsg('Error loading meal combos', false);
+            toastMsg('Error loading menu items', false);
         }
     });
+}
+
+function initMealSessionTabs() {
+    var $tabs = $('#div-packagelist .meal-session-tab');
+    var $panels = $('#div-packagelist .menu-session-panel');
+
+    if (!$panels.length) {
+        activeMealSessionId = '';
+        activeMealCategoryFilter = 'all';
+        return;
+    }
+
+    if (!$tabs.length) {
+        $panels.removeClass('is-active').first().addClass('is-active');
+        activeMealSessionId = String($panels.first().data('meal-session-id') || '');
+        activeMealCategoryFilter = 'all';
+        return;
+    }
+
+    var $activeTab = $tabs.filter('.is-active').first();
+    if (!$activeTab.length) {
+        $activeTab = $tabs.first();
+        $activeTab.addClass('is-active').attr('aria-selected', 'true');
+    }
+
+    var sessionId = String($activeTab.data('meal-session-id') || '');
+    activeMealSessionId = sessionId;
+    activeMealCategoryFilter = 'all';
+
+    $panels.removeClass('is-active');
+    if (sessionId) {
+        $panels.filter('[data-meal-session-id="' + sessionId + '"]').addClass('is-active');
+    }
+
+    $('.meal-combo-category-chips').addClass('d-none');
+    var $chipBar = $('.meal-combo-category-chips[data-meal-session-id="' + sessionId + '"]');
+    if ($chipBar.length) {
+        $chipBar.removeClass('d-none');
+        $chipBar.find('.menu-category-chip').removeClass('is-active').attr('aria-selected', 'false');
+        $chipBar.find('.menu-category-chip[data-meal-type="all"]').addClass('is-active').attr('aria-selected', 'true');
+    }
+
+    $('.meal-combo-menu-inner').addClass('is-showing-all');
 }
 
 function applyMenuFilters() {
     var query = String($('#menuSearchInput').val() || '').trim().toLowerCase();
     var visibleCount = 0;
-    var showingAll = activeMealTypeFilter === 'all';
+    var showingAll = activeMealCategoryFilter === 'all';
+    var $activePanel = $('#div-packagelist .menu-session-panel.is-active');
 
-    $('.menu-browse-inner').toggleClass('is-showing-all', showingAll);
+    if (!$activePanel.length) {
+        initMealSessionTabs();
+        $activePanel = $('#div-packagelist .menu-session-panel.is-active');
+    }
 
-    $('#div-packagelist .meal-item').each(function () {
+    $('.meal-combo-menu-inner').toggleClass('is-showing-all', showingAll);
+
+    $activePanel.find('.meal-combo-package-item, .meal-combo-addon-item').each(function () {
         var $card = $(this);
         var typeId = String($card.data('meal-type-id') || '');
         var searchText = String($card.data('search-text') || '');
-        var typeOk = showingAll || typeId === String(activeMealTypeFilter);
+        var typeOk = showingAll || typeId === String(activeMealCategoryFilter);
         var searchOk = !query || searchText.indexOf(query) >= 0;
         var show = typeOk && searchOk;
         $card.toggleClass('is-filtered-out', !show);
-        if (show) visibleCount += 1;
+        if (show) {
+            visibleCount += 1;
+        }
     });
 
     var $empty = $('#menuFilterEmpty');
     if ($empty.length) {
-        if (visibleCount === 0 && $('#div-packagelist .meal-item').length > 0) {
+        var totalCards = $activePanel.find('.meal-item').length;
+        if (visibleCount === 0 && totalCards > 0) {
             $empty.removeAttr('hidden');
         } else {
             $empty.attr('hidden', 'hidden');
@@ -236,13 +336,14 @@ function getSelectedMealDate() {
     return $('#MealDate').val() || '';
 }
 
-function serializeOrderItems(packageList, listKey) {
+function serializeOrderItems(lineList, listKey) {
     var payload = {
         studentId: parseInt($('#StudentId').val(), 10)
     };
 
-    packageList.forEach(function (item, index) {
-        payload[listKey + '[' + index + '].PackageId'] = parseInt(item.PackageId, 10);
+    lineList.forEach(function (item, index) {
+        payload[listKey + '[' + index + '].PackageId'] = parseInt(item.PackageId, 10) || 0;
+        payload[listKey + '[' + index + '].ItemId'] = parseInt(item.ItemId, 10) || 0;
         payload[listKey + '[' + index + '].MealDate'] = item.MealDate;
         payload[listKey + '[' + index + '].Id'] = item.Id;
     });
@@ -251,8 +352,15 @@ function serializeOrderItems(packageList, listKey) {
 }
 
 function highlightDateSlide(dateValue) {
+    dateValue = typeof normalizeMenuDateValue === 'function'
+        ? normalizeMenuDateValue(dateValue)
+        : dateValue;
+
     document.querySelectorAll('#date-container .swiper-slide').forEach(function (slide) {
-        var isSelected = slide.dataset.date === dateValue;
+        var slideDate = typeof normalizeMenuDateValue === 'function'
+            ? normalizeMenuDateValue(slide.getAttribute('data-date'))
+            : slide.dataset.date;
+        var isSelected = slideDate === dateValue;
         slide.classList.toggle('selected', isSelected);
         slide.setAttribute('aria-selected', isSelected ? 'true' : 'false');
     });
@@ -261,12 +369,20 @@ function highlightDateSlide(dateValue) {
 function selectDateSlide(dateValue, reloadMenu) {
     if (!dateValue) return;
 
+    dateValue = typeof normalizeMenuDateValue === 'function'
+        ? normalizeMenuDateValue(dateValue)
+        : dateValue;
+
     $('#MealDate').val(dateValue);
     updateSelectedDateDisplay(dateValue);
     highlightDateSlide(dateValue);
 
     if (reloadMenu) {
-        searchPackages();
+        if (typeof isMenuDateClosed === 'function' && isMenuDateClosed(dateValue)) {
+            renderMenuClosedDayState($('#div-packagelist'), dateValue);
+        } else {
+            searchPackages();
+        }
     }
 }
 
@@ -285,12 +401,12 @@ function updateSelectedDateDisplay(dateValue) {
     $wrap.removeAttr('hidden');
 }
 
-function getOrderSummary(packageList, preferredMealDate) {
+function getOrderSummary(lineList, preferredMealDate) {
     $.ajax({
         url: SiteUrl + 'mealcombo/getordersummary',
         type: 'POST',
         traditional: true,
-        data: serializeOrderItems(packageList, 'items'),
+        data: serializeOrderItems(lineList, 'items'),
         success: function (result) {
             var $existing = $('#summary_modal');
             var activeMealDate = preferredMealDate
@@ -357,14 +473,18 @@ function activateSummaryDateTab(mealDate) {
 
 function removeSummarySelection($btn) {
     var selectionId = String($btn.data('selection-id') || '').toLowerCase();
-    var packageId = parseInt($btn.data('package-id'), 10);
+    var packageId = parseInt($btn.data('package-id'), 10) || 0;
+    var itemId = parseInt($btn.data('item-id'), 10) || 0;
     var mealDate = String($btn.data('meal-date') || '');
 
     selectedIds = selectedIds.filter(function (x) {
         if (selectionId && String(x.Id || '').toLowerCase() === selectionId) {
             return false;
         }
-        if (!selectionId && parseInt(x.PackageId, 10) === packageId && String(x.MealDate) === mealDate) {
+        if (!selectionId && packageId > 0 && parseInt(x.PackageId, 10) === packageId && String(x.MealDate) === mealDate) {
+            return false;
+        }
+        if (!selectionId && itemId > 0 && parseInt(x.ItemId, 10) === itemId && String(x.MealDate) === mealDate) {
             return false;
         }
         return true;
@@ -406,52 +526,65 @@ function initDates() {
 
     var dateContainer = document.getElementById('date-container');
     dateContainer.innerHTML = '';
-    var today = dayjs();
+    var today = dayjs().startOf('day');
+    var start = typeof getEarliestMenuDate === 'function' ? getEarliestMenuDate() : today.add(1, 'day');
+    var tomorrow = today.add(1, 'day');
+    var studentId = $('#StudentId').val();
+    var scanEnd = start.add(60, 'day').format('YYYY-MM-DD');
 
-    for (var i = 0; i < numberOfDays; i++) {
-        var date = today.add(i, 'day');
-        var dateValue = date.format('YYYY-MM-DD');
-        var slide = document.createElement('div');
-        slide.classList.add('swiper-slide');
-        slide.dataset.date = dateValue;
-        slide.setAttribute('role', 'option');
-        slide.setAttribute('aria-selected', 'false');
-        var dayLabel = i === 0
-            ? 'TODAY'
-            : (i === 1 ? 'TOMORROW' : date.format('ddd').toUpperCase());
-        slide.innerHTML =
-            '<div class="date-day">' + dayLabel + '</div>' +
-            '<div class="date-number">' + date.format('DD') + '</div>' +
-            '<div class="date-month">' + date.format('MMM') + '</div>';
+    function buildSlides(calendarMap) {
+        calendarMap = calendarMap || { holidays: {}, halfDays: {}, days: {} };
+        window.menuSchoolCalendarDays = calendarMap.days || window.menuSchoolCalendarDays || {};
 
-        slide.addEventListener('click', function (selectedDateValue) {
-            return function () {
+        for (var i = 0; i < numberOfDays; i++) {
+            var date = start.add(i, 'day');
+            dateContainer.appendChild(createMenuDateSlide(date, tomorrow, function (selectedDateValue) {
                 selectDateSlide(selectedDateValue, true);
-            };
-        }(dateValue));
+            }));
+        }
 
-        dateContainer.appendChild(slide);
+        var preservedDate = getSelectedMealDate();
+        var firstSlide = dateContainer.querySelector('.swiper-slide[data-date]');
+        var firstDateValue = firstSlide ? firstSlide.getAttribute('data-date') : start.format('YYYY-MM-DD');
+        var dateToSelect = preservedDate && dayjs(preservedDate).isValid() ? preservedDate : firstDateValue;
+        var hasMatchingSlide = !!dateContainer.querySelector('.swiper-slide[data-date="' + dateToSelect + '"]');
+        if (!hasMatchingSlide) {
+            dateToSelect = firstDateValue;
+        }
+        if (!preservedDate && typeof findNextOpenMenuDate === 'function') {
+            var firstOpen = findNextOpenMenuDate(null);
+            if (firstOpen) {
+                dateToSelect = firstOpen;
+            }
+        }
+        selectDateSlide(dateToSelect, true);
+
+        document.getElementById('prev-button').onclick = function () { dateSwiper.slidePrev(); };
+        document.getElementById('next-button').onclick = function () { dateSwiper.slideNext(); };
     }
 
-    var preservedDate = getSelectedMealDate();
-    var firstDateValue = today.format('YYYY-MM-DD');
-    var dateToSelect = preservedDate && dayjs(preservedDate).isValid() ? preservedDate : firstDateValue;
-    var hasMatchingSlide = !!dateContainer.querySelector('.swiper-slide[data-date="' + dateToSelect + '"]');
-    selectDateSlide(hasMatchingSlide ? dateToSelect : firstDateValue, true);
-
-    document.getElementById('prev-button').onclick = function () { dateSwiper.slidePrev(); };
-    document.getElementById('next-button').onclick = function () { dateSwiper.slideNext(); };
+    if (typeof fetchSchoolCalendarDays === 'function' && studentId) {
+        fetchSchoolCalendarDays(studentId, start.format('YYYY-MM-DD'), scanEnd)
+            .then(buildSlides)
+            .catch(function () { buildSlides({ holidays: {}, halfDays: {}, days: {} }); });
+    } else {
+        buildSlides({ holidays: {}, halfDays: {}, days: {} });
+    }
 }
 
 function initSelection() {
-    $('#div-packagelist .meal-item').each(function () {
+    $('#div-packagelist .meal-combo-package-item, #div-packagelist .meal-combo-addon-item').each(function () {
         var $item = $(this);
-        var packageId = parseInt($item.find('input[type="checkbox"]').val(), 10);
+        var lineType = String($item.find('.meal-line-checkbox').data('line-type') || '');
+        var lineId = parseInt($item.find('.meal-line-checkbox').val(), 10);
         var mealDate = getSelectedMealDate();
         var exists = selectedIds.some(function (x) {
-            return parseInt(x.PackageId, 10) === packageId && x.MealDate === mealDate;
+            if (lineType === 'addon') {
+                return parseInt(x.ItemId, 10) === lineId && x.MealDate === mealDate;
+            }
+            return parseInt(x.PackageId, 10) === lineId && x.MealDate === mealDate;
         });
-        $item.find('input[type="checkbox"]').prop('checked', exists);
+        $item.find('.meal-line-checkbox').prop('checked', exists);
         $item.toggleClass('selected', exists).attr('aria-pressed', exists ? 'true' : 'false');
     });
 }
@@ -523,13 +656,13 @@ function setButtonLoading($btn, isLoading, loadingText) {
     }
 }
 
-function placeOrder(packageList, $btn) {
+function placeOrder(lineList, $btn) {
     $.ajax({
         url: SiteUrl + 'mealcombo/placeorder',
         type: 'POST',
         dataType: 'json',
         traditional: true,
-        data: serializeOrderItems(packageList, 'mealList'),
+        data: serializeOrderItems(lineList, 'mealList'),
         success: function (result) {
             var isSuccess = readJsonFlag(result, 'Success', 'success');
             var redirectUrl = readJsonValue(result, 'RedirectUrl', 'redirectUrl');

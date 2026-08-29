@@ -1,7 +1,9 @@
 using System.Data.Common;
 using Dapper;
+using ETCS.Shared.Application.Students;
 using ETCS.Shared.Helpers;
 using ETCS.Shared.Infrastructure.Admin.Models;
+using ETCS.Shared.Infrastructure.Admin.Master.Schools;
 using ETCS.Shared.Infrastructure.Data;
 using ETCS.Shared.Infrastructure.Students;
 
@@ -29,6 +31,7 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
             LTRIM(RTRIM(ISNULL(sl.StudFirstName, ''))) + ' ' + LTRIM(RTRIM(ISNULL(sl.StudLastName, ''))) AS Name,
             LTRIM(RTRIM(ISNULL(sch.SchoolName, ''))) AS SchoolName,
             LTRIM(RTRIM(ISNULL(g.FirstName, ''))) + ' ' + LTRIM(RTRIM(ISNULL(g.LastName, ''))) AS GuardianName,
+            CAST(AddDate as datetime) AS CreatedAt,
             {BalanceSql} AS Balance
         """;
 
@@ -73,6 +76,7 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
             sl.StudDateOfBirth AS DateOfBirth,
             sl.DailyLimit AS DailySpendLimit,
             sl.WeeklyLimit AS WeeklySpendLimit,
+            CAST(ISNULL(sl.IsUnsubscribeLowBalNoti, 0) AS bit) AS IsUnsubscribeLowBalNoti,
             CASE WHEN ISNULL(sl.BlackList, 0) = 1 THEN 0 ELSE 1 END AS IsActive
         FROM StudentLogin sl
         WHERE sl.UserId = @UserId;
@@ -81,15 +85,21 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
     private readonly IDbConnectionFactory _connectionFactory;
     private readonly IStudentRepository _studentRepository;
     private readonly IStudentAllergyAdminRepository _allergyRepository;
+    private readonly IStudentOrderTypeAdminRepository _orderTypeRepository;
+    private readonly ISchoolOrderTypeAdminRepository _schoolOrderTypeRepository;
 
     public StudentAdminRepository(
         IDbConnectionFactory connectionFactory,
         IStudentRepository studentRepository,
-        IStudentAllergyAdminRepository allergyRepository)
+        IStudentAllergyAdminRepository allergyRepository,
+        IStudentOrderTypeAdminRepository orderTypeRepository,
+        ISchoolOrderTypeAdminRepository schoolOrderTypeRepository)
     {
         _connectionFactory = connectionFactory;
         _studentRepository = studentRepository;
         _allergyRepository = allergyRepository;
+        _orderTypeRepository = orderTypeRepository;
+        _schoolOrderTypeRepository = schoolOrderTypeRepository;
     }
 
     public async Task<DataTableResponse<StudentAdminListItemDto>> GetDataAsync(
@@ -110,10 +120,11 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
             baseFilterSql,
             SearchFilterSql,
             SortColumns,
-            "sl.StudFirstName",
+            "sl.UserId",
             request,
             extraParameters,
-            cancellationToken: cancellationToken);
+            cancellationToken: cancellationToken,
+            defaultSortDirection: "DESC");
     }
 
     public async Task<StudentAdminSaveRequest?> GetAsync(decimal userId, CancellationToken cancellationToken = default)
@@ -132,6 +143,7 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
             string.Equals(g.Grade, row.StudStd, StringComparison.OrdinalIgnoreCase))?.Id ?? 0;
 
         var allergyIds = await _allergyRepository.GetAllergyIdsAsync(userId, cancellationToken);
+        var orderTypeIds = await _orderTypeRepository.GetOrderTypeIdsAsync(userId, cancellationToken);
 
         return new StudentAdminSaveRequest
         {
@@ -147,7 +159,9 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
             DateOfBirth = row.DateOfBirth,
             DailySpendLimit = row.DailySpendLimit,
             WeeklySpendLimit = row.WeeklySpendLimit,
+            LowBalanceEmailNotification = !row.IsUnsubscribeLowBalNoti,
             AllergyItemIds = allergyIds.ToList(),
+            OrderTypeIds = orderTypeIds.ToList(),
             IsActive = row.IsActive
         };
     }
@@ -177,7 +191,10 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
         var rows = await dbConnection.QueryAsync<SchoolLookupDto>(
             new CommandDefinition(
                 """
-                SELECT SchoolId AS Id, LTRIM(RTRIM(SchoolName)) AS Name
+                SELECT
+                    SchoolId AS Id,
+                    LTRIM(RTRIM(SchoolName)) AS Name,
+                    LTRIM(RTRIM(ISNULL(Schoolcode, ''))) AS Code
                 FROM SchoolInfo
                 ORDER BY SchoolName;
                 """,
@@ -217,7 +234,17 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
         if (school is null)
             return AdminOperationResult.Fail("Selected school was not found.");
 
-        var studCode = request.StudCode.Trim();
+        var schoolOrderTypeError = StudentOrderTypeValidation.ValidateAgainstSchool(
+            await _schoolOrderTypeRepository.GetOrderTypeIdsAsync(request.SchoolId, cancellationToken),
+            request.OrderTypeIds);
+        if (schoolOrderTypeError is not null)
+            return AdminOperationResult.Fail(schoolOrderTypeError);
+
+        var cardError = request.UserId > 0
+            ? StudentCardNumber.ValidateForEdit(request.StudCode, out var studCode)
+            : StudentCardNumber.ResolveForCreate(request.StudCode, school.SchoolCode, out studCode);
+        if (cardError is not null)
+            return AdminOperationResult.Fail(cardError);
 
         if (request.UserId > 0)
         {
@@ -229,19 +256,8 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
             if (linkedStudent is null)
                 return AdminOperationResult.Fail("Student was not found.");
 
-            var duplicateEdit = await dbConnection.ExecuteScalarAsync<decimal?>(
-                new CommandDefinition(
-                    """
-                    SELECT TOP (1) UserId
-                    FROM StudentLogin
-                    WHERE UserId <> @UserId
-                      AND (LTRIM(RTRIM(ISNULL(CustomerId, ''))) = @StudCode
-                       OR LTRIM(RTRIM(ISNULL(StudCode, ''))) = @StudCode);
-                    """,
-                    new { request.UserId, StudCode = studCode },
-                    cancellationToken: cancellationToken));
-            if (duplicateEdit.HasValue)
-                return AdminOperationResult.Fail("A student with this card number already exists.");
+            if (await StudentCardNumber.IsTakenAsync(dbConnection, studCode, request.UserId, cancellationToken))
+                return AdminOperationResult.Fail(StudentCardNumber.DuplicateMessage);
 
             var oldCustomerId = linkedStudent.CustomerId;
             var blackList = request.IsActive ? 0 : 1;
@@ -261,6 +277,7 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
                     StudDateOfBirth = @DateOfBirth,
                     DailyLimit = @DailySpendLimit,
                     WeeklyLimit = @WeeklySpendLimit,
+                    IsUnsubscribeLowBalNoti = @IsUnsubscribeLowBalNoti,
                     BlackList = @BlackList
                 WHERE UserId = @UserId;
                 """;
@@ -281,6 +298,7 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
                         request.DateOfBirth,
                         DailySpendLimit = request.DailySpendLimit ?? 0m,
                         WeeklySpendLimit = request.WeeklySpendLimit ?? 0m,
+                        IsUnsubscribeLowBalNoti = !request.LowBalanceEmailNotification,
                         BlackList = blackList
                     },
                     cancellationToken: cancellationToken));
@@ -342,21 +360,12 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
             }
 
             await _allergyRepository.SaveAllergiesAsync(request.UserId, request.AllergyItemIds ?? [], cancellationToken);
+            await _orderTypeRepository.SaveOrderTypesAsync(request.UserId, request.OrderTypeIds ?? [], cancellationToken);
             return AdminOperationResult.Ok("Student updated successfully.");
         }
 
-        var duplicate = await dbConnection.ExecuteScalarAsync<decimal?>(
-            new CommandDefinition(
-                """
-                SELECT TOP (1) UserId
-                FROM StudentLogin
-                WHERE LTRIM(RTRIM(ISNULL(CustomerId, ''))) = @StudCode
-                   OR LTRIM(RTRIM(ISNULL(StudCode, ''))) = @StudCode;
-                """,
-                new { StudCode = studCode },
-                cancellationToken: cancellationToken));
-        if (duplicate.HasValue)
-            return AdminOperationResult.Fail("A student with this code already exists.");
+        if (await StudentCardNumber.IsTakenAsync(dbConnection, studCode, excludeUserId: null, cancellationToken))
+            return AdminOperationResult.Fail(StudentCardNumber.DuplicateMessage);
 
         var upsert = BuildUpsertRequest(request, grade.Grade, school, studCode);
         try
@@ -365,7 +374,7 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
         }
         catch (Exception ex)
         {
-            return AdminOperationResult.Fail(ex.Message);
+            return AdminOperationResult.Fail(StudentCardNumber.MessageOrDuplicate(ex));
         }
 
         var userId = await dbConnection.ExecuteScalarAsync<decimal?>(
@@ -388,6 +397,7 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
                 UPDATE StudentLogin
                 SET DailyLimit = @DailySpendLimit,
                     WeeklyLimit = @WeeklySpendLimit,
+                    IsUnsubscribeLowBalNoti = @IsUnsubscribeLowBalNoti,
                     StudDateOfBirth = @DateOfBirth
                 WHERE UserId = @UserId;
                 """,
@@ -396,11 +406,13 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
                     UserId = userId.Value,
                     DailySpendLimit = request.DailySpendLimit ?? 0m,
                     WeeklySpendLimit = request.WeeklySpendLimit ?? 0m,
+                    IsUnsubscribeLowBalNoti = !request.LowBalanceEmailNotification,
                     request.DateOfBirth
                 },
                 cancellationToken: cancellationToken));
 
         await _allergyRepository.SaveAllergiesAsync(userId.Value, request.AllergyItemIds ?? [], cancellationToken);
+        await _orderTypeRepository.SaveOrderTypesAsync(userId.Value, request.OrderTypeIds ?? [], cancellationToken);
 
         if (request.GuardianId > 0)
         {
@@ -442,6 +454,7 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
         try
         {
             await _allergyRepository.DeleteAllergiesAsync(userId, cancellationToken);
+            await _orderTypeRepository.DeleteOrderTypesAsync(userId, cancellationToken);
             var rows = await dbConnection.ExecuteAsync(
                 new CommandDefinition(
                     "DELETE FROM StudentLogin WHERE UserId = @UserId;",
@@ -508,6 +521,7 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
         public DateTime? DateOfBirth { get; init; }
         public decimal? DailySpendLimit { get; init; }
         public decimal? WeeklySpendLimit { get; init; }
+        public bool IsUnsubscribeLowBalNoti { get; init; }
         public bool IsActive { get; init; }
     }
 

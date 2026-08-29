@@ -1,72 +1,515 @@
 .ala-carte-swiper,
+
 .swiper {
+
     width: 100%;
+
 }
+
+
 
 .ala-carte-swiper .swiper-slide,
+
 .swiper-slide {
+
     text-align: center;
+
     border: 1.5px solid #e5e7eb;
+
     padding: 0.7rem 0.45rem 0.65rem;
+
     width: auto !important;
+
     border-radius: 20px;
+
     height: auto !important;
+
     cursor: pointer;
+
     background: #fff;
+
     transition: all 0.2s ease;
+
     user-select: none;
+
     min-width: 65px;
+
+    position: relative;
+
 }
+
+
+
+.ala-carte-swiper .swiper-slide.date-slide-with-badge,
+
+.swiper-slide.date-slide-with-badge {
+
+    border: none;
+
+    background: transparent;
+
+    padding: 0;
+
+    min-width: 72px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    gap: 0.38rem;
+
+}
+
+
+
+.ala-carte-swiper .swiper-slide .date-slide-card,
+
+.swiper-slide .date-slide-card {
+
+    width: 100%;
+
+    min-width: 65px;
+
+    border: 1.5px solid #e5e7eb;
+
+    border-radius: 20px;
+
+    padding: 0.7rem 0.45rem 0.65rem;
+
+    background: #fff;
+
+    transition: all 0.2s ease;
+
+}
+
+
+
+.ala-carte-swiper .swiper-slide.is-halfday .date-slide-card,
+
+.swiper-slide.is-halfday .date-slide-card {
+
+    background: linear-gradient(180deg, #fff7ed 0%, #ffffff 58%);
+
+    border-color: #f59e0b;
+
+    box-shadow: inset 0 3px 0 #f59e0b;
+
+}
+
+
+
+.ala-carte-swiper .swiper-slide.is-holiday .date-slide-card,
+
+.swiper-slide.is-holiday .date-slide-card {
+
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 58%);
+
+    border-color: #cbd5e1;
+
+}
+
+
+
+.ala-carte-swiper .swiper-slide.is-holiday:hover .date-slide-card,
+
+.swiper-slide.is-holiday:hover .date-slide-card {
+
+    border-color: #94a3b8;
+
+    box-shadow: 0 4px 12px rgba(148, 163, 184, 0.18);
+
+}
+
+
+
+.ala-carte-swiper .swiper-slide.is-halfday:hover .date-slide-card,
+
+.swiper-slide.is-halfday:hover .date-slide-card {
+
+    border-color: #d97706;
+
+    box-shadow: inset 0 3px 0 #f59e0b, 0 4px 12px rgba(245, 158, 11, 0.18);
+
+}
+
+
+
+.ala-carte-swiper .swiper-slide:hover .date-slide-card,
+
+.swiper-slide:hover .date-slide-card {
+
+    border-color: rgba(52, 152, 219, 0.4);
+
+    transform: translateY(-1px);
+
+}
+
+
+
+.ala-carte-swiper .swiper-slide.selected .date-slide-card,
+
+.swiper-slide.selected .date-slide-card {
+
+    background: #3498db !important;
+
+    color: #fff !important;
+
+    border-color: #3498db !important;
+
+    box-shadow: 0 6px 16px rgba(52, 152, 219, 0.24);
+
+    transform: none;
+
+}
+
+
+
+.ala-carte-swiper .swiper-slide.is-halfday.selected .date-slide-card,
+
+.swiper-slide.is-halfday.selected .date-slide-card {
+
+    box-shadow: 0 6px 16px rgba(52, 152, 219, 0.24), inset 0 3px 0 #fbbf24;
+
+}
+
+
+
+.ala-carte-swiper .swiper-slide .date-halfday-tag,
+
+.swiper-slide .date-halfday-tag,
+
+.ala-carte-swiper .swiper-slide .date-status-tag,
+
+.swiper-slide .date-status-tag {
+
+    display: inline-block;
+
+    padding: 0.12rem 0.4rem;
+
+    border-radius: 999px;
+
+    font-size: 0.58rem;
+
+    font-weight: 700;
+
+    letter-spacing: 0.04em;
+
+    text-transform: uppercase;
+
+    line-height: 1.25;
+
+    max-width: 100%;
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+}
+
+
+
+.ala-carte-swiper .swiper-slide.date-slide-with-badge .date-status-tag,
+
+.swiper-slide.date-slide-with-badge .date-status-tag {
+
+    margin-top: 0;
+
+}
+
+
+
+.ala-carte-swiper .swiper-slide:not(.date-slide-with-badge) .date-status-tag,
+
+.swiper-slide:not(.date-slide-with-badge) .date-status-tag {
+
+    margin-top: 0.32rem;
+
+}
+
+
+
+.ala-carte-swiper .swiper-slide .date-status-tag.is-halfday,
+
+.swiper-slide .date-status-tag.is-halfday,
+
+.ala-carte-swiper .swiper-slide .date-halfday-tag,
+
+.swiper-slide .date-halfday-tag {
+
+    color: #b45309;
+
+    background: #ffedd5;
+
+    border: 1px solid rgba(245, 158, 11, 0.35);
+
+}
+
+
+
+.ala-carte-swiper .swiper-slide .date-status-tag.is-closed,
+
+.swiper-slide .date-status-tag.is-closed {
+
+    color: #2563eb;
+
+    background: #eff6ff;
+
+    border: 1px solid rgba(37, 99, 235, 0.2);
+
+}
+
+
 
 .ala-carte-swiper .swiper-slide:hover,
+
 .swiper-slide:hover {
+
     border-color: rgba(52, 152, 219, 0.4);
+
     transform: translateY(-1px);
+
 }
+
+
+
+.ala-carte-swiper .swiper-slide.date-slide-with-badge:hover,
+
+.swiper-slide.date-slide-with-badge:hover {
+
+    border-color: transparent;
+
+    transform: none;
+
+}
+
+
 
 .ala-carte-swiper .swiper-slide.selected,
+
 .swiper-slide.selected {
+
     background: #3498db !important;
+
     color: #fff !important;
+
     border-color: #3498db !important;
-    /*box-shadow: 0 8px 18px rgba(52, 152, 219, 0.28);*/
+
+    box-shadow: 0 6px 16px rgba(52, 152, 219, 0.24);
+
 }
+
+
+
+.ala-carte-swiper .swiper-slide.date-slide-with-badge.selected,
+
+.swiper-slide.date-slide-with-badge.selected {
+
+    background: transparent !important;
+
+    border-color: transparent !important;
+
+    box-shadow: none;
+
+    color: inherit !important;
+
+}
+
+
+
+.ala-carte-swiper .swiper-slide.is-halfday.selected,
+
+.swiper-slide.is-halfday.selected {
+
+    box-shadow: 0 6px 16px rgba(52, 152, 219, 0.24), inset 0 3px 0 #fbbf24;
+
+}
+
+
+
+.ala-carte-swiper .swiper-slide.date-slide-with-badge.is-halfday.selected,
+
+.swiper-slide.date-slide-with-badge.is-halfday.selected {
+
+    box-shadow: none;
+
+}
+
+
+
+.ala-carte-swiper .swiper-slide.selected .date-halfday-tag,
+
+.swiper-slide.selected .date-halfday-tag,
+
+.ala-carte-swiper .swiper-slide.selected .date-status-tag,
+
+.swiper-slide.selected .date-status-tag {
+
+    color: inherit;
+
+    background: transparent;
+
+    border-color: transparent;
+
+}
+
+
 
 .ala-carte-swiper .swiper-slide.selected .date-day,
+
 .ala-carte-swiper .swiper-slide.selected .date-number,
+
 .ala-carte-swiper .swiper-slide.selected .date-month,
+
 .swiper-slide.selected .date-day,
+
 .swiper-slide.selected .date-number,
-.swiper-slide.selected .date-month {
+
+.swiper-slide.selected .date-month,
+
+.ala-carte-swiper .swiper-slide.selected .date-slide-card .date-day,
+
+.ala-carte-swiper .swiper-slide.selected .date-slide-card .date-number,
+
+.ala-carte-swiper .swiper-slide.selected .date-slide-card .date-month,
+
+.swiper-slide.selected .date-slide-card .date-day,
+
+.swiper-slide.selected .date-slide-card .date-number,
+
+.swiper-slide.selected .date-slide-card .date-month {
+
     color: #fff !important;
+
 }
+
+
 
 .ala-carte-swiper .swiper-slide .date-day,
+
 .swiper-slide .date-day {
+
     font-weight: 700;
+
     font-size: 0.68rem;
+
     letter-spacing: 0.04em;
+
     opacity: 0.85;
+
     line-height: 1.2;
+
 }
+
+
 
 .ala-carte-swiper .swiper-slide .date-number,
+
 .swiper-slide .date-number {
+
     font-size: 1.15rem;
+
     font-weight: 700;
+
     margin-top: 0.2rem;
+
     line-height: 1.1;
+
 }
+
+
 
 .ala-carte-swiper .swiper-slide .date-month,
+
 .swiper-slide .date-month {
+
     font-size: 0.75rem;
+
     font-weight: 600;
+
     margin-top: 0.12rem;
+
     opacity: 0.9;
+
 }
 
+
+
 .flex-center {
+
     display: flex;
+
     justify-content: center;
+
 }
+
+
+
+.menu-date-legend {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 0.75rem 1.25rem;
+
+    font-size: 0.78rem;
+
+    color: #6b7280;
+
+}
+
+
+
+.menu-date-legend-item {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 0.4rem;
+
+}
+
+
+
+.menu-date-legend-swatch {
+
+    width: 14px;
+
+    height: 14px;
+
+    border-radius: 4px;
+
+    border: 1px solid #e5e7eb;
+
+    background: #fff;
+
+}
+
+
+
+.menu-date-legend-swatch.is-halfday {
+
+    background: linear-gradient(180deg, #fff7ed 0%, #ffffff 58%);
+
+    border-color: #f59e0b;
+
+    box-shadow: inset 0 2px 0 #f59e0b;
+
+}
+
+
+
+.menu-date-legend-swatch.is-holiday {
+
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 58%);
+
+    border-color: #cbd5e1;
+
+}
+
+

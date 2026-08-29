@@ -111,6 +111,9 @@ public sealed class EmailNotificationRepository : IEmailNotificationRepository
                     TemplateKey = request.TemplateKey.Trim(),
                     SubjectTemplate = request.SubjectTemplate.Trim(),
                     BodyHtmlTemplate = request.BodyHtmlTemplate,
+                    RecipientEmail = string.IsNullOrWhiteSpace(request.RecipientEmail)
+                        ? string.Empty
+                        : request.RecipientEmail.Trim(),
                     IsActive = request.IsActive
                 },
                 commandType: System.Data.CommandType.StoredProcedure,

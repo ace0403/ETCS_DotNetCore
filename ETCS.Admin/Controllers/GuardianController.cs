@@ -104,6 +104,8 @@ public class GuardianController : Controller
         ViewBag.Schools = model.Schools;
         var allergies = await _mealEnumRepository.GetByTypeIdAsync(MealEnumTypeIds.FoodAllergy, cancellationToken);
         ViewBag.Allergies = new Microsoft.AspNetCore.Mvc.Rendering.SelectList(allergies, "Id", "Name");
+        var orderTypes = await _mealEnumRepository.GetStudentOrderTypesAsync(cancellationToken);
+        ViewBag.OrderTypes = new Microsoft.AspNetCore.Mvc.Rendering.SelectList(orderTypes, "Id", "Name");
         return PartialView("_AddStudent", new GuardianAddStudentRequest
         {
             GuardianId = model.GuardianId,
@@ -130,6 +132,8 @@ public class GuardianController : Controller
         ViewBag.Schools = model.Schools;
         var allergies = await _mealEnumRepository.GetByTypeIdAsync(MealEnumTypeIds.FoodAllergy, cancellationToken);
         ViewBag.Allergies = new Microsoft.AspNetCore.Mvc.Rendering.SelectList(allergies, "Id", "Name");
+        var orderTypes = await _mealEnumRepository.GetStudentOrderTypesAsync(cancellationToken);
+        ViewBag.OrderTypes = new Microsoft.AspNetCore.Mvc.Rendering.SelectList(orderTypes, "Id", "Name");
         return PartialView("_EditStudent", model.Student);
     }
 

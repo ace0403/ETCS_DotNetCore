@@ -6,6 +6,7 @@ public interface IMealRepository
         int studentId,
         int schoolId,
         DateTime mealDate,
+        int? mealSessionId = null,
         int? mealTypeId = null,
         CancellationToken cancellationToken = default);
 
@@ -13,6 +14,7 @@ public interface IMealRepository
         int studentId,
         int schoolId,
         DateTime mealDate,
+        int? mealSessionId = null,
         int? mealTypeId = null,
         CancellationToken cancellationToken = default);
 }

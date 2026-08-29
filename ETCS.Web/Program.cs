@@ -4,6 +4,8 @@ using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
 
 using ETCS.Shared.Infrastructure.Admin.Master.Guardians;
 
+using ETCS.Shared.Infrastructure.Admin.Master.Schools;
+
 using ETCS.Shared.Infrastructure.Admin.Master.Students;
 
 using ETCS.Shared.Infrastructure.Auth;
@@ -12,11 +14,15 @@ using ETCS.Shared.Infrastructure.Data;
 
 using ETCS.Shared.Infrastructure.Enums;
 
+using ETCS.Shared.Infrastructure.Legal;
+
 using ETCS.Shared.Infrastructure.Meals;
 
 using ETCS.Shared.Infrastructure.Orders;
 
 using ETCS.Shared.Infrastructure.Students;
+
+using ETCS.Shared.Infrastructure.Schools.Calendar;
 
 using ETCS.Shared.Infrastructure.Transaction;
 
@@ -32,6 +38,7 @@ using ETCS.Shared.Application.Topup;
 using ETCS.Web.Infrastructure.Background;
 
 using ETCS.Web.Infrastructure.Auth;
+using ETCS.Web.Infrastructure.Navigation;
 using ETCS.Web.Infrastructure.Orders;
 
 using ETCS.Web.Options;
@@ -39,6 +46,8 @@ using ETCS.Web.Options;
 using ETCS.Shared.Media;
 
 using Microsoft.AspNetCore.Authentication.Cookies;
+
+using Microsoft.AspNetCore.Rewrite;
 
 using Microsoft.Extensions.FileProviders;
 
@@ -55,28 +64,42 @@ builder.Services.Configure<MealDatabaseOptions>(builder.Configuration.GetSection
 builder.Services.Configure<OrderFlowOptions>(builder.Configuration.GetSection(OrderFlowOptions.SectionName));
 
 builder.Services.Configure<WebOptions>(builder.Configuration.GetSection(WebOptions.SectionName));
+builder.Services.Configure<ParentPortalOptions>(options =>
+{
+    options.PublicBaseUrl = builder.Configuration["Web:PublicBaseUrl"] ?? string.Empty;
+});
 builder.Services.ConfigureMediaOptions(builder.Configuration, WebOptions.SectionName);
 
 
 
 builder.Services.AddMemoryCache();
 
+builder.Services.Configure<LegalContentCacheClearOptions>(builder.Configuration.GetSection(LegalContentCacheClearOptions.SectionName));
+
 builder.Services.AddSingleton<IDbConnectionFactory, SqlConnectionFactory>();
 
 builder.Services.AddSingleton<IMealDbConnectionFactory, SqlMealConnectionFactory>();
 
 builder.Services.AddScoped<IGuardianPasswordResetTokenStore, SqlGuardianPasswordResetTokenStore>();
+builder.Services.AddScoped<IGuardianOtpStore, SqlGuardianOtpStore>();
+builder.Services.AddScoped<IRegistrationOtpService, RegistrationOtpService>();
+builder.Services.AddScoped<IDeleteAccountOtpService, DeleteAccountOtpService>();
 builder.Services.AddScoped<IParentLoginRepository, ParentLoginRepository>();
 
 builder.Services.AddScoped<IStudentRepository, StudentRepository>();
 
 builder.Services.AddScoped<IStudentAllergyAdminRepository, StudentAllergyAdminRepository>();
 
+builder.Services.AddScoped<IStudentOrderTypeAdminRepository, StudentOrderTypeAdminRepository>();
+builder.Services.AddScoped<ISchoolOrderTypeAdminRepository, SchoolOrderTypeAdminRepository>();
+
 builder.Services.AddScoped<IGuardianAdminRepository, GuardianAdminRepository>();
 
 builder.Services.AddScoped<IMealEnumAdminRepository, MealEnumAdminRepository>();
 
 builder.Services.AddScoped<IEnumRepository, EnumRepository>();
+
+builder.Services.AddScoped<ILegalContentRepository, LegalContentRepository>();
 
 builder.Services.AddScoped<IMealRepository, MealRepository>();
 
@@ -86,11 +109,17 @@ builder.Services.AddScoped<IMainOrderRepository, MainOrderRepository>();
 
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 
+builder.Services.AddScoped<ISchoolCalendarRepository, SchoolCalendarRepository>();
+builder.Services.AddScoped<ISchoolCalendarService, SchoolCalendarService>();
+
+builder.Services.AddScoped<IParentPortalNavigationService, ParentPortalNavigationService>();
+
 builder.Services.AddOrderFlowServices();
 builder.Services.AddTopupFlowServices();
 builder.Services.AddGuardianEmailServices();
 builder.Services.AddGuardianInAppNotificationServices();
 builder.Services.AddScoped<OrderPaymentSummaryBuilder>();
+builder.Services.AddSingleton<MealOrderBookingWindow>();
 
 builder.Services.AddSingleton<IPaymentBackgroundQueue, NoOpPaymentBackgroundQueue>();
 
@@ -134,7 +163,7 @@ if (!app.Environment.IsDevelopment())
 
 {
 
-    app.UseExceptionHandler("/Home/Error");
+    app.UseExceptionHandler("/Home/ServerError");
 
     app.UseHsts();
 
@@ -183,13 +212,16 @@ app.UseStaticFiles(new StaticFileOptions
 
 
 
+app.UseRewriter(new RewriteOptions()
+    .AddRedirect(@"^.*\.aspx$", "/", statusCode: StatusCodes.Status301MovedPermanently));
+
 app.UseRouting();
 
 app.UseAuthentication();
 
 app.UseAuthorization();
 
-
+app.UseStatusCodePagesWithReExecute("/Home/PageNotFound", "?code={0}");
 
 app.MapStaticAssets();
 

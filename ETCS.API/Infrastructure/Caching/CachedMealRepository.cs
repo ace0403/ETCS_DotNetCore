@@ -20,16 +20,23 @@ public sealed class CachedMealRepository : IMealRepository
         int studentId,
         int schoolId,
         DateTime mealDate,
+        int? mealSessionId = null,
         int? mealTypeId = null,
         CancellationToken cancellationToken = default)
     {
-        var key = BuildItemsCacheKey(studentId, schoolId, mealDate, mealTypeId);
+        var key = BuildItemsCacheKey(studentId, schoolId, mealDate, mealSessionId, mealTypeId);
         if (_cache.TryGetValue(key, out IReadOnlyList<MealItemDto>? cached) && cached is not null)
         {
             return cached;
         }
 
-        var items = await _inner.GetMealItemsForStudentAsync(studentId, schoolId, mealDate, mealTypeId, cancellationToken);
+        var items = await _inner.GetMealItemsForStudentAsync(
+            studentId,
+            schoolId,
+            mealDate,
+            mealSessionId,
+            mealTypeId,
+            cancellationToken);
         _cache.Set(key, items, MealMenuCacheTtl);
         return items;
     }
@@ -38,23 +45,40 @@ public sealed class CachedMealRepository : IMealRepository
         int studentId,
         int schoolId,
         DateTime mealDate,
+        int? mealSessionId = null,
         int? mealTypeId = null,
         CancellationToken cancellationToken = default)
     {
-        var key = BuildPackagesCacheKey(studentId, schoolId, mealDate, mealTypeId);
+        var key = BuildPackagesCacheKey(studentId, schoolId, mealDate, mealSessionId, mealTypeId);
         if (_cache.TryGetValue(key, out IReadOnlyList<MealPackageDto>? cached) && cached is not null)
         {
             return cached;
         }
 
-        var packages = await _inner.GetMealPackagesForStudentAsync(studentId, schoolId, mealDate, mealTypeId, cancellationToken);
+        var packages = await _inner.GetMealPackagesForStudentAsync(
+            studentId,
+            schoolId,
+            mealDate,
+            mealSessionId,
+            mealTypeId,
+            cancellationToken);
         _cache.Set(key, packages, MealMenuCacheTtl);
         return packages;
     }
 
-    public static string BuildItemsCacheKey(int studentId, int schoolId, DateTime mealDate, int? mealTypeId) =>
-        $"meal-items:{studentId}:{schoolId}:{mealDate:yyyy-MM-dd}:{mealTypeId?.ToString() ?? "all"}";
+    public static string BuildItemsCacheKey(
+        int studentId,
+        int schoolId,
+        DateTime mealDate,
+        int? mealSessionId,
+        int? mealTypeId) =>
+        $"meal-items:{studentId}:{schoolId}:{mealDate:yyyy-MM-dd}:{mealSessionId?.ToString() ?? "all"}:{mealTypeId?.ToString() ?? "all"}";
 
-    public static string BuildPackagesCacheKey(int studentId, int schoolId, DateTime mealDate, int? mealTypeId) =>
-        $"meal-packages:{studentId}:{schoolId}:{mealDate:yyyy-MM-dd}:{mealTypeId?.ToString() ?? "all"}:{DateTime.Now:yyyyMMddHH}";
+    public static string BuildPackagesCacheKey(
+        int studentId,
+        int schoolId,
+        DateTime mealDate,
+        int? mealSessionId,
+        int? mealTypeId) =>
+        $"meal-packages:{studentId}:{schoolId}:{mealDate:yyyy-MM-dd}:{mealSessionId?.ToString() ?? "all"}:{mealTypeId?.ToString() ?? "all"}:{DateTime.Now:yyyyMMddHH}";
 }

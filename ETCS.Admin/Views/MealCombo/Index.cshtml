@@ -29,13 +29,17 @@
     </div>
 </div>
 <div class="modal fade" id="addDataModal" tabindex="-1" data-bs-backdrop="static">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content" id="div_add"></div>
     </div>
 </div>
+@section Styles {
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+}
 @section Scripts {
     <link href="~/css/bootstrap-multiselect.css" rel="stylesheet" />
     <script src="~/js/bootstrap-multiselect.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>window.adminModuleKey = 'MealCombo';</script>
     <script src="~/js/custom/mealcombo.js"></script>
 }

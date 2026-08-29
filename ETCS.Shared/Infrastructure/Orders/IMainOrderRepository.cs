@@ -27,4 +27,12 @@ public interface IMainOrderRepository
         string terminalCode,
         string companyCode,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Finds an existing AccessLog row for the customer + gateway transaction id (avoids duplicate ledger inserts on resume).
+    /// </summary>
+    Task<long?> FindAccessLogIdByGatewayTransactionAsync(
+        string customerId,
+        string gatewayTransactionId,
+        CancellationToken cancellationToken);
 }

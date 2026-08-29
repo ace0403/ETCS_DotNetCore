@@ -17,11 +17,22 @@
                             </span>
                             <h5 class="modal-title mb-0">Order Summary</h5>
                         </div>
-                        @if (Model.SelectedPackages.Count > 0)
+                        @if (Model.SelectedLines.Count > 0)
                         {
                             var childLabel = string.IsNullOrWhiteSpace(Model.StudentName) ? "your child" : Model.StudentName;
+                            var comboCount = Model.SelectedLines.Count(x => !x.IsAddon);
+                            var addonCount = Model.SelectedLines.Count(x => x.IsAddon);
+                            var countParts = new List<string>();
+                            if (comboCount > 0)
+                            {
+                                countParts.Add($"{comboCount} {(comboCount == 1 ? "combo" : "combos")}");
+                            }
+                            if (addonCount > 0)
+                            {
+                                countParts.Add($"{addonCount} {(addonCount == 1 ? "add-on" : "add-ons")}");
+                            }
                             <p class="ala-carte-summary-meta mb-0">
-                                @Model.ItemCount @(Model.ItemCount == 1 ? "combo" : "combos")
+                                @string.Join(" · ", countParts)
                                 · @Model.DayCount @(Model.DayCount == 1 ? "day" : "days")
                                 · for @childLabel
                             </p>
@@ -44,7 +55,7 @@
                         </div>
                         <div class="ala-carte-summary-actions">
                             <button type="button" class="btn btn-link ala-carte-summary-back" data-bs-dismiss="modal">Back to menu</button>
-                            <button type="button" id="btnConfirmOrder" class="btn btn-primary ala-carte-place-btn" @(Model.SelectedPackages.Count == 0 ? "disabled" : null)>
+                            <button type="button" id="btnConfirmOrder" class="btn btn-primary ala-carte-place-btn" @(Model.SelectedLines.Count == 0 ? "disabled" : null)>
                                 <i class="ti ti-check me-1"></i> Confirm Order
                             </button>
                         </div>

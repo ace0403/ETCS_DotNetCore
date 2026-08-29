@@ -4,6 +4,10 @@ public sealed class TransactionHistoryItemDto
 {
     public int Id { get; init; }
 
+    public long AccessLogId { get; init; }
+
+    public bool HasMealTransaction { get; init; }
+
     public int GuardianId { get; init; }
 
     public int? StudentId { get; init; }

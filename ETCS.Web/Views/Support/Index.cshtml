@@ -4,7 +4,7 @@
     ViewData["PageSubtitle"] = "We're here to help with orders, wallet, and account questions";
     string SupportIcon(string file) => Url.Content($"~/images/icons/{file}");
 }
-<div class="support-page">
+<div class="support-page mt-2 mt-md-0">
     <section class="support-hero">
         <div class="support-hero-icon" aria-hidden="true">
             <span class="support-icon" style="--icon: url('@SupportIcon("question.svg")')"></span>
@@ -61,6 +61,16 @@
                 </div>
             </article>
         }
+
+        <article class="support-card">
+            <div class="support-card-icon tone-hours" aria-hidden="true">
+                <i class="ti ti-clock"></i>
+            </div>
+            <div class="support-card-body">
+                <h3 class="support-card-title">Business Inquiries and Events:</h3>
+                <p class="support-card-hint mb-0">For business inquiries or event-related information, please reach out to: <a href="mailto:@Model.SupportInquiriesEmail">@Model.SupportInquiriesEmail</a></p>
+            </div>
+        </article>
     </div>
 
     <section class="support-action-panel">

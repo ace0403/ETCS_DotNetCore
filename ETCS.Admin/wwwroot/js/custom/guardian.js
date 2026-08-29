@@ -9,6 +9,7 @@ function actionCol(id) {
 }
 
 var myTable = initAdminDataTable('#grid_table', 'guardian/getlist', [
+    { data: 'Id', visible: false },
     { data: 'Name' }, { data: 'Email' }, { data: 'MobileNo' }, { data: 'Username' },
     {
         data: 'Id',
@@ -17,7 +18,7 @@ var myTable = initAdminDataTable('#grid_table', 'guardian/getlist', [
         orderable: false,
         render: function (d) { return actionCol(d); }
     }
-]);
+], { order: [[0, 'desc']] });
 
 function loadData(id) {
     $.get(SiteUrl + 'guardian/get?id=' + id, function (h) {
@@ -75,8 +76,9 @@ function editChildData(guardianId, userId) {
         $('#div_child_edit').html(html);
         $('#childEditModal').modal('show');
         initAllergyMultiselect();
+        initStudentCardNo($('#frmEditStudent'));
         bindAdminFormSave('#frmEditStudent', function ($form) {
-            $.post(SiteUrl + 'guardian/editstudent', $form.serialize(), function (r) {
+            $.post(SiteUrl + 'guardian/editstudent', serializeStudentCardForm($form), function (r) {
                 toastMsg(r.Message, r.Success);
                 if (r.Success) {
                     $('#childEditModal').modal('hide');
@@ -106,12 +108,13 @@ function addStudentData(guardianId) {
         $('#div_add_student').html(html);
         $('#studentModal').modal('show');
         initAllergyMultiselect();
+        initStudentCardNo($('#frmAddStudent'));
         bindAdminFormSave('#frmAddStudent', function ($form) {
             var firstName = $form.find('[name="FirstName"]').val();
-            var cardNo = $form.find('[name="StudentCardNo"]').val();
+            var cardNo = getStudentCardDisplayValue($form);
             showConfirmation('Add student ' + firstName + ' (' + cardNo + ')?', 'Add Student').then(function (result) {
                 if (!result.isConfirmed) return;
-                $.post(SiteUrl + 'guardian/addstudent', $form.serialize(), function (r) {
+                $.post(SiteUrl + 'guardian/addstudent', serializeStudentCardForm($form), function (r) {
                     toastMsg(r.Message, r.Success);
                     if (r.Success) {
                         $('#studentModal').modal('hide');

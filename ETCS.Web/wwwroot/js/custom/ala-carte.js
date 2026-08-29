@@ -8,10 +8,7 @@ $(function () {
 
     $('#StudentId').on('change', function () {
         resetSelection();
-        var currentDate = getSelectedMealDate();
-        if (currentDate) {
-            selectDateSlide(currentDate, true);
-        }
+        initDates();
     });
 
     $(document).on('input', '#menuSearchInput', function () {
@@ -251,8 +248,15 @@ function serializeOrderItems(mealItemList, listKey) {
 }
 
 function highlightDateSlide(dateValue) {
+    dateValue = typeof normalizeMenuDateValue === 'function'
+        ? normalizeMenuDateValue(dateValue)
+        : dateValue;
+
     document.querySelectorAll('#date-container .swiper-slide').forEach(function (slide) {
-        var isSelected = slide.dataset.date === dateValue;
+        var slideDate = typeof normalizeMenuDateValue === 'function'
+            ? normalizeMenuDateValue(slide.getAttribute('data-date'))
+            : slide.dataset.date;
+        var isSelected = slideDate === dateValue;
         slide.classList.toggle('selected', isSelected);
         slide.setAttribute('aria-selected', isSelected ? 'true' : 'false');
     });
@@ -261,12 +265,20 @@ function highlightDateSlide(dateValue) {
 function selectDateSlide(dateValue, reloadMenu) {
     if (!dateValue) return;
 
+    dateValue = typeof normalizeMenuDateValue === 'function'
+        ? normalizeMenuDateValue(dateValue)
+        : dateValue;
+
     $('#MealDate').val(dateValue);
     updateSelectedDateDisplay(dateValue);
     highlightDateSlide(dateValue);
 
     if (reloadMenu) {
-        searchMeal();
+        if (typeof isMenuDateClosed === 'function' && isMenuDateClosed(dateValue)) {
+            renderMenuClosedDayState($('#div-meallist'), dateValue);
+        } else {
+            searchMeal();
+        }
     }
 }
 
@@ -406,41 +418,50 @@ function initDates() {
 
     var dateContainer = document.getElementById('date-container');
     dateContainer.innerHTML = '';
-    var today = dayjs();
+    var today = dayjs().startOf('day');
+    var start = typeof getEarliestMenuDate === 'function' ? getEarliestMenuDate() : today.add(1, 'day');
+    var tomorrow = today.add(1, 'day');
+    var studentId = $('#StudentId').val();
+    var scanEnd = start.add(60, 'day').format('YYYY-MM-DD');
 
-    for (var i = 0; i < numberOfDays; i++) {
-        var date = today.add(i, 'day');
-        var dateValue = date.format('YYYY-MM-DD');
-        var slide = document.createElement('div');
-        slide.classList.add('swiper-slide');
-        slide.dataset.date = dateValue;
-        slide.setAttribute('role', 'option');
-        slide.setAttribute('aria-selected', 'false');
-        var dayLabel = i === 0
-            ? 'TODAY'
-            : (i === 1 ? 'TOMORROW' : date.format('ddd').toUpperCase());
-        slide.innerHTML =
-            '<div class="date-day">' + dayLabel + '</div>' +
-            '<div class="date-number">' + date.format('DD') + '</div>' +
-            '<div class="date-month">' + date.format('MMM') + '</div>';
+    function buildSlides(calendarMap) {
+        calendarMap = calendarMap || { holidays: {}, halfDays: {}, days: {} };
+        window.menuSchoolCalendarDays = calendarMap.days || window.menuSchoolCalendarDays || {};
 
-        slide.addEventListener('click', function (selectedDateValue) {
-            return function () {
+        for (var i = 0; i < numberOfDays; i++) {
+            var date = start.add(i, 'day');
+            dateContainer.appendChild(createMenuDateSlide(date, tomorrow, function (selectedDateValue) {
                 selectDateSlide(selectedDateValue, true);
-            };
-        }(dateValue));
+            }));
+        }
 
-        dateContainer.appendChild(slide);
+        var preservedDate = getSelectedMealDate();
+        var firstSlide = dateContainer.querySelector('.swiper-slide[data-date]');
+        var firstDateValue = firstSlide ? firstSlide.getAttribute('data-date') : start.format('YYYY-MM-DD');
+        var dateToSelect = preservedDate && dayjs(preservedDate).isValid() ? preservedDate : firstDateValue;
+        var hasMatchingSlide = !!dateContainer.querySelector('.swiper-slide[data-date="' + dateToSelect + '"]');
+        if (!hasMatchingSlide) {
+            dateToSelect = firstDateValue;
+        }
+        if (!preservedDate && typeof findNextOpenMenuDate === 'function') {
+            var firstOpen = findNextOpenMenuDate(null);
+            if (firstOpen) {
+                dateToSelect = firstOpen;
+            }
+        }
+        selectDateSlide(dateToSelect, true);
+
+        document.getElementById('prev-button').onclick = function () { dateSwiper.slidePrev(); };
+        document.getElementById('next-button').onclick = function () { dateSwiper.slideNext(); };
     }
 
-    var preservedDate = getSelectedMealDate();
-    var firstDateValue = today.format('YYYY-MM-DD');
-    var dateToSelect = preservedDate && dayjs(preservedDate).isValid() ? preservedDate : firstDateValue;
-    var hasMatchingSlide = !!dateContainer.querySelector('.swiper-slide[data-date="' + dateToSelect + '"]');
-    selectDateSlide(hasMatchingSlide ? dateToSelect : firstDateValue, true);
-
-    document.getElementById('prev-button').onclick = function () { dateSwiper.slidePrev(); };
-    document.getElementById('next-button').onclick = function () { dateSwiper.slideNext(); };
+    if (typeof fetchSchoolCalendarDays === 'function' && studentId) {
+        fetchSchoolCalendarDays(studentId, start.format('YYYY-MM-DD'), scanEnd)
+            .then(buildSlides)
+            .catch(function () { buildSlides({ holidays: {}, halfDays: {}, days: {} }); });
+    } else {
+        buildSlides({ holidays: {}, halfDays: {}, days: {} });
+    }
 }
 
 function initSelection() {

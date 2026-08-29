@@ -7,9 +7,9 @@
     var showPaymentNote = ViewData["ShowPaymentNote"] as bool? ?? false;
     var allowRemove = ViewData["AllowSummaryRemove"] as bool? ?? false;
 }
-@if (Model.SelectedPackages.Count > 0)
+@if (Model.SelectedLines.Count > 0)
 {
-    var grouped = Model.SelectedPackages.GroupBy(x => x.MealDate.Date).OrderBy(g => g.Key).ToList();
+    var grouped = Model.SelectedLines.GroupBy(x => x.MealDate.Date).OrderBy(g => g.Key).ToList();
     <div class="ala-carte-summary-dates-wrap">
         <ul class="nav ala-carte-summary-date-tabs" role="tablist">
             @for (var i = 0; i < grouped.Count; i++)
@@ -43,22 +43,29 @@
                 <div class="ala-carte-summary-item-list meal-combo-summary-list">
                     @foreach (var item in group)
                     {
-                        var thumbnailPath = ImageUrlBuilder.GetThumbnailPath(MealImageKind.MealCombo, item.ImageName);
-                        var defaultPath = MealImagePaths.MealComboDefaultThumbnail;
-                        var mealType = string.IsNullOrWhiteSpace(item.MealTypeName) ? "Combo" : item.MealTypeName;
+                        var imageKind = item.IsAddon ? MealImageKind.MealItem : MealImageKind.MealCombo;
+                        var thumbnailPath = ImageUrlBuilder.GetThumbnailPath(imageKind, item.ImageName);
+                        var defaultPath = item.IsAddon
+                            ? MealImagePaths.MealItemDefaultThumbnail
+                            : MealImagePaths.MealComboDefaultThumbnail;
+                        var lineLabel = string.IsNullOrWhiteSpace(item.MealTypeName)
+                            ? (item.IsAddon ? "Meal item" : "Combo")
+                            : item.MealTypeName.Trim();
+                        var mealSessionName = string.IsNullOrWhiteSpace(item.MealSessionName) ? string.Empty : item.MealSessionName.Trim();
                         var mealDateValue = item.MealDate.ToString("yyyy-MM-dd");
 
-                        <div class="ala-carte-summary-item meal-combo-summary-item meal-item"
+                        <div class="ala-carte-summary-item meal-combo-summary-item meal-item@(item.IsAddon ? " is-addon" : " is-combo")"
                              data-selection-id="@item.SelectionId"
-                             data-package-id="@item.Id"
+                             data-package-id="@(item.IsAddon ? 0 : item.Id)"
+                             data-item-id="@(item.IsAddon ? item.Id : 0)"
                              data-meal-date="@mealDateValue">
                             <img src="@thumbnailPath"
-                                 alt="@item.PackageName"
+                                 alt="@item.DisplayName"
                                  class="ala-carte-summary-thumb"
                                  onerror="this.onerror=null;this.src='@defaultPath';" />
                             <div class="ala-carte-summary-item-body">
                                 <div class="ala-carte-summary-item-top">
-                                    <h6 class="ala-carte-summary-item-name">@item.PackageName</h6>
+                                    <h6 class="ala-carte-summary-item-name">@item.DisplayName</h6>
                                     <div class="ala-carte-summary-item-aside">
                                         <span class="ala-carte-price">@currency @item.Price.ToString("0.00")</span>
                                         @if (allowRemove)
@@ -66,17 +73,24 @@
                                             <button type="button"
                                                     class="ala-carte-summary-remove"
                                                     data-selection-id="@item.SelectionId"
-                                                    data-package-id="@item.Id"
+                                                    data-package-id="@(item.IsAddon ? 0 : item.Id)"
+                                                    data-item-id="@(item.IsAddon ? item.Id : 0)"
                                                     data-meal-date="@mealDateValue"
-                                                    title="Remove combo"
-                                                    aria-label="Remove @item.PackageName">
+                                                    title="Remove item"
+                                                    aria-label="Remove @item.DisplayName">
                                                 <i class="ti ti-trash" aria-hidden="true"></i>
                                             </button>
                                         }
                                     </div>
                                 </div>
-                                <span class="ala-carte-summary-meal-type">@mealType</span>
-                                @if (!string.IsNullOrWhiteSpace(item.ItemsName))
+                                <div class="ala-carte-summary-item-meta">
+                                    @if (!string.IsNullOrEmpty(mealSessionName))
+                                    {
+                                        <span class="ala-carte-summary-meal-session">@mealSessionName</span>
+                                    }
+                                    <span class="ala-carte-summary-meal-type">@lineLabel</span>
+                                </div>
+                                @if (!item.IsAddon && !string.IsNullOrWhiteSpace(item.ItemsName))
                                 {
                                     <p class="meal-combo-summary-includes mb-0">Includes: @item.ItemsName</p>
                                 }
@@ -104,7 +118,7 @@ else
         <div class="ala-carte-empty-icon">
             <i class="ti ti-shopping-cart-off"></i>
         </div>
-        <h5>No combos selected</h5>
-        <p class="text-muted mb-0">Go back and tap combos to add them to your order.</p>
+        <h5>No items selected</h5>
+        <p class="text-muted mb-0">Go back and tap combos or add-ons to add them to your order.</p>
     </div>
 }

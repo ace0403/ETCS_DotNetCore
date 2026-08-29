@@ -1,0 +1,87 @@
+@model ETCS.Web.Models.AccountSettingsPageViewModel
+@{
+    ViewData["Title"] = "Account Settings";
+    ViewData["PageSubtitle"] = "Manage your password and account";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/custom/account-settings.css" asp-append-version="true" />
+}
+
+<div class="account-settings-page mt-2 mt-md-0"
+     id="accountSettingsPage"
+     data-send-otp-url="@Url.Action("SendDeleteAccountOtp", "AccountSettings")"
+     data-delete-url="@Url.Action("DeleteAccount", "AccountSettings")">
+    <section class="account-settings-hero">
+        <div class="account-settings-hero-icon" aria-hidden="true">
+            <i class="ti ti-settings"></i>
+        </div>
+        <div>
+            <h2 class="account-settings-hero-title">Account Settings</h2>
+            <p class="account-settings-hero-text mb-0">
+                Signed in as <strong>@Model.DisplayName</strong>
+                @if (!string.IsNullOrWhiteSpace(Model.Email))
+                {
+                    <span>(@Model.Email)</span>
+                }
+            </p>
+        </div>
+    </section>
+
+    <section class="account-settings-card">
+        <div class="account-settings-card-header">
+            <h3 class="account-settings-card-title">Password</h3>
+            <p class="account-settings-card-text mb-0">Update the password you use to sign in to MealHub.</p>
+        </div>
+        <button type="button" class="btn btn-outline-primary js-change-password">
+            <i class="ti ti-lock me-1"></i>Change Password
+        </button>
+    </section>
+
+    <section class="account-settings-card account-settings-danger">
+        <div class="account-settings-card-header">
+            <h3 class="account-settings-card-title text-danger">Delete Account</h3>
+            <p class="account-settings-card-text mb-0">
+                Permanently delete your parent account. This cannot be undone.
+                We will email a verification code to <strong>@Model.Email</strong> before deletion.
+            </p>
+        </div>
+
+        <div id="deleteAccountStepSend" class="delete-account-step" data-step="1">
+            <button type="button" class="btn btn-outline-danger" id="btnSendDeleteOtp">
+                <span>Send verification code</span>
+                <i class="ti ti-mail-forward ms-1"></i>
+            </button>
+        </div>
+
+        <div id="deleteAccountStepConfirm" class="delete-account-step d-none" data-step="2">
+            <p class="small text-muted mb-2">
+                Enter the 6-digit code sent to <strong id="deleteOtpEmailLabel">@Model.Email</strong>.
+            </p>
+            <div class="mb-3" style="max-width: 280px;">
+                <label for="DeleteOtpCode" class="form-label">Verification code</label>
+                <input type="text"
+                       id="DeleteOtpCode"
+                       class="form-control"
+                       inputmode="numeric"
+                       autocomplete="one-time-code"
+                       maxlength="6"
+                       placeholder="6-digit code" />
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                <span class="small text-muted" id="deleteOtpCountdown"></span>
+                <button type="button" class="btn btn-link btn-sm px-0" id="btnResendDeleteOtp" disabled>Resend code</button>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-outline-secondary" id="btnCancelDeleteOtp">Cancel</button>
+                <button type="button" class="btn btn-danger" id="btnConfirmDeleteAccount">
+                    <span>Confirm delete</span>
+                    <i class="ti ti-trash ms-1"></i>
+                </button>
+            </div>
+        </div>
+    </section>
+</div>
+
+@section Scripts {
+    <script src="~/js/custom/account-settings.js" asp-append-version="true"></script>
+}

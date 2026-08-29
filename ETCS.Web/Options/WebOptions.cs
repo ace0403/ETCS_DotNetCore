@@ -8,15 +8,19 @@ public sealed class WebOptions
 
     public string StorePath { get; set; } = string.Empty;
 
-    /// <summary>Public site base URL used for password-reset email links (no trailing slash).</summary>
     public string PublicBaseUrl { get; set; } = string.Empty;
 
-    /// <summary>Support inbox for parent Contact Support mailto.</summary>
     public string SupportEmail { get; set; } = "info@etasteuae.com";
 
-    /// <summary>Optional support phone (shown only when set).</summary>
+    public string SupportInquiriesEmail { get; set; } = "info@etasteuae.com";
+
     public string SupportPhone { get; set; } = string.Empty;
 
-    /// <summary>Optional support hours text (shown only when set).</summary>
     public string SupportHours { get; set; } = string.Empty;
+
+    public int MealOrderCutoffHour { get; set; } = 15;
+
+    public string GooglePlayUrl { get; set; } = string.Empty;
+
+    public string AppStoreUrl { get; set; } = string.Empty;
 }

@@ -43,6 +43,10 @@ public sealed class SchoolSaveRequest
 
     [Display(Name = "Email Alerts")]
     public bool HasEmailNotification { get; set; }
+
+    [Display(Name = "Order Types")]
+    public List<int>? OrderTypeIds { get; set; }
+
     public string? LogoFileName { get; set; }
     public string? PdfPath { get; set; }
 }

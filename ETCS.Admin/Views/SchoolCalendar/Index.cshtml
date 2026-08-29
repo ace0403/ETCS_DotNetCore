@@ -1,0 +1,129 @@
+@using ETCS.Shared.Enumeration
+@using ETCS.Shared.Infrastructure.Admin.Master.Students
+@using ETCS.Shared.Infrastructure.Schools.Calendar
+@{
+    ViewData["Title"] = "School Calendar";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewBag.AdminModuleKey = "SchoolCalendar";
+    var schools = ViewBag.Schools as IReadOnlyList<SchoolLookupDto> ?? [];
+    var selectedSchoolId = (int)(ViewBag.SelectedSchoolId ?? 0);
+    var weekly = ViewBag.WeeklyDays as IReadOnlyList<SchoolWeeklyDayDto> ?? [];
+    var weeklyMap = weekly.ToDictionary(x => x.DayOfWeek, x => x.DayStatus);
+
+    string[] dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+}
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="schoolCalendarSchoolId" class="form-label">School</label>
+                <select id="schoolCalendarSchoolId" class="form-select">
+                    @foreach (var school in schools)
+                    {
+                        if (school.Id == selectedSchoolId)
+                        {
+                            <option value="@school.Id" selected>@school.Name</option>
+                        }
+                        else
+                        {
+                            <option value="@school.Id">@school.Name</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-8">
+                <p class="text-muted mb-0 small">
+                    Weekly defaults: Mon–Thu full day, Friday half day, Sat–Sun holiday.
+                    Date-based holidays below override the weekly template for that day.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Weekly schedule</h5>
+        <button type="button" class="btn btn-primary btn-sm" id="btnSaveWeeklySchedule">Save weekly schedule</button>
+    </div>
+    <div class="card-body">
+        <form id="frmWeeklySchedule">
+            <input type="hidden" name="SchoolId" id="weeklySchoolId" value="@selectedSchoolId" />
+            <div class="row g-3">
+                @for (byte d = 0; d <= 6; d++)
+                {
+                    var status = weeklyMap.TryGetValue(d, out var s) ? s : (byte)SchoolDayStatus.FullDay;
+                    <div class="col-md-6 col-lg-4">
+                        <label class="form-label">@dayNames[d]</label>
+                        <input type="hidden" name="Days[@d].DayOfWeek" value="@d" />
+                        <select name="Days[@d].DayStatus" class="form-select weekly-day-status">
+                            @if (status == (byte)SchoolDayStatus.Holiday)
+                            {
+                                <option value="0" selected>Holiday</option>
+                            }
+                            else
+                            {
+                                <option value="0">Holiday</option>
+                            }
+                            @if (status == (byte)SchoolDayStatus.FullDay)
+                            {
+                                <option value="1" selected>Full day</option>
+                            }
+                            else
+                            {
+                                <option value="1">Full day</option>
+                            }
+                            @if (status == (byte)SchoolDayStatus.HalfDay)
+                            {
+                                <option value="2" selected>Half day</option>
+                            }
+                            else
+                            {
+                                <option value="2">Half day</option>
+                            }
+                        </select>
+                    </div>
+                }
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Other holidays (by date)</h5>
+    </div>
+    <div class="card-body">
+        <div class="admin-grid-toolbar">
+            <partial name="_AdminGridSearch" />
+            <partial name="_AdminGridSchoolFilter" />
+            <div class="admin-grid-actions">
+                <partial name="_AdminAddButton" />
+            </div>
+        </div>
+        <div class="table-responsive admin-grid-table-scroll">
+            <table id="grid_table" class="table table-striped table-bordered w-100" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>School</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Title</th>
+                        <th class="text-center" style="width:70px"></th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addDataModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" id="div_add"></div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>window.adminModuleKey = 'SchoolCalendar';</script>
+    <script src="~/js/custom/schoolcalendar.js" asp-append-version="true"></script>
+}

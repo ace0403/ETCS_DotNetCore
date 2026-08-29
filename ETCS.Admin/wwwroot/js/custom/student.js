@@ -1,5 +1,7 @@
 var myTable = initAdminDataTable('#grid_table', 'student/getlist', [
+    { data: 'UserId', visible: false },
     { data: 'StudCode' }, { data: 'Name' }, { data: 'SchoolName' }, { data: 'GuardianName' }, { data: 'Balance' },
+    { data: 'CreatedAt', render: function (d) { return formatReportDate(d); } },
     {
         data: 'UserId',
         orderable: false,
@@ -7,7 +9,7 @@ var myTable = initAdminDataTable('#grid_table', 'student/getlist', [
         className: 'text-center admin-action-cell',
         render: function (d) { return adminActionEditDelete(d); }
     }
-], { schoolFilterSelector: '#adminGridSchoolFilter' });
+], { order: [[0, 'desc']], schoolFilterSelector: '#adminGridSchoolFilter' });
 
 function initStudentAllergyMultiselect() {
     initAllergyMultiselect();
@@ -18,8 +20,9 @@ function loadData(id) {
         $('#div_add').html(h);
         $('#addDataModal').modal('show');
         initStudentAllergyMultiselect();
+        initStudentCardNo($('#frmStudent'));
         bindAdminFormSave('#frmStudent', function ($form) {
-            $.post(SiteUrl + 'student/save', $form.serialize(), function (r) {
+            $.post(SiteUrl + 'student/save', serializeStudentCardForm($form), function (r) {
                 toastMsg(r.Message, r.Success);
                 if (r.Success) { myTable.ajax.reload(); $('#addDataModal').modal('hide'); }
             });

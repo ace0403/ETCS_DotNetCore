@@ -121,6 +121,29 @@ public sealed class SqlRefreshTokenStore : IRefreshTokenStore
             .ConfigureAwait(false);
     }
 
+    public async Task RevokeAllByUserIdAsync(int userId, CancellationToken cancellationToken)
+    {
+        if (userId <= 0)
+        {
+            return;
+        }
+
+        await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
+
+        using var connection = _connectionFactory.CreateConnection();
+        var db = (DbConnection)connection;
+        await db.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        var sql = $"""
+            UPDATE {_qualifiedTableName}
+            SET RevokedAtUtc = SYSUTCDATETIME()
+            WHERE UserId = @UserId AND RevokedAtUtc IS NULL;
+            """;
+
+        await db.ExecuteAsync(new CommandDefinition(sql, new { UserId = userId }, cancellationToken: cancellationToken))
+            .ConfigureAwait(false);
+    }
+
     public async Task RemoveAsync(string refreshToken, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);

@@ -1,0 +1,100 @@
+@model ETCS.Web.Models.OrderCalendarPageViewModel
+@inject Microsoft.Extensions.Options.IOptions<ETCS.Web.Options.WebOptions> WebOptions
+@using System.Text.Json
+@using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums
+@{
+    ViewData["Title"] = "Order Calendar";
+    ViewData["PageSubtitle"] = "Meals scheduled by serving date";
+    var currency = WebOptions.Value.DisplayCurrency;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" />
+    <link rel="stylesheet" href="~/css/custom/order-calendar.css" asp-append-version="true" />
+}
+
+<div class="order-calendar-page mt-2 mt-md-0"
+     id="orderCalendarPage"
+     data-events-url="@Url.Action("Events", "OrderCalendar")"
+     data-school-days-url="@Url.Action("SchoolDays", "OrderCalendar")"
+     data-detail-url="@Url.Action("Detail", "History")"
+     data-currency="@currency">
+    <div class="order-calendar-panel order-calendar-filters">
+        <div class="order-calendar-filter-grid">
+            <div class="order-calendar-filter-field">
+                <label for="calendarStudentId" class="order-calendar-label">Child</label>
+                <select id="calendarStudentId" class="form-select order-calendar-select">
+                    <option value="">All children</option>
+                    @foreach (var child in Model.Children)
+                    {
+                        if (Model.SelectedStudentId == child.StudentId)
+                        {
+                            <option value="@child.StudentId" selected>@child.Name</option>
+                        }
+                        else
+                        {
+                            <option value="@child.StudentId">@child.Name</option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <div class="order-calendar-filter-field order-calendar-legend-wrap">
+                <span class="order-calendar-label">Legend</span>
+                <div class="order-calendar-legend" aria-label="Calendar legend">
+                    <span class="order-calendar-legend-item">
+                        <span class="order-calendar-legend-swatch tone-combo" aria-hidden="true"></span>
+                        Meal Plan
+                    </span>
+                    <span class="order-calendar-legend-item">
+                        <span class="order-calendar-legend-swatch tone-alacarte" aria-hidden="true"></span>
+                        A La Carte
+                    </span>
+                    <span class="order-calendar-legend-item">
+                        <span class="order-calendar-legend-swatch tone-holiday" aria-hidden="true"></span>
+                        Holiday
+                    </span>
+                    <span class="order-calendar-legend-item">
+                        <span class="order-calendar-legend-swatch tone-halfday" aria-hidden="true"></span>
+                        Half day
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="order-calendar-panel order-calendar-shell">
+        <div id="orderCalendar" aria-label="Order calendar"></div>
+    </div>
+</div>
+
+<div class="modal fade" id="orderCalendarModal" tabindex="-1" aria-labelledby="orderCalendarModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content order-calendar-modal">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="orderCalendarModalLabel">Meal details</h5>
+                    <p class="order-calendar-modal-subtitle mb-0" id="orderCalendarModalDate"></p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="order-calendar-modal-meta">
+                    <span class="order-calendar-modal-child" id="orderCalendarModalChild"></span>
+                    <span class="order-calendar-modal-badge" id="orderCalendarModalType"></span>
+                </div>
+                <ul class="order-calendar-modal-items" id="orderCalendarModalItems"></ul>
+            </div>
+            <div class="modal-footer">
+                <a href="#" class="btn btn-outline-primary d-none" id="orderCalendarModalLink">View order</a>
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    <script>window.ORDER_TYPE_IDS = @Html.Raw(JsonSerializer.Serialize(OrderTypeJavaScriptIds.Map));</script>
+    <script src="~/js/custom/order-calendar.js" asp-append-version="true"></script>
+}

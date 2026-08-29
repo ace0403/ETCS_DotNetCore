@@ -167,12 +167,26 @@ function resetFrom(formId) {
     });
 }
 
-function initMultiSelect(id) {
-    $('#' + id).multiselect({
+function initAdminMultiSelect(id) {
+    var $el = $('#' + id);
+    if (!$el.length || typeof $.fn.multiselect !== 'function') return;
+    if ($el.data('multiselect')) {
+        $el.multiselect('destroy');
+    }
+    initMultiSelect(id);
+}
+
+function initMultiSelect(id, extraOptions) {
+    var $el = $('#' + id);
+    if (!$el.length || typeof $.fn.multiselect !== 'function') return;
+
+    var options = $.extend(true, {
         templates: {
             button: '<button type="button" class="multiselect" data-bs-toggle="dropdown" aria-expanded="false"><span class="multiselect-selected-text"></span></button>',
         },
-    });
+    }, extraOptions || {});
+
+    $el.multiselect(options);
 
     var validator = $("form").data("validator");
     if (validator) {
@@ -180,13 +194,17 @@ function initMultiSelect(id) {
     }
 }
 
+function initOrderTypeMultiselect() {
+    initAdminMultiSelect('OrderTypeIds');
+}
+
 function initAllergyMultiselect() {
-    var $el = $('#AllergyItemIds');
-    if (!$el.length) return;
-    if ($el.data('multiselect')) {
-        $el.multiselect('destroy');
+    initAdminMultiSelect('AllergyItemIds');
+
+    var $orderTypes = $('#OrderTypeIds');
+    if ($orderTypes.length) {
+        initOrderTypeMultiselect();
     }
-    initMultiSelect('AllergyItemIds');
 }
 
 function initAdminFormValidation(formSelector) {
@@ -220,6 +238,139 @@ function validateAdminForm(formSelector) {
     return true;
 }
 
+function studentCardDigitsOnly(value) {
+    return (value || '').replace(/\D/g, '');
+}
+
+function isNumericSchoolCode(code) {
+    return /^[0-9]+$/.test(code || '');
+}
+
+function getStudentCardInput($form) {
+    return $form.find('.js-student-card-input').first();
+}
+
+function getStudentCardPrefix($form) {
+    return $.trim($form.find('.js-student-card-prefix').text());
+}
+
+function syncStudentCardPrefix($form) {
+    var $prefix = $form.find('.js-student-card-prefix');
+    var $suffix = $form.find('.js-student-card-suffix');
+    if (!$prefix.length || !$suffix.length) {
+        return;
+    }
+
+    var code = ($form.find('.js-student-card-school option:selected').attr('data-school-code') || '').trim();
+    if (isNumericSchoolCode(code)) {
+        $prefix.text(code);
+        $suffix.prop('disabled', false);
+        $suffix.attr('maxlength', Math.max(1, 50 - code.length));
+    } else {
+        $prefix.text('—');
+        $suffix.prop('disabled', true).val('');
+        $suffix.attr('maxlength', 50);
+    }
+}
+
+function initStudentCardNo($form) {
+    if (!$form || !$form.length) {
+        return;
+    }
+
+    $form.find('.js-student-card-input').off('.studentCard').on('input.studentCard', function () {
+        var $input = $(this);
+        var digits = studentCardDigitsOnly($input.val());
+        if ($input.val() !== digits) {
+            $input.val(digits);
+        }
+    }).on('paste.studentCard', function (e) {
+        e.preventDefault();
+        var clipboard = (e.originalEvent && e.originalEvent.clipboardData)
+            ? e.originalEvent.clipboardData.getData('text')
+            : '';
+        $(this).val(studentCardDigitsOnly(clipboard)).trigger('input');
+    }).on('keypress.studentCard', function (e) {
+        if (!e.which) {
+            return;
+        }
+        var ch = String.fromCharCode(e.which);
+        if (!/[0-9]/.test(ch)) {
+            e.preventDefault();
+        }
+    });
+
+    $form.find('.js-student-card-school').off('change.studentCard').on('change.studentCard', function () {
+        syncStudentCardPrefix($form);
+    });
+    syncStudentCardPrefix($form);
+}
+
+function validateStudentCardNo($form) {
+    var $input = getStudentCardInput($form);
+    if (!$input.length) {
+        return true;
+    }
+
+    if ($input.hasClass('js-student-card-suffix')) {
+        var prefix = getStudentCardPrefix($form);
+        if (!isNumericSchoolCode(prefix)) {
+            toastMsg('Selected school does not have a numeric school code.', false);
+            return false;
+        }
+        var suffix = studentCardDigitsOnly($input.val());
+        if (!suffix) {
+            toastMsg('Student card number is required.', false);
+            return false;
+        }
+        if (prefix.length + suffix.length > 50) {
+            toastMsg('Student card number is too long.', false);
+            return false;
+        }
+        return true;
+    }
+
+    var card = studentCardDigitsOnly($input.val());
+    if (!card) {
+        toastMsg('Student card number is required.', false);
+        return false;
+    }
+    $input.val(card);
+    return true;
+}
+
+function getStudentCardDisplayValue($form) {
+    var $input = getStudentCardInput($form);
+    if (!$input.length) {
+        return '';
+    }
+    if ($input.hasClass('js-student-card-suffix')) {
+        return getStudentCardPrefix($form) + studentCardDigitsOnly($input.val());
+    }
+    return studentCardDigitsOnly($input.val());
+}
+
+function serializeStudentCardForm($form) {
+    var $suffix = $form.find('.js-student-card-suffix');
+    if (!$suffix.length) {
+        var $input = getStudentCardInput($form);
+        if ($input.length) {
+            $input.val(studentCardDigitsOnly($input.val()));
+        }
+        return $form.serialize();
+    }
+
+    var suffix = studentCardDigitsOnly($suffix.val());
+    var prefix = getStudentCardPrefix($form);
+    var wasDisabled = $suffix.prop('disabled');
+    $suffix.prop('disabled', false);
+    $suffix.val(prefix + suffix);
+    var data = $form.serialize();
+    $suffix.val(suffix);
+    $suffix.prop('disabled', wasDisabled);
+    return data;
+}
+
 function runAdminFormCustomRules(formSelector) {
     var $form = $(formSelector);
     if (!$form.length) return true;
@@ -249,10 +400,8 @@ function runAdminFormCustomRules(formSelector) {
         }
     }
 
-    if ($form.is('#frmMealCombo')) {
-        var selectedItems = $form.find('#MealItemIds option:selected').length;
-        if (selectedItems === 0) {
-            toastMsg('Select at least one meal item.', false);
+    if ($form.is('#frmStudent, #frmAddStudent, #frmEditStudent')) {
+        if (!validateStudentCardNo($form)) {
             return false;
         }
     }

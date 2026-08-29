@@ -99,6 +99,15 @@ body.pos-login-page {
     color: var(--pos-login-ink);
 }
 
+.p-0 {
+    padding: 0px !important;
+}
+
+.pr-0 {
+    padding-right: 0px !important;
+}
+
+
 .pos-login-input-wrap {
     display: flex;
     align-items: center;
@@ -139,12 +148,16 @@ body.pos-login-page {
     font-size: 1rem;
     color: var(--pos-login-ink);
     min-height: calc(var(--pos-login-touch) - 2px);
-    padding: 0;
+    padding: 0.7rem 0.85rem !important;
 }
 
-.pos-login-input::placeholder {
-    color: #9aa7b5;
-}
+    .pos-login-input.username {
+        border-start-end-radius: 12px;
+        border-end-end-radius: 12px;
+    }
+    .pos-login-input::placeholder {
+        color: #9aa7b5;
+    }
 
 .pos-login-toggle {
     position: relative;

@@ -1,9 +1,11 @@
 using ETCS.PaymentGateway.Abstractions;
 using ETCS.PaymentGateway.Models;
 using ETCS.Shared.Application.Background;
+using ETCS.Shared.Application.Students;
 using ETCS.Shared.Enumeration;
 using ETCS.Shared.Helpers;
 using ETCS.Shared.Infrastructure.Orders;
+using ETCS.Shared.Infrastructure.Schools.Calendar;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Infrastructure.Transaction;
 using System.Globalization;
@@ -18,6 +20,8 @@ public sealed class OrderInitiateService : IOrderInitiateService
     private readonly IPaymentGatewayRepository _paymentGatewayRepository;
     private readonly ITransactionRepository _transactionRepository;
     private readonly IPaymentBackgroundQueue _paymentBackgroundQueue;
+    private readonly IStudentOrderTypeAccessService _orderTypeAccess;
+    private readonly ISchoolCalendarService _schoolCalendar;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -29,17 +33,30 @@ public sealed class OrderInitiateService : IOrderInitiateService
         IStudentRepository studentRepository,
         IPaymentGatewayRepository paymentGatewayRepository,
         ITransactionRepository transactionRepository,
-        IPaymentBackgroundQueue paymentBackgroundQueue)
+        IPaymentBackgroundQueue paymentBackgroundQueue,
+        IStudentOrderTypeAccessService orderTypeAccess,
+        ISchoolCalendarService schoolCalendar)
     {
         _mealOrderRepository = mealOrderRepository;
         _studentRepository = studentRepository;
         _paymentGatewayRepository = paymentGatewayRepository;
         _transactionRepository = transactionRepository;
         _paymentBackgroundQueue = paymentBackgroundQueue;
+        _orderTypeAccess = orderTypeAccess;
+        _schoolCalendar = schoolCalendar;
     }
 
     public async Task<OrderInitiateResponse> InitiateAsync(OrderInitiateRequest request, CancellationToken cancellationToken)
     {
+        if (!await _orderTypeAccess.IsAllowedAsync(request.StudentId, request.OrderTypeId, cancellationToken))
+        {
+            return new OrderInitiateResponse
+            {
+                IsSuccess = false,
+                Message = _orderTypeAccess.GetDeniedMessage(request.OrderTypeId)
+            };
+        }
+
         var generatedOrderId = OrderIdGenerator.GenerateForStudent(request.StudentId);
 
         var lineTotal = request.MealList.Sum(x => x.Price);
@@ -50,6 +67,23 @@ public sealed class OrderInitiateService : IOrderInitiateService
                 IsSuccess = false,
                 Message = "Total does not match sum of meal item prices."
             };
+        }
+
+        var schoolId = await _studentRepository.GetStudentSchoolIdAsync(request.StudentId, cancellationToken);
+        if (schoolId is > 0)
+        {
+            foreach (var meal in request.MealList.OrderBy(x => x.MealDate))
+            {
+                if (!await _schoolCalendar.IsOrderableAsync(schoolId.Value, meal.MealDate.Date, cancellationToken))
+                {
+                    var day = await _schoolCalendar.GetDayInfoAsync(schoolId.Value, meal.MealDate.Date, cancellationToken);
+                    return new OrderInitiateResponse
+                    {
+                        IsSuccess = false,
+                        Message = day.GetClosedOrderMessage(meal.MealDate.Date)
+                    };
+                }
+            }
         }
 
         var guardianDetail = await _studentRepository.GetGuardianBasicDetailByStudentIdAsync(

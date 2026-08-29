@@ -82,8 +82,7 @@ public sealed class OrderPaymentSummaryBuilder
                     order.StudentId,
                     schoolId.Value,
                     mealDate,
-                    mealTypeId: null,
-                    cancellationToken);
+                    cancellationToken: cancellationToken);
 
                 foreach (var menuItem in menuItems)
                 {
@@ -138,6 +137,7 @@ public sealed class OrderPaymentSummaryBuilder
         var studentName = await GetStudentNameAsync(guardianId, order.StudentId, cancellationToken);
         var schoolId = await _studentRepository.GetStudentSchoolIdAsync(order.StudentId, cancellationToken);
         var packageLookup = new Dictionary<(int PackageId, DateTime MealDate), MealPackageDto>();
+        var itemLookup = new Dictionary<(int ItemId, DateTime MealDate), MealItemDto>();
 
         if (schoolId is > 0)
         {
@@ -147,12 +147,22 @@ public sealed class OrderPaymentSummaryBuilder
                     order.StudentId,
                     schoolId.Value,
                     mealDate,
-                    mealTypeId: null,
-                    cancellationToken);
+                    cancellationToken: cancellationToken);
 
                 foreach (var package in packages)
                 {
                     packageLookup[(package.Id, mealDate)] = package;
+                }
+
+                var menuItems = await _mealRepository.GetMealItemsForStudentAsync(
+                    order.StudentId,
+                    schoolId.Value,
+                    mealDate,
+                    cancellationToken: cancellationToken);
+
+                foreach (var menuItem in menuItems)
+                {
+                    itemLookup[(menuItem.Id, mealDate)] = menuItem;
                 }
             }
         }
@@ -160,6 +170,26 @@ public sealed class OrderPaymentSummaryBuilder
         var summaryItems = order.LineItems
             .Select(line =>
             {
+                if (line.ItemId is > 0)
+                {
+                    itemLookup.TryGetValue((line.ItemId.Value, line.MealDate.Date), out var menuItem);
+                    return new MealComboSummaryItem
+                    {
+                        Id = line.ItemId.Value,
+                        SelectionId = Guid.Empty,
+                        IsAddon = true,
+                        ItemName = string.IsNullOrWhiteSpace(line.ItemName)
+                            ? menuItem?.ItemName ?? "Add-on"
+                            : line.ItemName,
+                        MealTypeName = menuItem?.MealTypeName ?? string.Empty,
+                        MealSessionName = menuItem?.MealSessionName ?? string.Empty,
+                        Detail = menuItem?.Detail,
+                        Price = line.ItemPrice,
+                        MealDate = line.MealDate,
+                        ImageName = menuItem?.ImageName
+                    };
+                }
+
                 MealPackageDto? package = null;
                 if (line.PackageId is > 0)
                 {
@@ -170,11 +200,13 @@ public sealed class OrderPaymentSummaryBuilder
                 {
                     Id = line.PackageId ?? line.Id,
                     SelectionId = Guid.Empty,
+                    IsAddon = false,
                     PackageName = string.IsNullOrWhiteSpace(line.ItemName)
                         ? package?.PackageName ?? "Meal combo"
                         : line.ItemName,
                     ItemsName = package?.ItemsName ?? string.Empty,
                     MealTypeName = package?.MealTypeName ?? string.Empty,
+                    MealSessionName = package?.MealSessionName ?? string.Empty,
                     Detail = package?.Detail,
                     Price = line.ItemPrice,
                     MealDate = line.MealDate,
@@ -187,7 +219,7 @@ public sealed class OrderPaymentSummaryBuilder
         {
             OrderAmount = order.Total,
             StudentName = studentName,
-            SelectedPackages = summaryItems
+            SelectedLines = summaryItems
         };
     }
 

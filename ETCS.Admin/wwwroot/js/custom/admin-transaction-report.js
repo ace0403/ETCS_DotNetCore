@@ -55,7 +55,8 @@ function getAdminTxnReportFilters() {
         SchoolCode: $('#ddlSchool').val() || '',
         TerminalCode: $('#ddlTerminal').val() || '',
         TransactionType: $('#ddlTransactionType').val() || '',
-        StudentCardNo: $.trim($('#txtStudCode').val())
+        StudentCardNo: $.trim($('#txtStudCode').val()),
+        TransactionId: $.trim($('#txtTransactionId').val())
     };
 }
 
@@ -139,6 +140,7 @@ function initAdminTxnReportTable() {
         payload.TerminalCode = filters.TerminalCode;
         payload.TransactionType = filters.TransactionType;
         payload.StudentCardNo = filters.StudentCardNo;
+        payload.TransactionId = filters.TransactionId;
     };
 
     ajaxConfig.dataFilter = function (raw) {
@@ -236,6 +238,7 @@ function exportAdminTxnReport() {
     $('#exportTerminalCode').val(filters.TerminalCode);
     $('#exportTransactionType').val(filters.TransactionType);
     $('#exportStudentCardNo').val(filters.StudentCardNo);
+    $('#exportTransactionId').val(filters.TransactionId);
     $('#frmExport').trigger('submit');
 }
 

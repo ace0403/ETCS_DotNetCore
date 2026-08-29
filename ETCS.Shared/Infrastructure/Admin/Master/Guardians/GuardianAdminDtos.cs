@@ -121,6 +121,7 @@ public class GuardianAddStudentRequest
     [Required(ErrorMessage = "Student card number is required.")]
     [Display(Name = "Student Card No")]
     [MaxLength(50)]
+    [RegularExpression(@"^\d+$", ErrorMessage = "Student card number must contain digits only.")]
     public string StudentCardNo { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "First name is required.")]
@@ -152,6 +153,9 @@ public class GuardianAddStudentRequest
     [Display(Name = "Allergies")]
     public List<int>? AllergyItemIds { get; set; }
 
+    [Display(Name = "Order Types")]
+    public List<int>? OrderTypeIds { get; set; }
+
     [Display(Name = "Daily Spend Limit")]
     [Range(0, double.MaxValue, ErrorMessage = "Daily spend limit cannot be negative.")]
     public decimal? DailySpendLimit { get; set; }
@@ -159,6 +163,9 @@ public class GuardianAddStudentRequest
     [Display(Name = "Weekly Spend Limit")]
     [Range(0, double.MaxValue, ErrorMessage = "Weekly spend limit cannot be negative.")]
     public decimal? WeeklySpendLimit { get; set; }
+
+    [Display(Name = "Low balance email notification")]
+    public bool LowBalanceEmailNotification { get; set; } = true;
 }
 
 public sealed class GuardianEditStudentRequest : GuardianAddStudentRequest

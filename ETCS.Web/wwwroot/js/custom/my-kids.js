@@ -33,12 +33,13 @@ function openAddKid() {
         prepareKidModal($modal, '#div_add_kid');
         $modal.modal('show');
         initAllergyMultiselect('#div_add_kid');
+        initStudentCardNo($('#frmAddStudent'));
         bindAdminFormSave('#frmAddStudent', function ($form) {
             var firstName = $form.find('[name="FirstName"]').val();
-            var cardNo = $form.find('[name="StudentCardNo"]').val();
+            var cardNo = getStudentCardDisplayValue($form);
             showConfirmation('Add child ' + firstName + ' (' + cardNo + ')?', 'Add Child').then(function (result) {
                 if (!result.isConfirmed) return;
-                $.post(SiteUrl + 'mykids/addstudent', $form.serialize(), function (r) {
+                $.post(SiteUrl + 'mykids/addstudent', serializeStudentCardForm($form), function (r) {
                     var result = readAdminResult(r);
                     if (result.success) {
                         $('#addKidModal').one('hidden.bs.modal', function () {
@@ -61,8 +62,9 @@ function openEditKid(userId) {
         prepareKidModal($modal, '#div_edit_kid');
         $modal.modal('show');
         initAllergyMultiselect('#div_edit_kid');
+        initStudentCardNo($('#frmEditStudent'));
         bindAdminFormSave('#frmEditStudent', function ($form) {
-            $.post(SiteUrl + 'mykids/editstudent', $form.serialize(), function (r) {
+            $.post(SiteUrl + 'mykids/editstudent', serializeStudentCardForm($form), function (r) {
                 var result = readAdminResult(r);
                 if (result.success) {
                     // Show toast after close so it isn't trapped under the modal backdrop.

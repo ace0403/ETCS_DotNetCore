@@ -20,7 +20,9 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient<IPaymentGatewayRepository, ComtrustPaymentGatewayRepository>((serviceProvider, client) =>
         {
             var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<PaymentGatewayOptions>>().Value;
-            client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds <= 0 ? 600 : options.TimeoutSeconds);
+            // Overall HttpClient ceiling; session create also applies SessionTimeoutSeconds per call.
+            var timeoutSeconds = options.TimeoutSeconds <= 0 ? 120 : Math.Min(options.TimeoutSeconds, 120);
+            client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
         })
         .AddPolicyHandler(GetRetryPolicy());
 
@@ -29,9 +31,10 @@ public static class ServiceCollectionExtensions
 
     private static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
     {
+        // One short retry only — demo PG hangs make multi-retry very slow.
         return HttpPolicyExtensions
             .HandleTransientHttpError()
             .Or<IOException>()
-            .WaitAndRetryAsync(2, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
+            .WaitAndRetryAsync(1, _ => TimeSpan.FromSeconds(2));
     }
 }

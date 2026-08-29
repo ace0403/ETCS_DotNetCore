@@ -17,4 +17,6 @@ public sealed class TopupPendingTransactionState
     public int GuardianId { get; init; }
 
     public string GatewayTransactionId { get; init; } = string.Empty;
+
+    public long? AccessLogId { get; init; }
 }

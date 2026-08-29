@@ -8,7 +8,7 @@
     var chartLabels = JsonSerializer.Serialize(Model.WeeklySpendSeries.Select(p => p.Label).ToList());
     var chartValues = JsonSerializer.Serialize(Model.WeeklySpendSeries.Select(p => p.Value).ToList());
 }
-<div class="topup-page wallet-dashboard mt-4 mt-md-0">
+<div class="topup-page wallet-dashboard mt-2 mt-md-0">
     <section class="wallet-balance-hero" aria-label="Current balance">
         <div class="wallet-balance-hero-copy">
             <span class="wallet-balance-label">
@@ -17,10 +17,23 @@
             </span>
             <span class="wallet-balance-value">@currency @Model.TotalBalance.ToString("0.00")</span>
         </div>
-        <button type="button" class="wallet-topup-btn" data-bs-toggle="modal" data-bs-target="#topupModal">
-            <i class="ti ti-plus" aria-hidden="true"></i>
-            Top Up
-        </button>
+        @if (Model.CanTopup)
+        {
+            <button type="button" class="wallet-topup-btn" data-bs-toggle="modal" data-bs-target="#topupModal">
+                <i class="ti ti-plus" aria-hidden="true"></i>
+                Top Up
+            </button>
+        }
+        else
+        {
+            <button type="button"
+                    class="wallet-topup-btn"
+                    disabled
+                    title="None of your children are allowed to top up.">
+                <i class="ti ti-plus" aria-hidden="true"></i>
+                Top Up
+            </button>
+        }
     </section>
 
     <section class="wallet-card wallet-spend-card" aria-label="Weekly spending">
@@ -51,21 +64,42 @@
                 @foreach (var item in Model.RecentTransactions)
                 {
                     <li class="wallet-txn-item">
-                        <a href="@item.DetailUrl" class="wallet-txn-link">
-                            <span class="wallet-txn-icon @item.IconToneCss" aria-hidden="true">
-                                <i class="ti @item.IconClass"></i>
-                            </span>
-                            <span class="wallet-txn-main">
-                                <span class="wallet-txn-title">@item.Title</span>
-                                <span class="wallet-txn-ref">@item.Reference</span>
-                            </span>
-                            <span class="wallet-txn-aside">
-                                <span class="wallet-txn-amount @(item.IsCredit ? "is-credit" : "is-debit")">
-                                    @(item.IsCredit ? "+" : "−")@currency @item.Amount.ToString("0.00")
+                        @if (item.HasDetail)
+                        {
+                            <a href="@item.DetailUrl" class="wallet-txn-link">
+                                <span class="wallet-txn-icon @item.IconToneCss" aria-hidden="true">
+                                    <i class="ti @item.IconClass"></i>
                                 </span>
-                                <span class="wallet-txn-status @item.StatusCss">@item.StatusLabel</span>
-                            </span>
-                        </a>
+                                <span class="wallet-txn-main">
+                                    <span class="wallet-txn-title">@item.Title</span>
+                                    <span class="wallet-txn-ref">@item.Reference</span>
+                                </span>
+                                <span class="wallet-txn-aside">
+                                    <span class="wallet-txn-amount @(item.IsCredit ? "is-credit" : "is-debit")">
+                                        @(item.IsCredit ? "+" : "−")@currency @item.Amount.ToString("0.00")
+                                    </span>
+                                    <span class="wallet-txn-status @item.StatusCss">@item.StatusLabel</span>
+                                </span>
+                            </a>
+                        }
+                        else
+                        {
+                            <div class="wallet-txn-link is-static">
+                                <span class="wallet-txn-icon @item.IconToneCss" aria-hidden="true">
+                                    <i class="ti @item.IconClass"></i>
+                                </span>
+                                <span class="wallet-txn-main">
+                                    <span class="wallet-txn-title">@item.Title</span>
+                                    <span class="wallet-txn-ref">@item.Reference</span>
+                                </span>
+                                <span class="wallet-txn-aside">
+                                    <span class="wallet-txn-amount @(item.IsCredit ? "is-credit" : "is-debit")">
+                                        @(item.IsCredit ? "+" : "−")@currency @item.Amount.ToString("0.00")
+                                    </span>
+                                    <span class="wallet-txn-status @item.StatusCss">@item.StatusLabel</span>
+                                </span>
+                            </div>
+                        }
                     </li>
                 }
             </ul>
@@ -106,7 +140,7 @@
                         </label>
                         <select id="StudentId" name="StudentId" class="form-select topup-select">
                             <option value="">- Select Child -</option>
-                            @foreach (var child in Model.Children)
+                            @foreach (var child in Model.TopupChildren)
                             {
                                 if (child.StudentId == Model.SelectedStudentId)
                                 {
@@ -127,6 +161,10 @@
                                 }
                             }
                         </select>
+                        @if (!Model.CanTopup)
+                        {
+                            <p class="topup-error mt-2 mb-0">None of your children are allowed to top up.</p>
+                        }
                     </div>
 
                     <div class="topup-field">
@@ -152,27 +190,31 @@
                             <i class="ti ti-click"></i> Quick amounts
                         </span>
                         <div class="topup-chips" id="quickAmounts" role="group" aria-label="Quick amounts">
-                            <button type="button" class="topup-chip" data-amount="10">
-                                <span class="topup-chip-currency">@currency</span>
-                                <span class="topup-chip-value">10</span>
-                            </button>
-                            <button type="button" class="topup-chip" data-amount="25">
-                                <span class="topup-chip-currency">@currency</span>
-                                <span class="topup-chip-value">25</span>
-                            </button>
-                            <button type="button" class="topup-chip" data-amount="50">
-                                <span class="topup-chip-currency">@currency</span>
-                                <span class="topup-chip-value">50</span>
-                            </button>
                             <button type="button" class="topup-chip" data-amount="100">
                                 <span class="topup-chip-currency">@currency</span>
                                 <span class="topup-chip-value">100</span>
+                            </button>
+                            <button type="button" class="topup-chip" data-amount="200">
+                                <span class="topup-chip-currency">@currency</span>
+                                <span class="topup-chip-value">200</span>
+                            </button>
+                            <button type="button" class="topup-chip" data-amount="300">
+                                <span class="topup-chip-currency">@currency</span>
+                                <span class="topup-chip-value">300</span>
+                            </button>
+                            <button type="button" class="topup-chip" data-amount="400">
+                                <span class="topup-chip-currency">@currency</span>
+                                <span class="topup-chip-value">400</span>
+                            </button>
+                            <button type="button" class="topup-chip" data-amount="500">
+                                <span class="topup-chip-currency">@currency</span>
+                                <span class="topup-chip-value">500</span>
                             </button>
                         </div>
                     </div>
 
                     <div class="topup-actions">
-                        <button type="button" id="btnTopupConfirm" class="topup-confirm-btn">
+                        <button type="button" id="btnTopupConfirm" class="topup-confirm-btn" @(Model.CanTopup ? null : "disabled")>
                             <i class="ti ti-credit-card"></i>
                             <span>Confirm Top-up</span>
                         </button>

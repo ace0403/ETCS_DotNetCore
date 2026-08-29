@@ -8,7 +8,7 @@
     var isAlaCarte = Model.OrderTypeId == (int)TransactionTypeEnum.A_La_Carte;
     var isCombo = Model.OrderTypeId == (int)TransactionTypeEnum.MealOrder;
     var hasAlaCarteSummary = Model.IsSuccess && Model.AlaCarteSummary is { SelectedMeals.Count: > 0 };
-    var hasComboSummary = Model.IsSuccess && Model.ComboSummary is { SelectedPackages.Count: > 0 };
+    var hasComboSummary = Model.IsSuccess && Model.ComboSummary is { SelectedLines.Count: > 0 };
     var hasSummary = hasAlaCarteSummary || hasComboSummary;
     var backController = isCombo ? "MealCombo" : "AlaCarte";
     var backLabel = isCombo ? "Back to Meal Combo" : "Back to Ala-Carte";
@@ -23,7 +23,7 @@
 
 @if (hasSummary)
 {
-    <div class="ala-carte-receipt-page">
+    <div class="ala-carte-receipt-page mt-2 mt-md-0">
         <div class="ala-carte-receipt-success-banner">
             <div class="ala-carte-receipt-success-icon" aria-hidden="true">
                 <i class="ti ti-circle-check"></i>
@@ -57,8 +57,13 @@
                     {
                         var summary = Model.ComboSummary!;
                         var childLabel = string.IsNullOrWhiteSpace(summary.StudentName) ? "your child" : summary.StudentName;
+                        var comboCount = summary.SelectedLines.Count(x => !x.IsAddon);
+                        var addonCount = summary.SelectedLines.Count(x => x.IsAddon);
+                        var countParts = new List<string>();
+                        if (comboCount > 0) countParts.Add($"{comboCount} {(comboCount == 1 ? "combo" : "combos")}");
+                        if (addonCount > 0) countParts.Add($"{addonCount} {(addonCount == 1 ? "add-on" : "add-ons")}");
                         <p class="ala-carte-summary-meta mb-0 ps-1">
-                            @summary.ItemCount @(summary.ItemCount == 1 ? "combo" : "combos")
+                            @string.Join(" · ", countParts)
                             · @summary.DayCount @(summary.DayCount == 1 ? "day" : "days")
                             · for @childLabel
                         </p>

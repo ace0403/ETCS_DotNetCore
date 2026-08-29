@@ -101,10 +101,12 @@ public class StudentController : Controller
         var schools = await _repository.SchoolLookupsAsync(cancellationToken);
         var grades = await _repository.GradeLookupsAsync(cancellationToken);
         var allergies = await _mealEnumRepository.GetByTypeIdAsync(MealEnumTypeIds.FoodAllergy, cancellationToken);
+        var orderTypes = await _mealEnumRepository.GetStudentOrderTypesAsync(cancellationToken);
 
         ViewBag.Guardians = new SelectList(guardians, "Id", "Name");
         ViewBag.Grades = grades;
         ViewBag.Schools = _schoolScope.FilterSchools(schools, s => s.Id);
         ViewBag.Allergies = new SelectList(allergies, "Id", "Name");
+        ViewBag.OrderTypes = new SelectList(orderTypes, "Id", "Name");
     }
 }

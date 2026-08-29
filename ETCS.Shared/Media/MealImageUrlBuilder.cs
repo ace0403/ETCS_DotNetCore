@@ -171,4 +171,27 @@ public sealed class MealImageUrlBuilder
 
         return $"{baseUrl}{path}";
     }
+
+    public string? BuildSchoolLogoUrl(string? fileName)
+    {
+        if (TryGetPassthroughImagePath(fileName, out var passthrough))
+        {
+            if (passthrough.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                || passthrough.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                || passthrough.StartsWith("//", StringComparison.Ordinal))
+            {
+                return passthrough;
+            }
+
+            return CombineBaseUrl(passthrough);
+        }
+
+        var normalized = NormalizeFileName(fileName);
+        if (normalized is null)
+        {
+            return null;
+        }
+
+        return CombineBaseUrl($"/SchoolLogo/{normalized}");
+    }
 }

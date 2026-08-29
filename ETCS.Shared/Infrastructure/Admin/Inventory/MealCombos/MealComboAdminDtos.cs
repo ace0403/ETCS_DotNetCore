@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using ETCS.Shared.Infrastructure.Admin.Inventory.MealItems;
 
 namespace ETCS.Shared.Infrastructure.Admin.Inventory.MealCombos;
 
@@ -10,7 +11,6 @@ public sealed class MealComboListDto
     public decimal Price { get; init; }
     public decimal ProcessingFee { get; init; }
     public decimal TotalPrice => Price + ProcessingFee;
-    public int ItemCount { get; init; }
     public bool IsActive { get; init; }
 }
 
@@ -22,7 +22,13 @@ public sealed class MealComboSaveRequest
     [Range(1, int.MaxValue, ErrorMessage = "School is required.")]
     public int SchoolId { get; set; }
 
-    public int? MealTypeId { get; set; }
+    [Required(ErrorMessage = "Meal session is required.")]
+    [Range(1, int.MaxValue, ErrorMessage = "Meal session is required.")]
+    public int MealSessionId { get; set; }
+
+    [Required(ErrorMessage = "Meal type is required.")]
+    [Range(1, int.MaxValue, ErrorMessage = "Meal type is required.")]
+    public int MealTypeId { get; set; }
     public int? MealCategoryId { get; set; }
 
     [Display(Name = "Combo Name")]
@@ -49,7 +55,11 @@ public sealed class MealComboSaveRequest
 
     [Display(Name = "Active")]
     public bool IsActive { get; set; } = true;
-    public List<int> MealItemIds { get; set; } = [];
+
+    public List<int> IngredientIds { get; set; } = [];
+
+    public List<MealItemNutritionLineDto> NutritionLines { get; set; } = [];
+
     public int? CreatedBy { get; set; }
     public int? UpdatedBy { get; set; }
 }

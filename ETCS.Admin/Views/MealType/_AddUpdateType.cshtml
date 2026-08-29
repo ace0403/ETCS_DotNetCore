@@ -1,0 +1,50 @@
+@model ETCS.Shared.Infrastructure.Admin.Inventory.MealTypes.MealTypeSaveRequest
+@using ETCS.Shared.Infrastructure.Admin.Inventory.MealTypes
+@{
+    Layout = null;
+    var sessions = ViewBag.Sessions as IReadOnlyList<MealSessionListItemDto> ?? [];
+}
+<form id="frmMealType">
+    <div class="modal-header">
+        <h5 class="modal-title">@(Model.Id > 0 ? "Edit" : "Add") Meal Type</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <input type="hidden" asp-for="Id" />
+        <input type="hidden" asp-for="Kind" />
+        <div class="row g-3">
+            <div class="col-12">
+                <label asp-for="ParentId" class="form-label"></label>
+                <select asp-for="ParentId" class="form-select" required>
+                    <option value="">- Select meal session -</option>
+                    @foreach (var session in sessions)
+                    {
+                        var label = session.IsActive ? session.Name : $"{session.Name} (Inactive)";
+                        <option value="@session.Id">@label</option>
+                    }
+                </select>
+                <span asp-validation-for="ParentId" class="text-danger"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" placeholder="Meal Type Name" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6">
+                <label asp-for="SortOrder" class="form-label"></label>
+                <input asp-for="SortOrder" class="form-control" type="number" min="0" />
+                <span asp-validation-for="SortOrder" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6 d-flex align-items-end">
+                <div class="form-check mb-2">
+                    <input asp-for="IsActive" class="form-check-input" />
+                    <label asp-for="IsActive" class="form-check-label"></label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="btnSave" class="btn btn-primary">Save</button>
+    </div>
+</form>

@@ -1,7 +1,12 @@
 @model ETCS.Shared.Infrastructure.Email.EmailTemplateDetailDto
 @{
     Layout = null;
-    var placeholders = new[] { "{{GuardianName}}", "{{StudentName}}", "{{OrderId}}", "{{TransactionId}}", "{{Amount}}", "{{EventDate}}", "{{OrderItems}}" };
+    var placeholders = new[]
+    {
+        "{{GuardianName}}", "{{StudentName}}", "{{OrderId}}", "{{TransactionId}}", "{{Amount}}", "{{EventDate}}", "{{OrderItems}}",
+        "{{LogoUrl}}", "{{OtpCode}}", "{{ResetLink}}", "{{ExpiryMinutes}}", "{{AddChildLink}}",
+        "{{CardNumber}}", "{{CustomerId}}", "{{Reason}}", "{{RefCode}}", "{{SchoolName}}"
+    };
 }
 <form id="frmEmailTemplate">
     <div class="modal-header">
@@ -16,6 +21,11 @@
         <div class="mb-3">
             <label asp-for="SubjectTemplate" class="form-label">Subject</label>
             <input asp-for="SubjectTemplate" class="form-control" id="emailSubject" />
+        </div>
+        <div class="mb-3">
+            <label asp-for="RecipientEmail" class="form-label">Recipient email</label>
+            <input asp-for="RecipientEmail" class="form-control" type="email" maxlength="256" placeholder="Leave empty to send to the guardian" />
+            <div class="form-text">When set, this template always sends here instead of the guardian.</div>
         </div>
         <div class="mb-2">
             <label class="form-label">Placeholders</label>

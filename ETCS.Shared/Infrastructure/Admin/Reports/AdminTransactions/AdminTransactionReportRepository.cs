@@ -81,7 +81,8 @@ public sealed class AdminTransactionReportRepository : IAdminTransactionReportRe
             SchoolCode = request.SchoolCode,
             TerminalCode = request.TerminalCode,
             TransactionType = request.TransactionType,
-            StudentCardNo = request.StudentCardNo
+            StudentCardNo = request.StudentCardNo,
+            TransactionId = request.TransactionId
         };
 
     private static AdminTransactionReportPagedResult EmptyPagedResult(int draw) =>
@@ -102,6 +103,7 @@ public sealed class AdminTransactionReportRepository : IAdminTransactionReportRe
         parameters.Add("customerid", filter.StudentCardNo?.Trim() ?? string.Empty);
         parameters.Add("TerminalCode", filter.TerminalCode?.Trim() ?? string.Empty);
         parameters.Add("SchoolId", filter.SchoolCode?.Trim() ?? string.Empty);
+        parameters.Add("TransactionId", filter.TransactionId?.Trim() ?? string.Empty);
         parameters.Add("Start", start);
         parameters.Add("Length", length);
         return parameters;

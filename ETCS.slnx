@@ -6,4 +6,5 @@
   <Project Path="ETCS.Web/ETCS.Web.csproj" />
   <Project Path="ETCS.Pos.Web/ETCS.Pos.Web.csproj" />
   <Project Path="ETCS.Pos.Bridge/ETCS.Pos.Bridge.csproj" />
+  <Project Path="ETCS.EmailWorker/ETCS.EmailWorker.csproj" />
 </Solution>

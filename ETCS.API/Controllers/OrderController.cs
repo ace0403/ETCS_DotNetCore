@@ -2,6 +2,7 @@ using ETCS.Shared.Application.Orders;
 using ETCS.Shared.Enumeration;
 using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Students;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -9,6 +10,8 @@ using System.Security.Claims;
 namespace ETCS.API.Controllers;
 
 [ApiController]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/[controller]")]
 [Route("api/[controller]")]
 [Authorize]
 public sealed class OrderController : ControllerBase

@@ -10,7 +10,122 @@
     display: none !important;
 }
 
-/* Package cards reuse shared menu-meal-card; keep includes line teal. */
-.meal-combo-page .menu-meal-card-includes {
-    color: var(--ala-accent-dark, #2471a3);
+.meal-combo-menu-inner .meal-session-tabs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.85rem;
+}
+
+.meal-combo-menu-inner .meal-session-tabs--single {
+    grid-template-columns: minmax(220px, 1fr);
+    max-width: 420px;
+}
+
+.meal-combo-menu-inner .meal-combo-filter-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.85rem;
+    margin-bottom: 1.5rem;
+}
+
+.meal-combo-menu-inner .meal-combo-filter-bar .meal-session-tabs {
+    margin-bottom: 0;
+}
+
+.meal-combo-menu-inner .meal-combo-filter-bar .meal-combo-category-chips {
+    margin-bottom: 0;
+}
+
+.meal-combo-menu-inner .meal-session-tab {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    width: 100%;
+    padding: 1rem 1.1rem;
+    border: 2px solid rgba(36, 113, 163, 0.35);
+    border-radius: 14px;
+    background: #fff;
+    color: var(--ala-text-strong, #0f172a);
+    text-align: left;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.meal-combo-menu-inner .meal-session-tab:hover {
+    border-color: var(--ala-accent-dark, #2471a3);
+    box-shadow: 0 8px 20px rgba(36, 113, 163, 0.12);
+}
+
+.meal-combo-menu-inner .meal-session-tab.is-active {
+    background: var(--ala-accent-dark, #2471a3);
+    border-color: var(--ala-accent-dark, #2471a3);
+    color: #fff;
+    box-shadow: 0 10px 24px rgba(36, 113, 163, 0.22);
+}
+
+.meal-combo-menu-inner .meal-session-tab-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 999px;
+    background: rgba(36, 113, 163, 0.1);
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.meal-combo-menu-inner .meal-session-tab.is-active .meal-session-tab-icon {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+}
+
+.meal-combo-menu-inner .meal-session-tab-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.meal-combo-menu-inner .meal-session-tab-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.meal-combo-menu-inner .meal-session-tab-subtitle {
+    font-size: 0.78rem;
+    line-height: 1.35;
+    color: var(--ala-text-muted, #64748b);
+}
+
+.meal-combo-menu-inner .meal-session-tab.is-active .meal-session-tab-subtitle {
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.meal-combo-menu-inner .menu-session-panel {
+    display: none;
+}
+
+.meal-combo-menu-inner .menu-session-panel.is-active {
+    display: block;
+}
+
+.meal-combo-menu-inner .menu-session-items {
+    margin-top: 0;
+}
+
+@media (max-width: 767.98px) {
+    .meal-combo-menu-inner .meal-session-tabs {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .meal-combo-menu-inner .meal-session-tab {
+        min-height: 78px;
+        padding: 0.85rem;
+    }
+
+    .meal-combo-menu-inner .meal-session-tab-subtitle {
+        font-size: 0.72rem;
+    }
 }

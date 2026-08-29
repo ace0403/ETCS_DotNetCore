@@ -4,6 +4,6 @@
 /*
 
 INSERT INTO Enums (Id, EnumTypeId, EnumValue, Description, IsActive, IsDeletable, IsEditable, CreatedBy, CreatedOn, SortOrder)
-VALUES (78, 7, 'POS Order', 'POS Order', 1,0,0,1,GETDATE(),6);
+VALUES (78, 7, 'POS', 'POS', 1,0,0,1,GETDATE(),6);
 
 */

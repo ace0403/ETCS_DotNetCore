@@ -436,6 +436,14 @@
     color: inherit;
 }
 
+.dashboard-activity-row.is-static {
+    cursor: default;
+}
+
+.dashboard-activity-row.is-static:hover {
+    background: transparent;
+}
+
 .dashboard-activity-icon {
     width: 42px;
     height: 42px;

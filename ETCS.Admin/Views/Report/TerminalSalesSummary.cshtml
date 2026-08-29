@@ -1,6 +1,6 @@
 @using ETCS.Shared.Infrastructure.Admin.Reports.CanteenTransactions
 @{
-    ViewData["Title"] = "Terminal Sales Summary";
+    ViewData["Title"] = "Sales Summary";
     Layout = "~/Views/Shared/_Layout.cshtml";
     var schools = ViewBag.Schools as IReadOnlyList<SchoolCodeLookupDto> ?? Array.Empty<SchoolCodeLookupDto>();
     var startDate = DateTime.Today.ToString("yyyy-MM-dd");
@@ -60,6 +60,9 @@
                     <span class="btn-spinner spinner-border spinner-border-sm ms-1 d-none" role="status" aria-hidden="true"></span>
                 </button>
                 <button type="button" class="btn btn-outline-primary" id="btnExportReport">Export Report</button>
+                <button type="button" class="btn btn-outline-secondary" id="btnPrintReport">
+                    <i class="ti ti-printer me-1" aria-hidden="true"></i>Print Report
+                </button>
             </div>
         </div>
     </div>

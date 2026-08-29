@@ -1,7 +1,5 @@
-using ETCS.Shared.Application.Payment;
 using ETCS.PaymentGateway.Abstractions;
 using ETCS.PaymentGateway.Models;
-using ETCS.Shared.Enumeration;
 using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Payment;
 using ETCS.Shared.Infrastructure.Transaction;
@@ -23,18 +21,15 @@ public sealed class PaymentStatusService : IPaymentStatusService
     private readonly IMealOrderRepository _mealOrderRepository;
     private readonly ITransactionRepository _transactionRepository;
     private readonly IPaymentGatewayRepository _paymentGatewayRepository;
-    private readonly PaymentCompletionCancellation _completionCancellation;
 
     public PaymentStatusService(
         IMealOrderRepository mealOrderRepository,
         ITransactionRepository transactionRepository,
-        IPaymentGatewayRepository paymentGatewayRepository,
-        PaymentCompletionCancellation completionCancellation)
+        IPaymentGatewayRepository paymentGatewayRepository)
     {
         _mealOrderRepository = mealOrderRepository;
         _transactionRepository = transactionRepository;
         _paymentGatewayRepository = paymentGatewayRepository;
-        _completionCancellation = completionCancellation;
     }
 
     public async Task<PaymentStatusResponse> GetStatusAsync(
@@ -89,7 +84,7 @@ public sealed class PaymentStatusService : IPaymentStatusService
 
         var captureResult = await _paymentGatewayRepository.CapturePaymentAsync(
             new PaymentCaptureRequest(transactionId, orderId, studentId),
-            _completionCancellation.CaptureToken(cancellationToken));
+            cancellationToken);
 
         return MapCaptureResult(captureResult, orderId, transactionId);
     }
@@ -120,7 +115,7 @@ public sealed class PaymentStatusService : IPaymentStatusService
 
         var captureResult = await _paymentGatewayRepository.CapturePaymentAsync(
             new PaymentCaptureRequest(transactionId, orderId, studentId),
-            _completionCancellation.CaptureToken(cancellationToken));
+            cancellationToken);
 
         return MapCaptureResult(captureResult, orderId, transactionId);
     }

@@ -3,12 +3,16 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
     ViewBag.AdminModuleKey = "MealItem";
 }
+@using System.Text.Json
+@using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums
 <div class="card">
     <div class="card-body">
         <div class="admin-grid-toolbar">
             <partial name="_AdminGridSearch" />
             <partial name="_AdminGridSchoolFilter" />
+            <partial name="_AdminGridOrderTypeFilter" />
             <div class="admin-grid-actions">
+                <button type="button" class="btn btn-outline-secondary" id="btnOpenImport"><i class="ti ti-upload"></i> Import</button>
                 <partial name="_AdminAddButton" />
             </div>
         </div>
@@ -18,6 +22,7 @@
                 <tr>
                     <th>Name</th>
                     <th>Category</th>
+                    <th>Order Type</th>
                     <th>Price</th>
                     <th>Active</th>
                     <th class="text-center" style="width:70px"></th>
@@ -28,13 +33,19 @@
     </div>
 </div>
 <div class="modal fade" id="addDataModal" tabindex="-1" data-bs-backdrop="static">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content" id="div_add"></div>
+    </div>
+</div>
+<div class="modal fade" id="importDataModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content" id="div_import"></div>
     </div>
 </div>
 @section Scripts {
     <link href="~/css/bootstrap-multiselect.css" rel="stylesheet" />
     <script src="~/js/bootstrap-multiselect.js"></script>
     <script>window.adminModuleKey = 'MealItem';</script>
+    <script>window.MEAL_ITEM_CHANNEL = @Html.Raw(JsonSerializer.Serialize(MealItemChannelOptionIds.JavaScriptChannelIds));</script>
     <script src="~/js/custom/mealitem.js"></script>
 }

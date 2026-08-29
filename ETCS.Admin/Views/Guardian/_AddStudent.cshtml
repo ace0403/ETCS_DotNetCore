@@ -14,8 +14,22 @@
     <div class="modal-body">
         <div class="row g-3">
             <div class="col-md-12">
+                <label asp-for="SchoolId" class="form-label">School</label>
+                <select asp-for="SchoolId" id="ddlSchool" class="form-select js-student-card-school">
+                    <option value="">- Select School -</option>
+                    @foreach (var school in schools)
+                    {
+                        <option value="@school.SchoolId" data-school-code="@school.SchoolCode">@school.SchoolName</option>
+                    }
+                </select>
+                <span asp-validation-for="SchoolId" class="text-danger"></span>
+            </div>
+            <div class="col-md-12">
                 <label asp-for="StudentCardNo" class="form-label"></label>
-                <input asp-for="StudentCardNo" id="txtStudentCardNo" class="form-control" placeholder="Student Card No" />
+                <div class="input-group">
+                    <span class="input-group-text js-student-card-prefix">—</span>
+                    <input asp-for="StudentCardNo" id="txtStudentCardNo" class="form-control js-student-card-input js-student-card-suffix" maxlength="50" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Student Card No" disabled />
+                </div>
                 <span asp-validation-for="StudentCardNo" class="text-danger"></span>
             </div>
             <div class="col-md-6">
@@ -53,17 +67,6 @@
                 <span asp-validation-for="Gender" class="text-danger"></span>
             </div>
             <div class="col-md-6">
-                <label asp-for="SchoolId" class="form-label">School</label>
-                <select asp-for="SchoolId" id="ddlSchool" class="form-select">
-                    <option value="">- Select School -</option>
-                    @foreach (var school in schools)
-                    {
-                        <option value="@school.SchoolId">@school.SchoolName</option>
-                    }
-                </select>
-                <span asp-validation-for="SchoolId" class="text-danger"></span>
-            </div>
-            <div class="col-md-6">
                 <label asp-for="DateOfBirth" class="form-label"></label>
                 <input asp-for="DateOfBirth" class="form-control" type="date" placeholder="Date of birth" />
                 <span asp-validation-for="DateOfBirth" class="text-danger"></span>
@@ -72,6 +75,11 @@
                 <label asp-for="AllergyItemIds" class="form-label"></label>
                 <select asp-for="AllergyItemIds" asp-items="ViewBag.Allergies" class="form-select ignore-validation" id="AllergyItemIds" multiple data-val="false"></select>
                 <span asp-validation-for="AllergyItemIds" class="text-danger"></span>
+            </div>
+            <div class="col-md-6 multiselect-custom">
+                <label asp-for="OrderTypeIds" class="form-label"></label>
+                <select asp-for="OrderTypeIds" asp-items="ViewBag.OrderTypes" class="form-select ignore-validation" id="OrderTypeIds" multiple data-val="false"></select>
+                <span asp-validation-for="OrderTypeIds" class="text-danger"></span>
             </div>
             <div class="col-md-6">
                 <label asp-for="DailySpendLimit" class="form-label"></label>
@@ -82,6 +90,13 @@
                 <label asp-for="WeeklySpendLimit" class="form-label"></label>
                 <input asp-for="WeeklySpendLimit" class="form-control" type="number" min="0" step="0.01" placeholder="Weekly Spend Limit" />
                 <span asp-validation-for="WeeklySpendLimit" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label d-none d-md-block">&nbsp;</label>
+                <div class="form-check admin-form-check-field">
+                    <input asp-for="LowBalanceEmailNotification" class="form-check-input" />
+                    <label asp-for="LowBalanceEmailNotification" class="form-check-label ps-1"></label>
+                </div>
             </div>
         </div>
     </div>

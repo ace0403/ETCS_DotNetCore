@@ -8,6 +8,7 @@ public static class TopupServiceCollectionExtensions
     {
         services.AddScoped<ITopupInitiateService, TopupInitiateService>();
         services.AddScoped<ITopupPaymentCompleteService, TopupPaymentCompleteService>();
+        services.AddScoped<IManualTopupService, ManualTopupService>();
         return services;
     }
 }

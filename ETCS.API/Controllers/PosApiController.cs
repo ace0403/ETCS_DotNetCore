@@ -1,12 +1,16 @@
 using ETCS.Shared.Application.Pos;
+using ETCS.Shared.Application.Topup;
 using ETCS.Shared.Infrastructure.Pos;
 using ETCS.Shared.Options;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
 namespace ETCS.API.Controllers;
 
 [ApiController]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/pos")]
 [Route("api/pos")]
 public sealed class PosApiController : ControllerBase
 {
@@ -14,6 +18,7 @@ public sealed class PosApiController : ControllerBase
     private readonly IPosCatalogRepository _catalogRepository;
     private readonly IPosSpendRepository _spendRepository;
     private readonly IPosLegacyTransactionRepository _legacyRepository;
+    private readonly IManualTopupService _manualTopupService;
     private readonly PosOptions _posOptions;
 
     public PosApiController(
@@ -21,12 +26,14 @@ public sealed class PosApiController : ControllerBase
         IPosCatalogRepository catalogRepository,
         IPosSpendRepository spendRepository,
         IPosLegacyTransactionRepository legacyRepository,
+        IManualTopupService manualTopupService,
         IOptions<PosOptions> posOptions)
     {
         _terminalRepository = terminalRepository;
         _catalogRepository = catalogRepository;
         _spendRepository = spendRepository;
         _legacyRepository = legacyRepository;
+        _manualTopupService = manualTopupService;
         _posOptions = posOptions.Value;
     }
 
@@ -310,6 +317,68 @@ public sealed class PosApiController : ControllerBase
             IsSuccess = ok,
             Message = ok ? "Card purchase recorded." : "Card purchase failed."
         });
+    }
+
+    [HttpGet("students/{customerId}/card-info")]
+    public async Task<IActionResult> GetCardInfo(string customerId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(customerId))
+        {
+            return BadRequest(new PosCardCheckResponse
+            {
+                IsSuccess = false,
+                Message = "Card number is required."
+            });
+        }
+
+        var result = await _manualTopupService.CheckCardAsync(customerId, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return NotFound(result);
+        }
+
+        return Ok(result);
+    }
+
+    [HttpPost("topups/manual")]
+    public async Task<IActionResult> ManualTopup(
+        [FromBody] PosManualTopupRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request is null)
+        {
+            return BadRequest(new PosManualTopupResponse
+            {
+                IsSuccess = false,
+                Message = "Request body is required."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.CardNumber))
+        {
+            return BadRequest(new PosManualTopupResponse
+            {
+                IsSuccess = false,
+                Message = "CardNumber is required."
+            });
+        }
+
+        if (request.Amount <= 0)
+        {
+            return BadRequest(new PosManualTopupResponse
+            {
+                IsSuccess = false,
+                Message = "Amount must be greater than zero."
+            });
+        }
+
+        var result = await _manualTopupService.ProcessAsync(request, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
     }
 
     private string ResolveBranchCode(string? branchCode) =>

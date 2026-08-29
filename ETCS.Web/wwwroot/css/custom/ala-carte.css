@@ -455,6 +455,98 @@
     font-size: 2rem;
 }
 
+.menu-closed-day-card {
+    background: #fff;
+    border: 1px solid #e8edf2;
+    border-radius: 24px;
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.06);
+    max-width: 560px;
+    margin: 2rem auto;
+    overflow: hidden;
+}
+
+.menu-closed-day-state {
+    text-align: center;
+    padding: 2.5rem 2rem 0;
+}
+
+.menu-closed-day-illustration {
+    margin-bottom: 1.35rem;
+}
+
+.menu-closed-day-illustration-img {
+    width: 148px;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    object-fit: contain;
+}
+
+.menu-closed-day-icon {
+    width: 88px;
+    height: 88px;
+    margin: 0 auto 1.25rem;
+    border-radius: 50%;
+    background: #eff6ff;
+    color: #2563eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.35rem;
+}
+
+.menu-closed-day-title {
+    font-size: 1.85rem;
+    font-weight: 700;
+    margin-bottom: 0.85rem;
+    color: #111827;
+}
+
+.menu-closed-day-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #2563eb;
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.menu-closed-day-badge.is-halfday {
+    background: #fff7ed;
+    color: #b45309;
+}
+
+.menu-closed-day-message {
+    color: #6b7280;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    margin-bottom: 1.75rem;
+}
+
+.menu-closed-day-message span {
+    display: block;
+}
+
+.menu-closed-day-footer {
+    border-top: 1px solid #e8edf2;
+    padding: 1rem 1.5rem 1.5rem;
+}
+
+.menu-closed-day-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    width: 100%;
+    border-radius: 14px;
+    padding: 0.72rem 1.1rem;
+    font-weight: 600;
+}
+
 .ala-carte-order-bar {
     position: fixed;
     left: 0;
@@ -701,6 +793,23 @@
     border-radius: 999px;
     background: var(--ala-accent-soft);
     color: var(--ala-accent-dark);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.ala-carte-summary-item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.ala-carte-summary-meal-session {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: #fff7ed;
+    color: #c2410c;
     font-size: 0.75rem;
     font-weight: 600;
 }
@@ -2051,7 +2160,7 @@ body.ala-carte-overlay-open {
 .menu-add-btn {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 0.15rem;
     border-radius: 16px;
     min-height: 32px;
     padding: 0 0.65rem;
@@ -2129,3 +2238,402 @@ body.ala-carte-overlay-open {
         display: inline-flex;
     }
 }
+
+/* ===== Rich ala-carte meal card (nutrition + allergen layout) ===== */
+.menu-meal-card--rich {
+    border-radius: 18px;
+    box-shadow: 0 8px 28px rgba(17, 24, 39, 0.08);
+}
+
+.menu-meal-card--rich:hover {
+    box-shadow: 0 12px 32px rgba(17, 24, 39, 0.12);
+}
+
+.menu-meal-card--rich .menu-meal-card-media {
+    height: 196px;
+}
+
+@media (min-width: 768px) {
+    .menu-meal-card--rich .menu-meal-card-media {
+        height: 220px;
+    }
+}
+
+.menu-meal-card--rich .menu-meal-type-badge {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.28rem;
+    top: 0.7rem;
+    bottom: auto;
+    padding: 0.28rem 0.7rem;
+    background: #fde68a;
+    color: #92400e;
+    font-size: 0.74rem;
+    font-weight: 700;
+    backdrop-filter: none;
+}
+
+.menu-meal-card--rich .menu-meal-type-badge i {
+    font-size: 0.9rem;
+    color: #d97706;
+}
+
+.menu-image-disclaimer {
+    position: absolute;
+    left: 0.15rem;
+    bottom: 0.15rem;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    width: max-content;
+    max-width: calc(100% - 1.3rem);
+    padding: 0.45rem 0.65rem;
+    border-radius: 8px;
+    background: #fff9ed;
+    border: 1px solid #ead9b5;
+    box-shadow: none;
+    color: #3f3f46;
+    pointer-events: none;
+}
+
+.menu-image-disclaimer i {
+    flex: 0 0 auto;
+    font-size: 1.05rem;
+    color: #c9842a;
+    line-height: 1;
+}
+
+.menu-image-disclaimer-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.08rem;
+    min-width: 0;
+    font-size: 0.55rem;
+    line-height: 1.3;
+    letter-spacing: 0;
+}
+
+.menu-image-disclaimer-copy strong {
+    font-weight: 700;
+    color: #3f3f46;
+}
+
+.menu-image-disclaimer-copy span {
+    font-weight: 400;
+    color: #52525b;
+}
+
+.menu-meal-card--rich .menu-meal-card-body {
+    gap: 0.75rem;
+    padding: 0.95rem 1rem 1rem;
+}
+
+.menu-meal-card--rich .menu-meal-card-headline {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.menu-meal-card--rich .menu-meal-card-copy {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.menu-meal-card--rich .menu-meal-card-name {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #1e293b;
+    letter-spacing: -0.02em;
+    -webkit-line-clamp: 2;
+}
+
+.menu-meal-card--rich .menu-meal-card-detail {
+    margin-top: 0.28rem;
+    font-size: 0.84rem;
+    line-height: 1.45;
+    color: #6b7280;
+    -webkit-line-clamp: 2;
+}
+
+.menu-meal-card--rich .menu-meal-card-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.45rem;
+    flex-shrink: 0;
+}
+
+.menu-meal-card--rich .menu-meal-card-price {
+    font-size: 1rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.menu-meal-card--rich .menu-add-btn {
+    min-height: 34px;
+    padding: 0 0.9rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    box-shadow: 0 4px 10px rgba(22, 163, 74, 0.22);
+}
+
+.menu-meal-card--rich.selected .menu-add-btn {
+    background: #fff;
+    box-shadow: none;
+}
+
+.menu-meal-card--rich.selected .menu-add-btn .menu-added-icon {
+    color: #16a34a;
+}
+
+.menu-meal-card--rich.selected {
+    box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.22), 0 12px 32px rgba(17, 24, 39, 0.1);
+}
+
+.menu-card-facts {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.menu-nutrition-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    gap: 0;
+    padding: 0.7rem 0.35rem;
+    border-radius: 14px;
+    background: #ecfdf5;
+}
+
+.menu-nutrition-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.08rem;
+    padding: 0 0.25rem;
+    min-width: 0;
+}
+
+.menu-nutrition-stat + .menu-nutrition-stat {
+    border-left: 1px solid #d1fae5;
+}
+
+.menu-nutrition-stat i,
+.menu-nutrition-emoji {
+    font-size: 0.95rem;
+    line-height: 1;
+}
+
+.menu-nutrition-emoji {
+    display: inline-block;
+    font-style: normal;
+    font-size: 0.6rem;
+}
+
+.menu-nutrition-name {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.28rem;
+    min-width: 0;
+    min-height: 15px;
+}
+
+.menu-nutrition-amount {
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.18rem;
+}
+
+.menu-nutrition-stat.is-energy i { color: #16a34a; }
+.menu-nutrition-stat.is-protein i { color: #ea580c; }
+.menu-nutrition-stat.is-fat i { color: #eab308; }
+.menu-nutrition-stat.is-carb i { color: #7c3aed; }
+
+.menu-nutrition-label,
+.menu-nutrition-unit {
+    font-size: 0.64rem;
+    font-weight: 600;
+    color: #6b7280;
+    line-height: 1.2;
+}
+
+.menu-nutrition-value {
+    font-size: 0.92rem;
+    font-weight: 800;
+    color: #1e293b;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+}
+
+.menu-ingredient-panel {
+    padding: 0.6rem 0.75rem 0.65rem;
+    border-radius: 14px;
+    background: #f8fafc;
+}
+
+.menu-ingredient-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    margin-bottom: 0.45rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+
+.menu-ingredient-label i {
+    font-size: 0.85rem;
+    color: #16a34a;
+}
+
+.menu-ingredient-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+.menu-ingredient-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.22rem;
+    max-width: 100%;
+    padding: 0.18rem 0.52rem;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #334155;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.menu-ingredient-chip i {
+    flex-shrink: 0;
+    font-size: 0.82rem;
+}
+
+.menu-ingredient-icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+}
+
+.menu-ingredient-chip.is-alert {
+    background: #fff1f2;
+    color: #be123c;
+}
+
+.menu-ingredient-more {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.18rem 0.48rem;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #475569;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.menu-allergen-panel {
+    padding: 0.75rem 0.8rem 0.7rem;
+    border-radius: 14px;
+    background: #f8f1e7;
+}
+
+.menu-allergen-panel-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem 0.6rem;
+}
+
+.menu-allergen-panel-head strong {
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: #1e293b;
+}
+
+.menu-meal-card--rich .menu-allergen-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.menu-allergen-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid #e7d7c3;
+    color: #334155;
+    font-size: 0.72rem;
+    font-weight: 650;
+    line-height: 1.3;
+}
+
+.menu-allergen-pill i {
+    font-size: 0.85rem;
+}
+
+.menu-allergen-pill.is-milk { border-color: #bfdbfe; color: #1d4ed8; }
+.menu-allergen-pill.is-milk i { color: #2563eb; }
+.menu-allergen-pill.is-butter { border-color: #fde68a; color: #a16207; }
+.menu-allergen-pill.is-butter i { color: #eab308; }
+.menu-allergen-pill.is-dairy { border-color: #ddd6fe; color: #6d28d9; }
+.menu-allergen-pill.is-dairy i { color: #7c3aed; }
+.menu-allergen-pill.is-nut { border-color: #fdba74; color: #c2410c; }
+.menu-allergen-pill.is-nut i { color: #ea580c; }
+.menu-allergen-pill.is-egg { border-color: #fcd34d; color: #b45309; }
+.menu-allergen-pill.is-egg i { color: #d97706; }
+.menu-allergen-pill.is-gluten { border-color: #e7d5c5; color: #9a3412; }
+.menu-allergen-pill.is-gluten i { color: #c2410c; }
+.menu-allergen-pill.is-fish { border-color: #99f6e4; color: #0f766e; }
+.menu-allergen-pill.is-fish i { color: #14b8a6; }
+.menu-allergen-pill.is-soy { border-color: #bbf7d0; color: #15803d; }
+.menu-allergen-pill.is-soy i { color: #16a34a; }
+
+.menu-allergen-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+    margin: 0.5rem 0 0;
+    font-size: 0.72rem;
+    line-height: 1.4;
+    color: #6b7280;
+}
+
+.menu-allergen-warning i {
+    flex-shrink: 0;
+    margin-top: 0.08rem;
+    color: #9ca3af;
+}
+
+@media (max-width: 419.98px) {
+    .menu-nutrition-panel[data-count="4"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        row-gap: 0.65rem;
+        padding: 0.7rem 0.5rem;
+    }
+
+    .menu-nutrition-panel[data-count="4"] .menu-nutrition-stat:nth-child(3) {
+        border-left: 0;
+    }
+
+    .menu-nutrition-panel[data-count="4"] .menu-nutrition-stat:nth-child(2),
+    .menu-nutrition-panel[data-count="4"] .menu-nutrition-stat:nth-child(4) {
+        border-left: 1px solid #d1fae5;
+    }
+}
+

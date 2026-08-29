@@ -46,10 +46,11 @@
                     <option value="">ALL</option>
                     <option value="1004">Cash Purchase</option>
                     <option value="2004">Credit Card Purchase</option>
-                    <option value="21002">Card_Purchase</option>
+                    <option value="21002">Card Purchase</option>
                     <option value="10001">Online Topup</option>
                     <option value="21004">Topup</option>
-                    <option value="21006">Undo Purchase_Card</option>
+                    <option value="9001">Meal Plan</option>
+                    <option value="21006">Undo Card Purchase</option>
                     <option value="21007">Undo Topup</option>
                     <option value="1007">Undo Cash Purchase</option>
                 </select>
@@ -58,8 +59,12 @@
                 <label for="txtStudCode" class="form-label">Student Card No</label>
                 <input type="text" id="txtStudCode" class="form-control" placeholder="Student Card No" maxlength="50" />
             </div>
+            <div class="col-12 col-md-6 col-lg-4">
+                <label for="txtTransactionId" class="form-label">Transaction Id</label>
+                <input type="text" id="txtTransactionId" class="form-control" placeholder="Transaction Id" maxlength="100" />
+            </div>
             <div class="col-12">
-                <div class="text-muted small mb-2">Use transaction filters or student card no.</div>
+                <div class="text-muted small mb-2">Use transaction filters, student card no, or transaction id.</div>
                 <button type="button" class="btn btn-primary" id="btnViewReport">
                     <span class="btn-label">View Report</span>
                     <span class="btn-spinner spinner-border spinner-border-sm ms-1 d-none" role="status" aria-hidden="true"></span>
@@ -78,6 +83,7 @@
     <input type="hidden" name="TerminalCode" id="exportTerminalCode" />
     <input type="hidden" name="TransactionType" id="exportTransactionType" />
     <input type="hidden" name="StudentCardNo" id="exportStudentCardNo" />
+    <input type="hidden" name="TransactionId" id="exportTransactionId" />
 </form>
 
 <div id="adminTxnReportLoader" class="canteen-report-screen-loader d-none" aria-live="polite" aria-busy="true">

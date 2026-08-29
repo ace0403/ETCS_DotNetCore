@@ -220,7 +220,7 @@
 
 .topup-page .topup-chips {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 0.6rem;
 }
 
@@ -429,7 +429,7 @@
     }
 
     .topup-page .topup-chips {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
 
@@ -507,6 +507,13 @@
     box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16);
 }
 
+.wallet-topup-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+}
+
 .wallet-card {
     background: #fff;
     border: 1px solid var(--wallet-border);
@@ -568,6 +575,16 @@
 
 .wallet-txn-link:hover {
     background: #f8fafc;
+}
+
+.wallet-txn-link.is-static {
+    cursor: default;
+    text-decoration: none;
+    color: inherit;
+}
+
+.wallet-txn-link.is-static:hover {
+    background: transparent;
 }
 
 .wallet-txn-icon {

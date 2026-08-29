@@ -1,8 +1,5 @@
 namespace ETCS.Shared.Infrastructure.Students;
 
-/// <summary>
-/// Payload for <c>spInsertStudentInfo</c> (insert and update). Password is plain text over HTTPS; it is hashed before the database call.
-/// </summary>
 public sealed class UpsertStudentRequest
 {
     public string StudCode { get; set; } = string.Empty;

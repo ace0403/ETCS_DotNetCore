@@ -1,0 +1,55 @@
+@inject Microsoft.Extensions.Options.IOptions<ETCS.Web.Options.WebOptions> WebOptionsAccessor
+@{
+    var webOptions = WebOptionsAccessor.Value;
+    var googlePlayUrl = (webOptions.GooglePlayUrl ?? string.Empty).Trim();
+    var appStoreUrl = (webOptions.AppStoreUrl ?? string.Empty).Trim();
+    var hasGooglePlay = Uri.TryCreate(googlePlayUrl, UriKind.Absolute, out var googlePlayUri)
+        && (googlePlayUri.Scheme == Uri.UriSchemeHttps || googlePlayUri.Scheme == Uri.UriSchemeHttp);
+    var hasAppStore = Uri.TryCreate(appStoreUrl, UriKind.Absolute, out var appStoreUri)
+        && (appStoreUri.Scheme == Uri.UriSchemeHttps || appStoreUri.Scheme == Uri.UriSchemeHttp);
+}
+
+@if (hasGooglePlay || hasAppStore)
+{
+    <div class="login-app-promo">
+        <p class="login-app-promo-label">Get the ETCS App</p>
+        <div class="login-store-badges">
+            @if (hasGooglePlay)
+            {
+                <a class="login-store-badge@(hasGooglePlay ? string.Empty : " is-static")"
+                   href="@(hasGooglePlay ? googlePlayUrl : "#")"
+                   target="@(hasGooglePlay ? "_blank" : null)"
+                   rel="@(hasGooglePlay ? "noopener noreferrer" : null)"
+                   aria-label="Get it on Google Play"
+                   aria-disabled="@(hasGooglePlay ? "false" : "true")"
+                   tabindex="@(hasGooglePlay ? 0 : -1)">
+                    <span class="login-store-badge-icon" aria-hidden="true">
+                        <img src="~/images/icons/google-play.png" width="25" />
+                    </span>
+                    <span class="login-store-badge-text">
+                        <small>GET IT ON</small>
+                        <strong>Google Play</strong>
+                    </span>
+                </a>
+            }
+            @if (hasAppStore)
+            {
+                <a class="login-store-badge@(hasAppStore ? string.Empty : " is-static")"
+                   href="@(hasAppStore ? appStoreUrl : "#")"
+                   target="@(hasAppStore ? "_blank" : null)"
+                   rel="@(hasAppStore ? "noopener noreferrer" : null)"
+                   aria-label="Download on the App Store"
+                   aria-disabled="@(hasAppStore ? "false" : "true")"
+                   tabindex="@(hasAppStore ? 0 : -1)">
+                    <span class="login-store-badge-icon login-store-badge-icon-apple" aria-hidden="true">
+                        <img src="~/images/icons/apple-logo.png" width="25" />
+                    </span>
+                    <span class="login-store-badge-text">
+                        <small>Download on the</small>
+                        <strong>App Store</strong>
+                    </span>
+                </a>
+            }
+        </div>
+    </div>
+}

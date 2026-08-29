@@ -1,0 +1,104 @@
+@using ETCS.Admin.Infrastructure.Auth
+@using ETCS.Shared.Infrastructure.Admin.Inventory.MealTypes
+@{
+    ViewData["Title"] = "Meal Type";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewBag.AdminModuleKey = "MealType";
+    var sessions = ViewBag.Sessions as IReadOnlyList<MealSessionListItemDto> ?? [];
+    var canAdd = AdminPermissionViewHelper.CanAdd(User, "MealType");
+}
+<div class="card">
+    <div class="card-body">
+        <ul class="nav nav-tabs mb-3" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="sessions-tab" data-bs-toggle="tab" data-bs-target="#sessions-pane" type="button" role="tab" aria-controls="sessions-pane" aria-selected="true">Sessions</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="types-tab" data-bs-toggle="tab" data-bs-target="#types-pane" type="button" role="tab" aria-controls="types-pane" aria-selected="false">Meal Types</button>
+            </li>
+        </ul>
+        <div class="tab-content">
+            <div class="tab-pane fade show active" id="sessions-pane" role="tabpanel" aria-labelledby="sessions-tab">
+                <div class="admin-grid-toolbar">
+                    <div class="admin-grid-search">
+                        <div class="admin-grid-search-field">
+                            <i class="ti ti-search"></i>
+                            <input type="text" id="sessionGridSearch" class="form-control" placeholder="Search records..." autocomplete="off" />
+                            <button type="button" class="admin-grid-search-clear" id="sessionGridSearchClear" title="Clear search" aria-label="Clear search">
+                                <i class="ti ti-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="admin-grid-actions">
+                        @if (canAdd)
+                        {
+                            <button class="btn btn-outline-primary" type="button" onclick="loadSession(0)"><i class="ti ti-plus"></i> Add Session</button>
+                        }
+                    </div>
+                </div>
+                <div class="table-responsive admin-grid-table-scroll">
+                    <table id="session_grid_table" class="table table-striped table-bordered w-100" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Sort Order</th>
+                                <th>Active</th>
+                                <th class="text-center" style="width:70px"></th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="types-pane" role="tabpanel" aria-labelledby="types-tab">
+                <div class="admin-grid-toolbar">
+                    <div class="admin-grid-search">
+                        <div class="admin-grid-search-field">
+                            <i class="ti ti-search"></i>
+                            <input type="text" id="typeGridSearch" class="form-control" placeholder="Search records..." autocomplete="off" />
+                            <button type="button" class="admin-grid-search-clear" id="typeGridSearchClear" title="Clear search" aria-label="Clear search">
+                                <i class="ti ti-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="admin-grid-session-filter">
+                        <select id="typeSessionFilter" class="form-select" aria-label="Filter by meal session">
+                            <option value="">All Sessions</option>
+                            @foreach (var session in sessions)
+                            {
+                                <option value="@session.Id">@session.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="admin-grid-actions">
+                        @if (canAdd)
+                        {
+                            <button class="btn btn-outline-primary" type="button" onclick="loadType(0)"><i class="ti ti-plus"></i> Add Meal Type</button>
+                        }
+                    </div>
+                </div>
+                <div class="table-responsive admin-grid-table-scroll">
+                    <table id="type_grid_table" class="table table-striped table-bordered w-100" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Session</th>
+                                <th>Sort Order</th>
+                                <th>Active</th>
+                                <th class="text-center" style="width:70px"></th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="addDataModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" id="div_add"></div>
+    </div>
+</div>
+@section Scripts {
+    <script>window.adminModuleKey = 'MealType';</script>
+    <script src="~/js/custom/mealtype.js"></script>
+}

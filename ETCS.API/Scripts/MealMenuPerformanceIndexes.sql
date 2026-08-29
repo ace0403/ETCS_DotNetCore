@@ -99,3 +99,26 @@ BEGIN
         INCLUDE (SchoolId, PackageName, Detail, Price, ImageName, MealCategotyId);
 END
 GO
+
+-- Duplicate (StudentId, AllergyItemId) rows break GetMealItemsForStudent / GetMealPackagesForStudent
+-- because those procs load allergies into a PRIMARY KEY table variable.
+;WITH DuplicateStudentAllergies AS (
+    SELECT
+        ROW_NUMBER() OVER (
+            PARTITION BY StudentId, AllergyItemId
+            ORDER BY CreatedOn
+        ) AS RowNum
+    FROM StudentAllergies
+)
+DELETE FROM DuplicateStudentAllergies
+WHERE RowNum > 1;
+GO
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'UX_StudentAllergies_StudentId_AllergyItemId' AND object_id = OBJECT_ID('StudentAllergies'))
+BEGIN
+    CREATE UNIQUE NONCLUSTERED INDEX UX_StudentAllergies_StudentId_AllergyItemId
+        ON StudentAllergies (StudentId, AllergyItemId);
+END
+GO

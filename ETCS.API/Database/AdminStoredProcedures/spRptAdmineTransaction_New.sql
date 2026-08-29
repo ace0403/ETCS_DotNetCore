@@ -23,6 +23,7 @@ CREATE OR ALTER PROCEDURE [dbo].[spRptAdmineTransaction_New]
     @customerid AS NVARCHAR(75),
     @TerminalCode AS VARCHAR(50),
     @SchoolId AS VARCHAR(10),
+    @TransactionId AS NVARCHAR(100) = '',
     @Start AS INT = 0,
     @Length AS INT = 0,
     @TotalCount AS INT OUTPUT
@@ -37,6 +38,7 @@ BEGIN
     SET @TerminalCode = LTRIM(RTRIM(ISNULL(@TerminalCode, '')));
     SET @SchoolId = LTRIM(RTRIM(ISNULL(@SchoolId, '')));
     SET @TransactionType = LTRIM(RTRIM(ISNULL(@TransactionType, '')));
+    SET @TransactionId = LTRIM(RTRIM(ISNULL(@TransactionId, '')));
 
     IF (@TransactionType = '')
         SET @TransactionType = 'ALL';
@@ -88,6 +90,7 @@ BEGIN
           AND a.CustomerID = @customerid
           AND a.LogDateTimeServer >= @RangeStart
           AND a.LogDateTimeServer < @RangeEndExclusive
+          AND (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(a.TransactionID, ''))) = @TransactionId)
           AND (@SchoolId = '' OR a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT))
           AND (
                 @TerminalCode = ''
@@ -128,6 +131,7 @@ BEGIN
           AND a.CustomerID = @customerid
           AND a.LogDateTimeServer >= @RangeStart
           AND a.LogDateTimeServer < @RangeEndExclusive
+          AND (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(a.TransactionID, ''))) = @TransactionId)
           AND (@SchoolId = '' OR a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT))
         OPTION (RECOMPILE);
     END
@@ -155,6 +159,7 @@ BEGIN
           AND a.CustomerID IN ('204', '205', '206', '207', '208')
           AND a.LogDateTimeTerminal >= @RangeStart
           AND a.LogDateTimeTerminal < @RangeEndExclusive
+          AND (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(a.TransactionID, ''))) = @TransactionId)
           AND (@SchoolId = '' OR a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT))
         OPTION (RECOMPILE);
     END
@@ -182,6 +187,7 @@ BEGIN
           AND a.CustomerID IN ('204', '205', '206', '207', '208')
           AND a.LogDateTimeTerminal >= @RangeStart
           AND a.LogDateTimeTerminal < @RangeEndExclusive
+          AND (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(a.TransactionID, ''))) = @TransactionId)
         OPTION (RECOMPILE);
     END
     ELSE IF (@TransactionType = '2004')
@@ -208,6 +214,7 @@ BEGIN
           AND a.CustomerID IN ('209', '204', '205', '206', '207', '208')
           AND a.LogDateTimeTerminal >= @RangeStart
           AND a.LogDateTimeTerminal < @RangeEndExclusive
+          AND (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(a.TransactionID, ''))) = @TransactionId)
           AND (@SchoolId = '' OR a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT))
         OPTION (RECOMPILE);
     END
@@ -243,6 +250,7 @@ BEGIN
           AND a.CustomerID NOT IN ('204', '205', '206', '207', '208', '', '1093710000000028')
           AND a.LogDateTimeServer >= @RangeStart
           AND a.LogDateTimeServer < @RangeEndExclusive
+          AND (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(a.TransactionID, ''))) = @TransactionId)
           AND (@SchoolId = '' OR a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT))
         OPTION (RECOMPILE);
     END
@@ -277,6 +285,7 @@ BEGIN
         WHERE a.TransactionType IN (21002, 21004, 21006, 21007, 10001, 9001)
           AND a.LogDateTimeServer >= @RangeStart
           AND a.LogDateTimeServer < @RangeEndExclusive
+          AND (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(a.TransactionID, ''))) = @TransactionId)
         OPTION (RECOMPILE);
     END
     ELSE
@@ -311,6 +320,7 @@ BEGIN
           AND a.CustomerID NOT IN ('204', '205', '206', '207', '208', '', '1093710000000028')
           AND a.LogDateTimeServer >= @RangeStart
           AND a.LogDateTimeServer < @RangeEndExclusive
+          AND (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(a.TransactionID, ''))) = @TransactionId)
           AND a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT)
           AND (@TerminalCode = '' OR a.TerminalCode = @TerminalCode)
 
@@ -337,6 +347,7 @@ BEGIN
           AND a.CustomerID IN ('204', '205', '206', '207', '208')
           AND a.LogDateTimeTerminal >= @RangeStart
           AND a.LogDateTimeTerminal < @RangeEndExclusive
+          AND (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(a.TransactionID, ''))) = @TransactionId)
           AND a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT)
           AND (@TerminalCode = '' OR a.TerminalCode = @TerminalCode)
 
@@ -363,6 +374,7 @@ BEGIN
           AND a.CustomerID = '209'
           AND a.LogDateTimeTerminal >= @RangeStart
           AND a.LogDateTimeTerminal < @RangeEndExclusive
+          AND (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(a.TransactionID, ''))) = @TransactionId)
           AND a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT)
           AND (@TerminalCode = '' OR a.TerminalCode = @TerminalCode)
 
@@ -389,6 +401,7 @@ BEGIN
           AND a.CustomerID IN ('204', '205', '206', '207', '208')
           AND a.LogDateTimeTerminal >= @RangeStart
           AND a.LogDateTimeTerminal < @RangeEndExclusive
+          AND (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(a.TransactionID, ''))) = @TransactionId)
           AND a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT)
           AND (@TerminalCode = '' OR a.TerminalCode = @TerminalCode)
         OPTION (RECOMPILE);
@@ -397,7 +410,8 @@ BEGIN
     CREATE CLUSTERED INDEX CX_AdminTxn ON #TMP ([Datetime] DESC, TransactionID);
 
     SELECT @TotalCount = COUNT(*)
-    FROM #TMP;
+    FROM #TMP
+    WHERE (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(TransactionID, ''))) = @TransactionId);
 
     IF (@Length IS NULL OR @Length <= 0)
     BEGIN
@@ -412,6 +426,7 @@ BEGIN
             Terminal,
             TransactionID
         FROM #TMP
+        WHERE (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(TransactionID, ''))) = @TransactionId)
         ORDER BY [Datetime] DESC, TransactionID;
     END
     ELSE
@@ -427,6 +442,7 @@ BEGIN
             Terminal,
             TransactionID
         FROM #TMP
+        WHERE (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(TransactionID, ''))) = @TransactionId)
         ORDER BY [Datetime] DESC, TransactionID
         OFFSET @Start ROWS FETCH NEXT @Length ROWS ONLY;
     END

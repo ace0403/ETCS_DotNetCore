@@ -27,6 +27,7 @@ public static class MealImageStaticFileExtensions
             $"/{MealImagePaths.MealComboFolder}/{MealImagePaths.ThumbSubFolder}");
 
         MapFolder(app, storePath, "images", "/images");
+        MapFolder(app, storePath, "SchoolLogo", "/SchoolLogo");
     }
 
     private static void MapFolder(WebApplication app, string storePath, string relativeFolder, string requestPath)

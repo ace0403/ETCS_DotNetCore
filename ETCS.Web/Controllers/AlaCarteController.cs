@@ -2,10 +2,13 @@ using ETCS.Shared.Enumeration;
 using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
 using ETCS.Shared.Infrastructure.Meals;
 using ETCS.Shared.Infrastructure.Orders;
+using ETCS.Shared.Infrastructure.Schools.Calendar;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Application.Orders;
+using ETCS.Shared.Application.Students;
 using ETCS.Web.Infrastructure.AlaCarte;
 using ETCS.Web.Infrastructure.Auth;
+using ETCS.Web.Infrastructure.Orders;
 using ETCS.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,6 +26,9 @@ public class AlaCarteController : Controller
     private readonly IMealOrderRepository _mealOrderRepository;
     private readonly IOrderInitiateService _orderInitiateService;
     private readonly IOrderPaymentCompleteService _orderPaymentCompleteService;
+    private readonly IStudentOrderTypeAccessService _orderTypeAccess;
+    private readonly MealOrderBookingWindow _bookingWindow;
+    private readonly ISchoolCalendarService _schoolCalendar;
 
     public AlaCarteController(
         IStudentRepository studentRepository,
@@ -30,7 +36,10 @@ public class AlaCarteController : Controller
         IMealRepository mealRepository,
         IMealOrderRepository mealOrderRepository,
         IOrderInitiateService orderInitiateService,
-        IOrderPaymentCompleteService orderPaymentCompleteService)
+        IOrderPaymentCompleteService orderPaymentCompleteService,
+        IStudentOrderTypeAccessService orderTypeAccess,
+        MealOrderBookingWindow bookingWindow,
+        ISchoolCalendarService schoolCalendar)
     {
         _studentRepository = studentRepository;
         _mealEnumRepository = mealEnumRepository;
@@ -38,6 +47,9 @@ public class AlaCarteController : Controller
         _mealOrderRepository = mealOrderRepository;
         _orderInitiateService = orderInitiateService;
         _orderPaymentCompleteService = orderPaymentCompleteService;
+        _orderTypeAccess = orderTypeAccess;
+        _bookingWindow = bookingWindow;
+        _schoolCalendar = schoolCalendar;
     }
 
     public async Task<IActionResult> Index(int? studentId, CancellationToken cancellationToken)
@@ -62,6 +74,26 @@ public class AlaCarteController : Controller
         if (!ModelState.IsValid || !await StudentBelongsToGuardianAsync(guardianId, request.StudentId, cancellationToken))
         {
             return PartialView("_MealList", Array.Empty<AlaCarteMealTypeGroup>());
+        }
+
+        if (!await _orderTypeAccess.IsAllowedAsync(request.StudentId, (int)TransactionTypeEnum.A_La_Carte, cancellationToken))
+        {
+            return PartialView("_MealList", Array.Empty<AlaCarteMealTypeGroup>());
+        }
+
+        if (!_bookingWindow.IsBookable(request.MealDate))
+        {
+            ViewData["SelectedMealDate"] = request.MealDate.ToString("yyyy-MM-dd");
+            ViewData["SelectedMealDateDisplay"] = request.MealDate.ToString("dddd, dd MMM yyyy", CultureInfo.InvariantCulture);
+            return PartialView("_MealList", Array.Empty<AlaCarteMealTypeGroup>());
+        }
+
+        var schoolId = await ResolveStudentSchoolIdAsync(request.StudentId, cancellationToken);
+        if (schoolId is > 0
+            && !await _schoolCalendar.IsOrderableAsync(schoolId.Value, request.MealDate.Date, cancellationToken))
+        {
+            var day = await _schoolCalendar.GetDayInfoAsync(schoolId.Value, request.MealDate.Date, cancellationToken);
+            return MenuClosedDayPartial(request.MealDate.Date, day);
         }
 
         var groups = await LoadMealGroupsAsync(request.StudentId, request.MealDate, cancellationToken);
@@ -91,6 +123,11 @@ public class AlaCarteController : Controller
             return PartialView("_OrderSummary", new AlaCarteSummaryViewModel());
         }
 
+        if (!await _orderTypeAccess.IsAllowedAsync(studentId, (int)TransactionTypeEnum.A_La_Carte, cancellationToken))
+        {
+            return PartialView("_OrderSummary", new AlaCarteSummaryViewModel());
+        }
+
         var summary = await BuildSummaryAsync(studentId, items ?? [], cancellationToken);
         var children = await LoadChildrenAsync(guardianId, cancellationToken);
         summary.StudentName = children.FirstOrDefault(c => c.Id == studentId)?.Name ?? string.Empty;
@@ -116,6 +153,11 @@ public class AlaCarteController : Controller
         if (mealList is null || mealList.Count == 0)
         {
             return Json(new { Success = false, Message = "No meals selected." });
+        }
+
+        if (await TryGetClosedDateMessageAsync(studentId, mealList.Select(x => x.MealDate), cancellationToken) is { } closedMessage)
+        {
+            return Json(new { Success = false, Message = closedMessage });
         }
 
         var summary = await BuildSummaryAsync(studentId, mealList, cancellationToken);
@@ -209,7 +251,7 @@ public class AlaCarteController : Controller
         int? preferredStudentId,
         CancellationToken cancellationToken)
     {
-        var children = await LoadChildrenAsync(guardianId, cancellationToken);
+        var children = await LoadEligibleChildrenAsync(guardianId, cancellationToken);
 
         var selectedStudentId = children.FirstOrDefault()?.Id ?? 0;
         if (preferredStudentId is > 0 && children.Any(c => c.Id == preferredStudentId.Value))
@@ -223,6 +265,7 @@ public class AlaCarteController : Controller
         {
             StudentId = selectedStudentId,
             Duration = defaultDurationDays,
+            MealDate = _bookingWindow.GetEarliestBookableDate(),
             DurationList = new SelectList(
                 new[] { new { Value = defaultDurationDays, Text = "30 Days" } },
                 "Value",
@@ -230,6 +273,19 @@ public class AlaCarteController : Controller
                 defaultDurationDays),
             Children = children
         };
+    }
+
+    private async Task<IReadOnlyList<AlaCarteChildOption>> LoadEligibleChildrenAsync(
+        int guardianId,
+        CancellationToken cancellationToken)
+    {
+        var children = await LoadChildrenAsync(guardianId, cancellationToken);
+        var allowedIds = (await _orderTypeAccess.FilterAllowedAsync(
+            children.Select(c => c.Id),
+            (int)TransactionTypeEnum.A_La_Carte,
+            cancellationToken)).ToHashSet();
+
+        return children.Where(c => allowedIds.Contains(c.Id)).ToList();
     }
 
     private async Task<IReadOnlyList<AlaCarteChildOption>> LoadChildrenAsync(int guardianId, CancellationToken cancellationToken)
@@ -267,16 +323,20 @@ public class AlaCarteController : Controller
             return [];
         }
 
-        var items = await _mealRepository.GetMealItemsForStudentAsync(studentId, schoolId.Value, mealDate, mealTypeId: null, cancellationToken);
+        var items = await _mealRepository.GetMealItemsForStudentAsync(
+            studentId,
+            schoolId.Value,
+            mealDate,
+            cancellationToken: cancellationToken);
         return items
-            .GroupBy(x => new { x.MealTypeId, x.MealTypeName, x.MealCssClass })
-            .OrderBy(g => g.Key.MealTypeId)
+            .GroupBy(x => new { x.MealSessionId, x.MealSessionName, x.MealSessionCssClass })
+            .OrderBy(g => g.Key.MealSessionId)
             .Select(g => new AlaCarteMealTypeGroup
             {
-                MealTypeId = g.Key.MealTypeId,
-                MealTypeName = g.Key.MealTypeName,
-                MealCssClass = g.Key.MealCssClass,
-                MealItems = g.ToList()
+                MealSessionId = g.Key.MealSessionId,
+                MealSessionName = g.Key.MealSessionName,
+                MealSessionCssClass = g.Key.MealSessionCssClass,
+                MealItems = g.OrderBy(i => i.MealTypeId).ThenBy(i => i.ItemName).ToList()
             })
             .ToList();
     }
@@ -298,15 +358,22 @@ public class AlaCarteController : Controller
         }
 
         var menuLookup = new Dictionary<int, MealItemDto>();
-        var mealDates = selections
-            .Select(s => ParseMealDate(s.MealDate))
-            .Where(d => d != default)
-            .Distinct()
-            .ToList();
+        var mealDates = new List<DateTime>();
+        foreach (var raw in selections.Select(s => ParseMealDate(s.MealDate)).Where(d => d != default).Distinct())
+        {
+            if (await IsMealDateBookableAsync(schoolId.Value, raw, cancellationToken))
+            {
+                mealDates.Add(raw);
+            }
+        }
 
         foreach (var mealDate in mealDates)
         {
-            var menuItems = await _mealRepository.GetMealItemsForStudentAsync(studentId, schoolId.Value, mealDate, null, cancellationToken);
+            var menuItems = await _mealRepository.GetMealItemsForStudentAsync(
+                studentId,
+                schoolId.Value,
+                mealDate,
+                cancellationToken: cancellationToken);
             foreach (var menuItem in menuItems)
             {
                 menuLookup[menuItem.Id] = menuItem;
@@ -317,7 +384,9 @@ public class AlaCarteController : Controller
         foreach (var selection in selections)
         {
             var mealDate = ParseMealDate(selection.MealDate);
-            if (mealDate == default || selection.ItemId <= 0)
+            if (mealDate == default
+                || selection.ItemId <= 0
+                || !await IsMealDateBookableAsync(schoolId.Value, mealDate, cancellationToken))
             {
                 continue;
             }
@@ -351,6 +420,50 @@ public class AlaCarteController : Controller
         return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var days) ? days : 0;
     }
 
+    private async Task<bool> IsMealDateBookableAsync(
+        int schoolId,
+        DateTime mealDate,
+        CancellationToken cancellationToken)
+    {
+        if (!_bookingWindow.IsBookable(mealDate))
+        {
+            return false;
+        }
+
+        return await _schoolCalendar.IsOrderableAsync(schoolId, mealDate.Date, cancellationToken);
+    }
+
+    private async Task<string?> TryGetClosedDateMessageAsync(
+        int studentId,
+        IEnumerable<string?> mealDates,
+        CancellationToken cancellationToken)
+    {
+        var schoolId = await ResolveStudentSchoolIdAsync(studentId, cancellationToken);
+        var dates = mealDates
+            .Select(ParseMealDate)
+            .Where(d => d != default)
+            .OrderBy(d => d)
+            .Distinct()
+            .ToList();
+
+        foreach (var date in dates)
+        {
+            if (!_bookingWindow.IsBookable(date))
+            {
+                return _bookingWindow.FormatClosedDateMessage(date);
+            }
+
+            if (schoolId is > 0
+                && !await _schoolCalendar.IsOrderableAsync(schoolId.Value, date, cancellationToken))
+            {
+                var day = await _schoolCalendar.GetDayInfoAsync(schoolId.Value, date, cancellationToken);
+                return day.GetClosedOrderMessage(date);
+            }
+        }
+
+        return null;
+    }
+
     private static DateTime ParseMealDate(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw))
@@ -367,6 +480,24 @@ public class AlaCarteController : Controller
         return DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out parsed)
             ? parsed.Date
             : default;
+    }
+
+    private IActionResult MenuClosedDayPartial(DateTime mealDate, SchoolDayInfo day)
+    {
+        var title = string.IsNullOrWhiteSpace(day.Title) ? null : day.Title.Trim();
+        var isGenericHolidayTitle = string.Equals(title, "Holiday", StringComparison.OrdinalIgnoreCase);
+        var isWeekend = mealDate.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday
+            && (string.IsNullOrWhiteSpace(title) || isGenericHolidayTitle);
+
+        ViewData["ClosedDate"] = mealDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        ViewData["ClosedDayName"] = mealDate.ToString("dddd", CultureInfo.InvariantCulture);
+        ViewData["ClosedDayType"] = day.Status == SchoolDayStatus.HalfDay
+            ? "halfday"
+            : isWeekend
+                ? "weekend"
+                : "holiday";
+        ViewData["ClosedDayTitle"] = isGenericHolidayTitle ? null : title;
+        return PartialView("_MenuClosedDay");
     }
 }
 

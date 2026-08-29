@@ -1,0 +1,39 @@
+@{
+    Layout = null;
+    var dayName = ViewData["ClosedDayName"]?.ToString() ?? "This day";
+    var closedType = ViewData["ClosedDayType"]?.ToString() ?? "holiday";
+    var closedTitle = ViewData["ClosedDayTitle"]?.ToString();
+    var isHalfDay = string.Equals(closedType, "halfday", StringComparison.OrdinalIgnoreCase);
+    var isWeekend = string.Equals(closedType, "weekend", StringComparison.OrdinalIgnoreCase);
+    var badgeText = isHalfDay ? "Half day" : "No meal service today";
+    var messageLine1 = isHalfDay
+        ? "Meal ordering is not available on half day."
+        : isWeekend
+            ? "Meal ordering is not available on weekends."
+            : !string.IsNullOrWhiteSpace(closedTitle)
+                ? $"Meal ordering is not available on holiday."
+                : "Meal ordering is not available on school holidays.";
+    var messageLine2 = "Please select another day.";
+}
+<div class="menu-closed-day-card">
+    <div class="menu-closed-day-state" data-closed-date="@ViewData["ClosedDate"]">
+        <div class="menu-closed-day-illustration" aria-hidden="true">
+            <img src="@Url.Content("~/images/calendar-with-cross-mark.png")" alt="" class="menu-closed-day-illustration-img" />
+        </div>
+        <h2 class="menu-closed-day-title">@dayName</h2>
+        <div class="menu-closed-day-badge@(isHalfDay ? " is-halfday" : "")">
+            <i class="ti ti-calendar-event" aria-hidden="true"></i>
+            <span>@badgeText</span>
+        </div>
+        <p class="menu-closed-day-message">
+            <span>@messageLine1</span>
+            <span>@messageLine2</span>
+        </p>
+        <div class="menu-closed-day-footer">
+            <button type="button" class="btn btn-outline-primary menu-closed-day-action js-choose-another-date">
+                <i class="ti ti-arrow-left" aria-hidden="true"></i>
+                Choose another date
+            </button>
+        </div>
+    </div>
+</div>

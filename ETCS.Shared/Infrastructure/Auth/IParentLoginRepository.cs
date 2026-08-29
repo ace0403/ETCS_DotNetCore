@@ -22,11 +22,23 @@ public interface IParentLoginRepository
         string token,
         string newPassword,
         CancellationToken cancellationToken = default);
+
+    Task<bool> IsAccountDeletedAsync(int guardianId, CancellationToken cancellationToken = default);
+
+    Task<GuardianAccountEmailInfo?> GetActiveAccountEmailAsync(
+        int guardianId,
+        CancellationToken cancellationToken = default);
+
+    Task<ParentSoftDeleteResult> SoftDeleteAccountAsync(
+        int guardianId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record ParentLoginResult(bool SpIndicatesSuccess, int id, string? StoredPasswordOrHash, UserResponse? User);
 public sealed record ParentRegistrationResult(bool IsSuccess, int GuardianId, string Message, UserResponse? User);
 public sealed record ParentChangePasswordResult(bool Success, string Message);
+public sealed record ParentSoftDeleteResult(bool Success, bool AlreadyDeleted, string Message);
+public sealed record GuardianAccountEmailInfo(string Email, string DisplayName, bool IsDelete);
 public sealed record ParentPasswordResetRequestResult(
     bool AccountFound,
     int GuardianId,

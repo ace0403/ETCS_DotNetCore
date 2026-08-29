@@ -4,6 +4,7 @@ using ETCS.Shared.Infrastructure.Admin.Models;
 using ETCS.Shared.Infrastructure.Email;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Net.Mail;
 
 namespace ETCS.Admin.Controllers;
 
@@ -73,6 +74,17 @@ public class EmailTemplateController : Controller
         if (string.IsNullOrWhiteSpace(model.BodyHtmlTemplate))
         {
             return Json(new { Success = false, Message = "Email body is required." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(model.RecipientEmail))
+        {
+            var recipient = model.RecipientEmail.Trim();
+            if (!MailAddress.TryCreate(recipient, out _))
+            {
+                return Json(new { Success = false, Message = "Recipient email is not valid." });
+            }
+
+            model.RecipientEmail = recipient;
         }
 
         await _repository.SaveTemplateAsync(model, cancellationToken);

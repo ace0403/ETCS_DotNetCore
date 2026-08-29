@@ -5,7 +5,17 @@ var previewSample = {
     '{{TransactionId}}': 'TXN-998877',
     '{{Amount}}': '125.00',
     '{{EventDate}}': '07-06-2026 02:30:00 PM',
-    '{{OrderItems}}': '- 07-06-2026 | Chicken Wrap | 25.00<br/>- 08-06-2026 | Fruit Bowl | 15.00'
+    '{{OrderItems}}': '- 07-06-2026 | Chicken Wrap | 25.00<br/>- 08-06-2026 | Fruit Bowl | 15.00',
+    '{{CardNumber}}': '1234567890',
+    '{{CustomerId}}': 'CUST-1001',
+    '{{Reason}}': 'Card lost',
+    '{{RefCode}}': '42',
+    '{{SchoolName}}': 'Emirates International School',
+    '{{LogoUrl}}': '/images/logo.png',
+    '{{OtpCode}}': '482913',
+    '{{ResetLink}}': 'https://parent.etcs.example/reset-password',
+    '{{ExpiryMinutes}}': '10',
+    '{{AddChildLink}}': 'https://parent.etcs.example/MyKids'
 };
 
 function applyPreviewPlaceholders(text) {

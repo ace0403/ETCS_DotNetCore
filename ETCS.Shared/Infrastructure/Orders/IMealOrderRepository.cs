@@ -63,4 +63,23 @@ public interface IMealOrderRepository
         int guardianId,
         string orderId,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Meal activity for a guardian (optional student) in a date range from AccessLog:
+    /// Meal Plan count (Description = Meal Plan), Parent Orders total (Description = Meal Order),
+    /// Canteen Purchases total (TransactionType 1004/2004).
+    /// </summary>
+    Task<MealActivitySummaryRow> GetMealActivitySummaryAsync(
+        int guardianId,
+        int? studentId,
+        DateTime fromDateInclusive,
+        DateTime toDateExclusive,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<OrderCalendarItemDto>> GetOrderCalendarItemsAsync(
+        int guardianId,
+        int? studentId,
+        DateTime fromDateInclusive,
+        DateTime toDateExclusive,
+        CancellationToken cancellationToken);
 }

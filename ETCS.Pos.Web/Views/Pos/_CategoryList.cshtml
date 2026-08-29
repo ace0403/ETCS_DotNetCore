@@ -6,15 +6,20 @@
 else
 {
     <div class="pos-pills" role="tablist" aria-label="Menu categories">
-        @for (var i = 0; i < Model.Count; i++)
+        <button type="button"
+                class="pos-category-item is-active"
+                data-category-id="0"
+                role="tab"
+                aria-selected="true">
+            All
+        </button>
+        @foreach (var category in Model)
         {
-            var category = Model[i];
-            var isActive = i == 0;
             <button type="button"
-                    class="pos-category-item @(isActive ? "is-active" : "")"
+                    class="pos-category-item"
                     data-category-id="@category.CategoryId"
                     role="tab"
-                    aria-selected="@(isActive ? "true" : "false")">
+                    aria-selected="false">
                 @category.CategoryName
             </button>
         }

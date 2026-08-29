@@ -1,0 +1,23 @@
+@model ETCS.Shared.Infrastructure.Legal.LegalContentDto
+@{
+    Layout = "_LegalLayout";
+    ViewData["Title"] = Model.Title;
+}
+
+<div class="legal-hero">
+    <h1 class="legal-title">@Model.Title</h1>
+    <p class="legal-updated">Last updated: @Model.LastUpdatedOn.ToString("MMMM d, yyyy")</p>
+</div>
+
+<article class="legal-panel">
+    @Html.Raw(Model.BodyHtml)
+</article>
+
+@if (User.Identity?.IsAuthenticated == true)
+{
+    <a asp-controller="Dashboard" asp-action="Index" class="legal-back"><i class="ti ti-arrow-left"></i> Back to portal</a>
+}
+else
+{
+    <a asp-controller="Home" asp-action="Index" class="legal-back"><i class="ti ti-arrow-left"></i> Back to login</a>
+}

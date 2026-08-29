@@ -86,6 +86,9 @@ CREATE OR ALTER PROCEDURE dbo.spQueueEmailNotification
     @OrderItems NVARCHAR(MAX) = N'',
     @ResetLink NVARCHAR(1000) = N'',
     @ExpiryMinutes NVARCHAR(20) = N'',
+    @OtpCode NVARCHAR(20) = N'',
+    @AddChildLink NVARCHAR(1000) = N'',
+    @LogoUrl NVARCHAR(1000) = N'',
     @PayloadJson NVARCHAR(MAX) = NULL
 AS
 BEGIN
@@ -120,6 +123,9 @@ BEGIN
     SET @Subject = REPLACE(@Subject, '{{OrderItems}}', ISNULL(@OrderItems, N''));
     SET @Subject = REPLACE(@Subject, '{{ResetLink}}', ISNULL(@ResetLink, N''));
     SET @Subject = REPLACE(@Subject, '{{ExpiryMinutes}}', ISNULL(@ExpiryMinutes, N''));
+    SET @Subject = REPLACE(@Subject, '{{OtpCode}}', ISNULL(@OtpCode, N''));
+    SET @Subject = REPLACE(@Subject, '{{AddChildLink}}', ISNULL(@AddChildLink, N''));
+    SET @Subject = REPLACE(@Subject, '{{LogoUrl}}', ISNULL(@LogoUrl, N''));
 
     SET @Body = REPLACE(@Body, '{{GuardianName}}', ISNULL(@GuardianName, N''));
     SET @Body = REPLACE(@Body, '{{StudentName}}', ISNULL(@StudentName, N''));
@@ -130,6 +136,9 @@ BEGIN
     SET @Body = REPLACE(@Body, '{{OrderItems}}', ISNULL(@OrderItems, N''));
     SET @Body = REPLACE(@Body, '{{ResetLink}}', ISNULL(@ResetLink, N''));
     SET @Body = REPLACE(@Body, '{{ExpiryMinutes}}', ISNULL(@ExpiryMinutes, N''));
+    SET @Body = REPLACE(@Body, '{{OtpCode}}', ISNULL(@OtpCode, N''));
+    SET @Body = REPLACE(@Body, '{{AddChildLink}}', ISNULL(@AddChildLink, N''));
+    SET @Body = REPLACE(@Body, '{{LogoUrl}}', ISNULL(@LogoUrl, N''));
 
     INSERT INTO dbo.EmailNotification
     (
@@ -214,7 +223,7 @@ BEGIN
         SmtpHost,
         SmtpEmail,
         Password,
-        SSL,
+        SSL AS Ssl,
         Port
     FROM dbo.SmtpSettings
     ORDER BY Id;
@@ -267,18 +276,39 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    SELECT TOP (@BatchSize)
-        Id,
-        TemplateKey,
-        ToEmail,
-        Subject,
-        BodyHtml,
-        PayloadJson,
-        Status,
-        CreatedOn
-    FROM dbo.EmailNotification
-    WHERE Status = N'Queued'
-    ORDER BY CreatedOn;
+    -- Reclaim rows left in Sending if a worker crashed mid-send (SentOn used as claim timestamp).
+    UPDATE dbo.EmailNotification
+    SET Status = N'Queued',
+        SentOn = NULL,
+        ErrorMessage = NULL
+    WHERE Status = N'Sending'
+      AND (
+            SentOn IS NULL
+            OR SentOn < DATEADD(MINUTE, -15, SYSUTCDATETIME())
+          );
+
+    ;WITH cte AS
+    (
+        SELECT TOP (@BatchSize) Id
+        FROM dbo.EmailNotification WITH (UPDLOCK, READPAST, ROWLOCK)
+        WHERE Status = N'Queued'
+        ORDER BY CreatedOn
+    )
+    UPDATE e
+    SET Status = N'Sending',
+        SentOn = SYSUTCDATETIME(),
+        ErrorMessage = NULL
+    OUTPUT
+        inserted.Id,
+        inserted.TemplateKey,
+        inserted.ToEmail,
+        inserted.Subject,
+        inserted.BodyHtml,
+        inserted.PayloadJson,
+        inserted.Status,
+        inserted.CreatedOn
+    FROM dbo.EmailNotification e
+    INNER JOIN cte ON cte.Id = e.Id;
 END;
 GO
 
@@ -376,5 +406,127 @@ EXEC dbo.spUpsertEmailTemplate
 <p>This link expires in <strong>{{ExpiryMinutes}}</strong> minutes. If you did not request a password reset, you can ignore this email.</p>
 <p style="color:#666;font-size:13px;">Emirates Taste Catering Services</p>
 </div>',
+    @IsActive = 1;
+GO
+
+EXEC dbo.spUpsertEmailTemplate
+    @TemplateKey = N'RegistrationOtp',
+    @SubjectTemplate = N'Your ETCS verification code',
+    @BodyHtmlTemplate = N'<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Verify your email</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f5f7f9;-webkit-text-size-adjust:100%;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f5f7f9;padding:24px 12px;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background-color:#ffffff;border-radius:12px;overflow:hidden;border:1px solid rgba(15,23,42,0.08);">
+        <tr>
+          <td align="center" style="background-color:#ffffff;padding:28px 24px 20px 24px;border-bottom:3px solid #3498db;">
+            <img src="{{LogoUrl}}" alt="ETCS" width="150" style="display:block;margin:0 auto;max-width:150px;height:auto;border:0;" />
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px 28px 8px 28px;font-family:Segoe UI,Arial,Helvetica,sans-serif;color:#0f172a;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 16px auto;">
+              <tr>
+                <td align="center" style="width:56px;height:56px;border-radius:28px;background-color:#ebf5fb;color:#3498db;font-size:26px;line-height:56px;font-weight:700;">&#9993;</td>
+              </tr>
+            </table>
+            <h1 style="margin:0 0 8px 0;font-size:24px;line-height:1.3;color:#0f172a;text-align:center;font-weight:700;">Verify your email</h1>
+            <p style="margin:0 0 20px 0;font-size:15px;line-height:1.6;color:#64748b;text-align:center;">Use the verification code below to complete your ETCS parent account registration.</p>
+            <p style="margin:0 0 24px 0;font-size:15px;line-height:1.6;color:#0f172a;">Dear <strong>{{GuardianName}}</strong>,</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#ebf5fb;border:1px solid rgba(52,152,219,0.28);border-radius:10px;margin:0 0 24px 0;">
+              <tr>
+                <td style="padding:24px 22px;font-family:Segoe UI,Arial,Helvetica,sans-serif;text-align:center;">
+                  <p style="margin:0 0 10px 0;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#2980b9;font-weight:700;">Verification Code</p>
+                  <p style="margin:0;font-size:36px;letter-spacing:10px;font-weight:700;color:#0f172a;line-height:1.2;">{{OtpCode}}</p>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:0 0 8px 0;font-size:14px;line-height:1.6;color:#64748b;text-align:center;">This code expires in <strong style="color:#0f172a;">{{ExpiryMinutes}}</strong> minutes.</p>
+            <p style="margin:0 0 8px 0;font-size:14px;line-height:1.6;color:#64748b;text-align:center;">If you did not start registration, you can ignore this email.</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:20px 28px 28px 28px;border-top:1px solid rgba(15,23,42,0.08);font-family:Segoe UI,Arial,Helvetica,sans-serif;background-color:#f8fafc;">
+            <p style="margin:0 0 6px 0;font-size:13px;line-height:1.5;color:#64748b;text-align:center;">Need help? Please contact your school administration.</p>
+            <p style="margin:0;font-size:12px;line-height:1.5;color:#94a3b8;text-align:center;">Emirates Taste Catering Services<br />ETCS Parent Portal</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>',
+    @IsActive = 1;
+GO
+
+EXEC dbo.spUpsertEmailTemplate
+    @TemplateKey = N'RegistrationSuccess',
+    @SubjectTemplate = N'Registration successful - Welcome to ETCS Parent Portal',
+    @BodyHtmlTemplate = N'<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Registration Successful</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f5f7f9;-webkit-text-size-adjust:100%;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f5f7f9;padding:24px 12px;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background-color:#ffffff;border-radius:12px;overflow:hidden;border:1px solid rgba(15,23,42,0.08);">
+        <tr>
+          <td align="center" style="background-color:#ffffff;padding:28px 24px 20px 24px;border-bottom:3px solid #3498db;">
+            <img src="{{LogoUrl}}" alt="ETCS" width="150" style="display:block;margin:0 auto;max-width:150px;height:auto;border:0;" />
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px 28px 8px 28px;font-family:Segoe UI,Arial,Helvetica,sans-serif;color:#0f172a;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 16px auto;">
+              <tr>
+                <td align="center" style="width:56px;height:56px;border-radius:28px;background-color:#ebf5fb;color:#3498db;font-size:28px;line-height:56px;font-weight:700;">&#10003;</td>
+              </tr>
+            </table>
+            <h1 style="margin:0 0 8px 0;font-size:24px;line-height:1.3;color:#0f172a;text-align:center;font-weight:700;">Registration Successful!</h1>
+            <p style="margin:0 0 20px 0;font-size:15px;line-height:1.6;color:#64748b;text-align:center;">Your ETCS Parent Portal account has been created successfully.</p>
+            <p style="margin:0 0 24px 0;font-size:15px;line-height:1.6;color:#0f172a;">Dear <strong>{{GuardianName}}</strong>,</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#ebf5fb;border:1px solid rgba(52,152,219,0.28);border-radius:10px;margin:0 0 24px 0;">
+              <tr>
+                <td style="padding:20px 22px;font-family:Segoe UI,Arial,Helvetica,sans-serif;">
+                  <p style="margin:0 0 6px 0;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#2980b9;font-weight:700;">Add Your Child</p>
+                  <p style="margin:0 0 10px 0;font-size:15px;line-height:1.6;color:#0f172a;">To complete your setup, please add your child&rsquo;s details to your account.</p>
+                  <p style="margin:0;font-size:14px;line-height:1.6;color:#64748b;">You can add one or more children and manage their information from your Parent Portal.</p>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:0 0 12px 0;font-size:14px;font-weight:700;color:#0f172a;text-align:center;">Next Step</p>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 20px auto;">
+              <tr>
+                <td align="center" style="border-radius:8px;background-color:#3498db;">
+                  <a href="{{AddChildLink}}" style="display:inline-block;padding:14px 28px;font-family:Segoe UI,Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:8px;">Add Child Details</a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:0 0 8px 0;font-size:14px;line-height:1.6;color:#64748b;text-align:center;">You can also add your child later from the <strong style="color:#0f172a;">My Children</strong> section.</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:20px 28px 28px 28px;border-top:1px solid rgba(15,23,42,0.08);font-family:Segoe UI,Arial,Helvetica,sans-serif;background-color:#f8fafc;">
+            <p style="margin:0 0 6px 0;font-size:13px;line-height:1.5;color:#64748b;text-align:center;">Need help? Please contact your school administration.</p>
+            <p style="margin:0;font-size:12px;line-height:1.5;color:#94a3b8;text-align:center;">Emirates Taste Catering Services<br />ETCS Parent Portal</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>',
     @IsActive = 1;
 GO

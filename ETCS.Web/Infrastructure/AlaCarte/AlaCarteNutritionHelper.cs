@@ -2,6 +2,16 @@ using ETCS.Shared.Infrastructure.Meals;
 
 namespace ETCS.Web.Infrastructure.AlaCarte;
 
+public sealed class NutritionHighlightDto
+{
+    public string Key { get; init; } = string.Empty;
+    public string Label { get; init; } = string.Empty;
+    public string Value { get; init; } = string.Empty;
+    public string Unit { get; init; } = string.Empty;
+    public string IconClass { get; init; } = string.Empty;
+    public string? Emoji { get; init; }
+}
+
 public static class AlaCarteNutritionHelper
 {
     public static string FormatIconClass(NutritionItemDto item)
@@ -54,6 +64,30 @@ public static class AlaCarteNutritionHelper
     }
 
     /// <summary>
+    /// Available Energy, Protein, Fats, and Carbs rows for the meal card nutrition strip.
+    /// Missing nutrients are omitted.
+    /// </summary>
+    public static IReadOnlyList<NutritionHighlightDto> GetPrimaryStats(IEnumerable<NutritionItemDto>? nutritionList)
+    {
+        var items = nutritionList?.ToList() ?? [];
+        if (items.Count == 0)
+        {
+            return [];
+        }
+
+        return new NutritionHighlightDto?[]
+            {
+                TryBuildStat(items, "energy", "Energy", "ti ti-bolt", "kcal", null, "energy", "calor"),
+                TryBuildStat(items, "protein", "Protein", "fa fa-dumbbell", "g", "💪", "protein"),
+                TryBuildStat(items, "fat", "Fats", "ti ti-droplet", "g", null, "fat"),
+                TryBuildStat(items, "carb", "Carbs", "ti ti-seeding", "g", null, "carb", "carbohydrate")
+            }
+            .Where(stat => stat is not null)
+            .Select(stat => stat!)
+            .ToList();
+    }
+
+    /// <summary>
     /// Returns a short calorie badge label (e.g. "450 cal") when nutrition includes energy/calories; otherwise null.
     /// </summary>
     public static string? TryFormatCalorieBadge(IEnumerable<NutritionItemDto>? nutritionList)
@@ -90,6 +124,37 @@ public static class AlaCarteNutritionHelper
         }
 
         return null;
+    }
+
+    private static NutritionHighlightDto? TryBuildStat(
+        IReadOnlyList<NutritionItemDto> items,
+        string key,
+        string label,
+        string iconClass,
+        string defaultUnit,
+        string? emoji,
+        params string[] nameNeedles)
+    {
+        var match = items.FirstOrDefault(item =>
+            nameNeedles.Any(needle => Contains(item.NutritionName ?? string.Empty, needle)));
+        if (match is null)
+        {
+            return null;
+        }
+
+        var unit = string.IsNullOrWhiteSpace(match.MeasureTypeName)
+            ? defaultUnit
+            : match.MeasureTypeName.Trim();
+
+        return new NutritionHighlightDto
+        {
+            Key = key,
+            Label = label,
+            Value = match.MeasureValue.ToString("0.#"),
+            Unit = unit,
+            IconClass = iconClass,
+            Emoji = emoji
+        };
     }
 
     private static string ResolveFallbackIcon(string? nutritionName)

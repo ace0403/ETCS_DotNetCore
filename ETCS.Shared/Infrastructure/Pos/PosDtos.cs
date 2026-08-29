@@ -88,6 +88,35 @@ public sealed class PosLegacyOperationResponse
     public string Message { get; init; } = string.Empty;
 }
 
+public sealed class PosManualTopupRequest
+{
+    public string CardNumber { get; init; } = string.Empty;
+    public decimal Amount { get; init; }
+    public string? TransactionId { get; init; }
+    public string? Remarks { get; init; }
+}
+
+public sealed class PosManualTopupResponse
+{
+    public bool IsSuccess { get; init; }
+    public string Message { get; init; } = string.Empty;
+    public string OrderId { get; init; } = string.Empty;
+    public string TransactionId { get; init; } = string.Empty;
+    public string CustomerId { get; init; } = string.Empty;
+    public string StudentName { get; init; } = string.Empty;
+    public decimal Amount { get; init; }
+    public decimal Balance { get; init; }
+}
+
+public sealed class PosCardCheckResponse
+{
+    public bool IsSuccess { get; init; }
+    public string Message { get; init; } = string.Empty;
+    public string CustomerId { get; init; } = string.Empty;
+    public string StudentName { get; init; } = string.Empty;
+    public decimal Balance { get; init; }
+}
+
 public sealed class PosAccessLogResponse
 {
     public bool IsSuccess { get; init; }

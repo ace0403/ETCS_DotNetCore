@@ -10,6 +10,8 @@ public sealed class SupportPageViewModel
 
     public string GuardianName { get; init; } = string.Empty;
 
+    public string SupportInquiriesEmail { get; init; } = string.Empty;
+
     public string GuardianEmail { get; init; } = string.Empty;
 
     public int? GuardianId { get; init; }

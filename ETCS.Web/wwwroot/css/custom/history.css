@@ -228,6 +228,15 @@
     color: inherit;
 }
 
+.history-page .history-row.is-static {
+    cursor: default;
+}
+
+.history-page .history-row.is-static:hover {
+    border-color: inherit;
+    box-shadow: none;
+}
+
 .history-page .history-row-body {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;

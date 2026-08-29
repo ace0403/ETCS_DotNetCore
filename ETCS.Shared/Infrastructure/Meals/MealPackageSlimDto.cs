@@ -6,6 +6,8 @@ public sealed class MealPackageSlimDto
 
     public string PackageName { get; init; } = string.Empty;
 
+    public string MealSessionName { get; init; } = string.Empty;
+
     public string MealTypeName { get; init; } = string.Empty;
 
     public string? Detail { get; init; }

@@ -22,6 +22,7 @@
                 @if (AdminPermissionViewHelper.CanView(User, "School")
                     || AdminPermissionViewHelper.CanView(User, "Guardian")
                     || AdminPermissionViewHelper.CanView(User, "Student")
+                    || AdminPermissionViewHelper.CanView(User, "BlacklistCard")
                     || AdminPermissionViewHelper.CanView(User, "Staff")
                     || AdminPermissionViewHelper.CanView(User, "EmailTemplate")
                     || AdminPermissionViewHelper.CanView(User, "InAppNotification"))
@@ -55,6 +56,15 @@
                         </a>
                     </li>
                 }
+                @if (AdminPermissionViewHelper.CanView(User, "BlacklistCard"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="BlacklistCard" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-credit-card-off"></i></span>
+                            <span class="pc-mtext">Blacklist Cards</span>
+                        </a>
+                    </li>
+                }
                 @if (AdminPermissionViewHelper.CanView(User, "Staff"))
                 {
                     <li class="pc-item">
@@ -83,10 +93,12 @@
                     </li>
                 }
                 @if (AdminPermissionViewHelper.CanView(User, "Category")
+                    || AdminPermissionViewHelper.CanView(User, "MealType")
                     || AdminPermissionViewHelper.CanView(User, "Ingredient")
                     || AdminPermissionViewHelper.CanView(User, "MealItem")
                     || AdminPermissionViewHelper.CanView(User, "MealCombo")
-                    || AdminPermissionViewHelper.CanView(User, "MealServingPeriod"))
+                    || AdminPermissionViewHelper.CanView(User, "MealServingPeriod")
+                    || AdminPermissionViewHelper.CanView(User, "SchoolCalendar"))
                 {
                     <li class="pc-item pc-caption"><label>Inventory</label></li>
                 }
@@ -95,7 +107,16 @@
                     <li class="pc-item">
                         <a asp-controller="Category" asp-action="Index" class="pc-link">
                             <span class="pc-micon"><i class="ti ti-typography"></i></span>
-                            <span class="pc-mtext">Menu Category</span>
+                            <span class="pc-mtext">Menu Type/Category</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "MealType"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="MealType" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-sun"></i></span>
+                            <span class="pc-mtext">Meal Type</span>
                         </a>
                     </li>
                 }
@@ -135,11 +156,22 @@
                         </a>
                     </li>
                 }
+                @if (AdminPermissionViewHelper.CanView(User, "SchoolCalendar"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="SchoolCalendar" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-calendar-event"></i></span>
+                            <span class="pc-mtext">School Calendar</span>
+                        </a>
+                    </li>
+                }
                 @if (AdminPermissionViewHelper.CanView(User, "Report.CanteenTransactions")
                     || AdminPermissionViewHelper.CanView(User, "Report.AdminTransaction")
                     || AdminPermissionViewHelper.CanView(User, "Report.TerminalSalesSummary")
                     || AdminPermissionViewHelper.CanView(User, "Report.MealOrdersMealDb")
-                    || AdminPermissionViewHelper.CanView(User, "Report.MealOrders"))
+                    || AdminPermissionViewHelper.CanView(User, "Report.MealOrders")
+                    || AdminPermissionViewHelper.CanView(User, "Report.MealOrderPaymentsMealDb")
+                    || AdminPermissionViewHelper.CanView(User, "Report.MealOrderPayments"))
                 {
                     <li class="pc-item pc-caption"><label>Reports</label></li>
                 }
@@ -166,7 +198,7 @@
                     <li class="pc-item">
                         <a asp-controller="Report" asp-action="TerminalSalesSummary" class="pc-link">
                             <span class="pc-micon"><i class="ti ti-device-desktop-analytics"></i></span>
-                            <span class="pc-mtext">Terminal Sales Summary</span>
+                            <span class="pc-mtext">Sales Summary</span>
                         </a>
                     </li>
                 }
@@ -181,10 +213,28 @@
                 }
                 @if (AdminPermissionViewHelper.CanView(User, "Report.MealOrders"))
                 {
-                    <li class="pc-item mb-3">
+                    <li class="pc-item">
                         <a asp-controller="Report" asp-action="MealOrders" class="pc-link">
                             <span class="pc-micon"><i class="ti ti-clipboard-list"></i></span>
                             <span class="pc-mtext">Meal Order Report <small class="text-red-600"><i>(OLD)</i></small></span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Report.MealOrderPaymentsMealDb"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="Report" asp-action="MealOrderPaymentsMealDb" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-receipt"></i></span>
+                            <span class="pc-mtext">Meal Order Payment Report <small class="text-red-600"><i>(NEW)</i></small></span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Report.MealOrderPayments"))
+                {
+                    <li class="pc-item mb-3">
+                        <a asp-controller="Report" asp-action="MealOrderPayments" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-receipt"></i></span>
+                            <span class="pc-mtext">Meal Order Payment Report <small class="text-red-600"><i>(OLD)</i></small></span>
                         </a>
                     </li>
                 }

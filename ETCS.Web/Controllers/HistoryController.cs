@@ -220,9 +220,16 @@ public sealed class HistoryController : Controller
     {
         var status = HistoryStatusHelper.Resolve(item.StatusId, item.IsTransactionCompleted);
         var isTopup = string.Equals(item.TransactionType, "topup", StringComparison.OrdinalIgnoreCase);
-        var detailUrl = isTopup
-            ? Url.Action("TopupDetail", "History", new { id = item.Id }) ?? "#"
-            : Url.Action("Detail", "History", new { orderId = item.OrderId }) ?? "#";
+        var hasDetail = item.HasMealTransaction
+            && (isTopup
+                ? item.Id > 0
+                : !string.IsNullOrWhiteSpace(item.OrderId));
+
+        var detailUrl = !hasDetail
+            ? string.Empty
+            : isTopup
+                ? Url.Action("TopupDetail", "History", new { id = item.Id }) ?? string.Empty
+                : Url.Action("Detail", "History", new { orderId = item.OrderId }) ?? string.Empty;
 
         return new HistoryListItemViewModel
         {
@@ -239,6 +246,7 @@ public sealed class HistoryController : Controller
             IsCompleted = status.IsCompleted,
             IsPending = status.IsPending,
             CreatedOn = item.CreatedOn,
+            HasDetail = hasDetail,
             DetailUrl = detailUrl
         };
     }
@@ -250,13 +258,26 @@ public sealed class HistoryController : Controller
             return "Top-up";
         }
 
-        return item.OrderTypeId switch
+        var orderLabel = item.OrderTypeId switch
         {
             (int)TransactionTypeEnum.A_La_Carte => "Ala-Carte",
             (int)TransactionTypeEnum.MealOrder => "Meal Combo",
-            (int)TransactionTypeEnum.POS => "POS Order",
-            _ => "Order"
+            (int)TransactionTypeEnum.POS => "POS",
+            _ => null
         };
+
+        if (!string.IsNullOrWhiteSpace(orderLabel))
+        {
+            return orderLabel;
+        }
+
+        // Legacy / other AccessLog rows: prefer ledger description when present.
+        if (!string.IsNullOrWhiteSpace(item.Remarks))
+        {
+            return item.Remarks.Trim();
+        }
+
+        return "Transaction";
     }
 
     private static string BuildOrderStatusMessage(string statusLabel, bool isPaid)

@@ -13,8 +13,8 @@ namespace ETCS.Shared.Enumeration
         MealOrder = 24,
         [Description("A La Carte Order")]
         A_La_Carte = 42,
-        [Description("POS Order")]
-        POS = 43,
+        [Description("POS")]
+        POS = 78,
         [Description("Balance Transfer")]
         BalanceTransfer = 65
     }

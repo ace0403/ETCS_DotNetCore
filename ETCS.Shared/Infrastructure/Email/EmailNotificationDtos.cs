@@ -74,6 +74,8 @@ public sealed class EmailTemplateDetailDto
 
     public string BodyHtmlTemplate { get; init; } = string.Empty;
 
+    public string? RecipientEmail { get; init; }
+
     public bool IsActive { get; init; }
 
     public DateTime CreatedOn { get; init; }
@@ -88,6 +90,8 @@ public sealed class EmailTemplateSaveRequest
     public string SubjectTemplate { get; set; } = string.Empty;
 
     public string BodyHtmlTemplate { get; set; } = string.Empty;
+
+    public string? RecipientEmail { get; set; }
 
     public bool IsActive { get; set; } = true;
 }

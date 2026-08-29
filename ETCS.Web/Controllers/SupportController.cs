@@ -26,6 +26,10 @@ public sealed class SupportController : Controller
             ? "info@etasteuae.com"
             : _webOptions.SupportEmail.Trim();
 
+        var supportInquiriesEmail = string.IsNullOrWhiteSpace(_webOptions.SupportInquiriesEmail)
+            ? "info@etasteuae.com"
+            : _webOptions.SupportInquiriesEmail.Trim();
+
         User.TryGetGuardianId(out var guardianId);
         var guardianName = (User.GetDisplayName() ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(guardianName))
@@ -60,6 +64,7 @@ public sealed class SupportController : Controller
             SupportEmail = supportEmail,
             SupportPhone = string.IsNullOrWhiteSpace(_webOptions.SupportPhone) ? null : _webOptions.SupportPhone.Trim(),
             SupportHours = string.IsNullOrWhiteSpace(_webOptions.SupportHours) ? null : _webOptions.SupportHours.Trim(),
+            SupportInquiriesEmail = supportInquiriesEmail,
             GuardianName = guardianName,
             GuardianEmail = guardianEmail,
             GuardianId = guardianId > 0 ? guardianId : null,

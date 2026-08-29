@@ -1,0 +1,10 @@
+@using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums
+<div class="admin-grid-order-type-filter">
+    <select id="adminGridOrderTypeFilter" class="form-select" aria-label="Filter by order type">
+        <option value="">All Order Types</option>
+        @foreach (var orderTypeId in MealItemChannelOptionIds.Ordered)
+        {
+            <option value="@orderTypeId">@MealItemChannelOptionIds.DisplayName(orderTypeId)</option>
+        }
+    </select>
+</div>

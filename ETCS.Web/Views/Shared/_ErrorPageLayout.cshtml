@@ -1,0 +1,77 @@
+@model ErrorViewModel
+@{
+    Layout = null;
+    var pageTitle = $"{Model.Title} - ETCS";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@pageTitle</title>
+    <link rel="icon" href="~/favicon.ico" type="image/svg+xml" />
+    <link rel="stylesheet" href="~/fonts/inter/inter.css" />
+    <link rel="stylesheet" href="~/fonts/tabler-icons.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/custom/dev-style.css" />
+    <link rel="stylesheet" href="~/css/custom/portal-theme.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/custom/error.css" asp-append-version="true" />
+</head>
+<body class="error-page">
+    <div class="error-shell">
+        <section class="error-hero" aria-hidden="true">
+            <div class="error-hero-bg"></div>
+        </section>
+
+        <section class="error-panel">
+            <div class="error-card">
+                <div class="error-card-brand">
+                    <img src="~/images/logo.png" alt="ETCS" class="error-card-logo" />
+                </div>
+
+                <div class="error-code-block">
+                    <p class="error-status-code" aria-hidden="true">@Model.StatusCode</p>
+                </div>
+
+                <h1 class="error-card-title">@Model.Title</h1>
+                <p class="error-card-message">@Model.Message</p>
+
+                @if (Model.UsePrimaryAsTryAgain)
+                {
+                    <button type="button" class="btn btn-primary error-primary-action" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '@Url.Action("Index", "Home")'; }">
+                        <span>@Model.PrimaryActionText</span>
+                        <i class="ti ti-refresh ms-1"></i>
+                    </button>
+                }
+                else if (!string.IsNullOrWhiteSpace(Model.PrimaryActionUrl))
+                {
+                    <a href="@Model.PrimaryActionUrl" class="btn btn-primary error-primary-action">
+                        <span>@Model.PrimaryActionText</span>
+                        <i class="ti ti-arrow-right ms-1"></i>
+                    </a>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(Model.SecondaryLinkText) && !string.IsNullOrWhiteSpace(Model.SecondaryLinkUrl))
+                {
+                    <div class="error-links">
+                        <a href="@Model.SecondaryLinkUrl" class="error-link">@Model.SecondaryLinkText</a>
+                        @if (!string.IsNullOrWhiteSpace(Model.TertiaryLinkText) && !string.IsNullOrWhiteSpace(Model.TertiaryLinkUrl))
+                        {
+                            <span class="error-link-divider" aria-hidden="true"></span>
+                            <a href="@Model.TertiaryLinkUrl" class="error-link">@Model.TertiaryLinkText</a>
+                        }
+                    </div>
+                }
+
+                @if (Model.ShowRequestId)
+                {
+                    <div class="error-request-id">
+                        <span>Reference</span>
+                        <div><code>@Model.RequestId</code></div>
+                    </div>
+                }
+            </div>
+        </section>
+    </div>
+</body>
+</html>

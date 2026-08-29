@@ -47,12 +47,13 @@ public static class DataTablePagingHelper
         string defaultSortColumn,
         DataTableRequest request,
         object? extraParameters = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string defaultSortDirection = "ASC")
     {
         var search = request.SearchText;
         var pageSize = request.PageSize;
         var (sortColumn, sortDirection) = ResolveSort(
-            request, sortColumnMap, defaultSortColumn);
+            request, sortColumnMap, defaultSortColumn, defaultSortDirection);
 
         var parameters = new DynamicParameters(extraParameters);
         parameters.Add("Search", search);

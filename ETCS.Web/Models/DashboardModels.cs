@@ -29,6 +29,10 @@ public sealed class DashboardPageViewModel
     public IReadOnlyList<DashboardChartPoint> MonthlySpendSeries { get; init; } = [];
 
     public IReadOnlyList<DashboardChartPoint> CategoryBreakdown { get; init; } = [];
+
+    public bool ShowWallet { get; init; }
+
+    public bool ShowPreOrderMeal { get; init; }
 }
 
 public sealed class DashboardChildItem
@@ -63,7 +67,9 @@ public sealed class DashboardActivityItem
 
     public string StatusCss { get; init; } = string.Empty;
 
-    public string DetailUrl { get; init; } = "#";
+    public bool HasDetail { get; init; }
+
+    public string DetailUrl { get; init; } = string.Empty;
 }
 
 public sealed class DashboardTodayMealItem

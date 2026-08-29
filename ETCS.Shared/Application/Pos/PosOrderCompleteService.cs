@@ -78,35 +78,39 @@ public sealed class PosOrderCompleteService : IPosOrderCompleteService
             return Fail("Unable to resolve customer profile.");
         }
 
-        await _posOrderRepository.MarkPaymentCompletedAsync(
-            request.OrderId,
-            request.IbonusTransactionId,
-            (int)TransactionStatusEnum.Success,
-            (int)TransactionStatusEnum.Success,
-            cancellationToken);
-
-        var (accessLogTypeId, orderDescription) = OrderAccessLogResolver.Resolve(paymentState.OrderTypeId);
         var terminalCode = string.IsNullOrWhiteSpace(request.TerminalCode) ? "777" : request.TerminalCode.Trim();
         var companyCode = string.IsNullOrWhiteSpace(_posOptions.DefaultCompanyCode) ? "240" : _posOptions.DefaultCompanyCode;
+        var alreadyMarkedSuccess = paymentState.IsPaid
+            || paymentState.IsTransactionCompleted
+            || paymentState.TransactionStatusId == (int)TransactionStatusEnum.Success;
 
-        var accessLogId = await _mainOrderRepository.ApplySuccessfulOrderAsync(
-            customerId,
+        if (!alreadyMarkedSuccess)
+        {
+            await _posOrderRepository.MarkPaymentCompletedAsync(
+                request.OrderId,
+                request.IbonusTransactionId,
+                (int)TransactionStatusEnum.Success,
+                (int)TransactionStatusEnum.Success,
+                cancellationToken);
+        }
+
+        var accessLogId = await EnsureAccessLogAttachedAsync(
             request.OrderId,
+            customerId,
             request.IbonusTransactionId,
             paymentState.Total,
-            orderDescription,
-            (short)accessLogTypeId,
-            _orderFlowOptions.AccessLogDescription,
+            paymentState.OrderTypeId,
             terminalCode,
             companyCode,
             cancellationToken);
 
-        await _posOrderRepository.AttachAccessLogIdAsync(request.OrderId, accessLogId, cancellationToken);
-
         return new PosOrderCompleteResponse
         {
             IsSuccess = true,
-            Message = "POS order completed successfully.",
+            IsAlreadyProcessed = alreadyMarkedSuccess,
+            Message = alreadyMarkedSuccess
+                ? "POS order already completed; AccessLog linked."
+                : "POS order completed successfully.",
             OrderId = request.OrderId,
             IbonusTransactionId = request.IbonusTransactionId,
             AccessLogId = accessLogId
@@ -148,6 +152,46 @@ public sealed class PosOrderCompleteService : IPosOrderCompleteService
             IbonusTransactionId = request.IbonusTransactionId,
             AccessLogId = accessLogId
         };
+    }
+
+    private async Task<long> EnsureAccessLogAttachedAsync(
+        string orderId,
+        string customerId,
+        string ibonusTransactionId,
+        decimal total,
+        int orderTypeId,
+        string terminalCode,
+        string companyCode,
+        CancellationToken cancellationToken)
+    {
+        var existing = await _mainOrderRepository.FindAccessLogIdByGatewayTransactionAsync(
+            customerId,
+            ibonusTransactionId,
+            cancellationToken);
+
+        long accessLogId;
+        if (existing is > 0)
+        {
+            accessLogId = existing.Value;
+        }
+        else
+        {
+            var (accessLogTypeId, orderDescription) = OrderAccessLogResolver.Resolve(orderTypeId);
+            accessLogId = await _mainOrderRepository.ApplySuccessfulOrderAsync(
+                customerId,
+                orderId,
+                ibonusTransactionId,
+                total,
+                orderDescription,
+                (short)accessLogTypeId,
+                _orderFlowOptions.AccessLogDescription,
+                terminalCode,
+                companyCode,
+                cancellationToken);
+        }
+
+        await _posOrderRepository.AttachAccessLogIdAsync(orderId, accessLogId, cancellationToken);
+        return accessLogId;
     }
 
     private static PosOrderCompleteResponse Fail(string message) =>

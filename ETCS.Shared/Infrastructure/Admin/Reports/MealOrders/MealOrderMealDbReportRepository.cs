@@ -148,7 +148,9 @@ public sealed class MealOrderMealDbReportRepository : IMealOrderMealDbReportRepo
         {
             StartDate = request.StartDate!.Value.Date,
             EndDate = request.EndDate!.Value.Date,
-            SchoolId = request.SchoolId
+            SchoolId = request.SchoolId,
+            MealSessionId = request.MealSessionId,
+            MealTypeId = request.MealTypeId
         };
 
     private static MealOrderReportPagedResult EmptyPagedResult(int draw) =>
@@ -166,6 +168,8 @@ public sealed class MealOrderMealDbReportRepository : IMealOrderMealDbReportRepo
         parameters.Add("startdate", filter.StartDate.Date);
         parameters.Add("enddate", filter.EndDate.Date);
         parameters.Add("SchoolId", filter.SchoolId?.Trim() ?? string.Empty);
+        parameters.Add("MealSessionId", filter.MealSessionId.GetValueOrDefault());
+        parameters.Add("MealTypeId", filter.MealTypeId.GetValueOrDefault());
         parameters.Add("Start", start);
         parameters.Add("Length", length);
         return parameters;
@@ -176,6 +180,7 @@ public sealed class MealOrderMealDbReportRepository : IMealOrderMealDbReportRepo
         public DateTime? OrderDate { get; init; }
         public int StudentId { get; init; }
         public string? PaymentStatus { get; init; }
+        public string? MealSession { get; init; }
         public string? Category { get; init; }
         public string? Choice { get; init; }
         public DateTime? DeliveryDate { get; init; }
@@ -191,6 +196,7 @@ public sealed class MealOrderMealDbReportRepository : IMealOrderMealDbReportRepo
                 StudDiv = student?.StudDiv?.Trim() ?? string.Empty,
                 StudFullName = student?.StudFullName?.Trim() ?? string.Empty,
                 PaymentStatus = PaymentStatus?.Trim() ?? string.Empty,
+                MealSession = MealSession?.Trim() ?? string.Empty,
                 Category = Category?.Trim() ?? string.Empty,
                 Choice = Choice?.Trim() ?? string.Empty,
                 DeliveryDate = FormatDate(DeliveryDate),

@@ -13,6 +13,7 @@ EXEC dbo.GetMealItemsForStudent
     @WeekNo = 4,
     @DayId = 4,
     @MealDate = '2026-05-28',
+    @MealSessionId = NULL,
     @MealTypeId = NULL;
 GO
 
@@ -22,6 +23,7 @@ EXEC dbo.GetMealPackagesForStudent
     @WeekNo = 4,
     @DayId = 4,
     @MealDate = '2026-05-28',
+    @MealSessionId = NULL,
     @MealTypeId = NULL;
 GO
 

@@ -8,13 +8,11 @@ namespace ETCS.Shared.Enumeration
     public enum AccessLogTypeEnum : int
     {
         [Description("Topup Recharge")]
-        Topup = 23,
+        Topup = 10001, // 23,
         [Description("Meal Order")]
-        MealOrder = 24,
+        MealOrder = 9001, // 24,
         [Description("A La Carte Order")]
         A_La_Carte = 42,
-        [Description("Combo Meal")]
-        Combo_Meal = 61,
         [Description("Balance Transfer")]
         BalanceTransfer = 65,
         [Description("Cash Purchase")]

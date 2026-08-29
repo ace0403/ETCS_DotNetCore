@@ -3,7 +3,6 @@ using ETCS.Shared.Infrastructure.Admin.Inventory.Categories;
 using ETCS.Shared.Infrastructure.Admin.Models;
 using ETCS.Shared.Infrastructure.Admin.Inventory.MealCombos;
 using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
-using ETCS.Shared.Infrastructure.Admin.Inventory.MealItems;
 using ETCS.Shared.Infrastructure.Admin.Master.Students;
 using ETCS.Shared.Media;
 using Microsoft.AspNetCore.Authorization;
@@ -16,7 +15,6 @@ namespace ETCS.Admin.Controllers;
 public class MealComboController : Controller
 {
     private readonly IMealComboAdminRepository _repository;
-    private readonly IMealItemAdminRepository _mealItemRepository;
     private readonly IStudentAdminRepository _studentAdminRepository;
     private readonly ICategoryAdminRepository _categoryAdminRepository;
     private readonly IMealEnumAdminRepository _mealEnumAdminRepository;
@@ -25,7 +23,6 @@ public class MealComboController : Controller
 
     public MealComboController(
         IMealComboAdminRepository repository,
-        IMealItemAdminRepository mealItemRepository,
         IStudentAdminRepository studentAdminRepository,
         ICategoryAdminRepository categoryAdminRepository,
         IMealEnumAdminRepository mealEnumAdminRepository,
@@ -33,7 +30,6 @@ public class MealComboController : Controller
         IAdminSchoolScopeService schoolScope)
     {
         _repository = repository;
-        _mealItemRepository = mealItemRepository;
         _studentAdminRepository = studentAdminRepository;
         _categoryAdminRepository = categoryAdminRepository;
         _mealEnumAdminRepository = mealEnumAdminRepository;
@@ -61,22 +57,15 @@ public class MealComboController : Controller
         var model = id > 0
             ? await _repository.GetAsync(id, cancellationToken) ?? new MealComboSaveRequest()
             : new MealComboSaveRequest();
-        await PopulateLookupsAsync(model.SchoolId, cancellationToken);
+        await PopulateLookupsAsync(cancellationToken);
         return PartialView("_AddUpdate", model);
     }
 
-    public async Task<JsonResult> GetMealItems(int schoolId, CancellationToken cancellationToken)
+    public async Task<JsonResult> GetMealTypes(int sessionId, CancellationToken cancellationToken)
     {
-        try
-        {
-            _schoolScope.EnsureInScope(schoolId);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return Json(new { data = Array.Empty<MealItemListDto>() });
-        }
-
-        var data = await _mealItemRepository.ListBySchoolAsync(schoolId, cancellationToken);
+        var data = sessionId > 0
+            ? await _mealEnumAdminRepository.GetMealTypesBySessionAsync(sessionId, cancellationToken)
+            : [];
         return Json(new { data });
     }
 
@@ -88,7 +77,12 @@ public class MealComboController : Controller
     {
         if (!ModelState.IsValid)
         {
-            return Json(new { Success = false, Message = "Required fields are missing." });
+            var message = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .FirstOrDefault(e => !string.IsNullOrWhiteSpace(e))
+                ?? "Required fields are missing.";
+            return Json(new { Success = false, Message = message });
         }
 
         try
@@ -145,23 +139,16 @@ public class MealComboController : Controller
         return Json(new { Success = result.Success, Message = result.Message });
     }
 
-    private async Task PopulateLookupsAsync(int schoolId, CancellationToken cancellationToken)
+    private async Task PopulateLookupsAsync(CancellationToken cancellationToken)
     {
         var schools = await _studentAdminRepository.SchoolLookupsAsync(cancellationToken);
         ViewBag.Schools = _schoolScope.FilterSchools(schools, s => s.Id);
         ViewBag.Categories = await _categoryAdminRepository.ListAsync(cancellationToken);
-        ViewBag.MealTypes = await _mealEnumAdminRepository.GetByTypeIdAsync(MealEnumTypeIds.MealType, cancellationToken);
+        ViewBag.MealSessions = await _mealEnumAdminRepository.GetMealSessionsAsync(cancellationToken);
         ViewBag.WeekDays = await _mealEnumAdminRepository.GetByTypeIdAsync(MealEnumTypeIds.WeekDays, cancellationToken);
         ViewBag.WeekNumbers = Enumerable.Range(1, 5).ToList();
-
-        if (schoolId > 0)
-        {
-            var items = await _mealItemRepository.ListBySchoolAsync(schoolId, cancellationToken);
-            ViewBag.MealItems = items;
-        }
-        else
-        {
-            ViewBag.MealItems = Array.Empty<MealItemListDto>();
-        }
+        ViewBag.Ingredients = await _mealEnumAdminRepository.GetByTypeIdAsync(MealEnumTypeIds.FoodAllergy, cancellationToken);
+        ViewBag.NutritionTypes = await _mealEnumAdminRepository.GetByTypeIdAsync(MealEnumTypeIds.Nutrition, cancellationToken);
+        ViewBag.MeasureTypes = await _mealEnumAdminRepository.GetByTypeIdAsync(MealEnumTypeIds.MeasureType, cancellationToken);
     }
 }

@@ -4,11 +4,11 @@ namespace ETCS.Web.Models;
 
 public sealed class AlaCarteMealTypeGroup
 {
-    public string MealTypeId { get; init; } = string.Empty;
+    public string MealSessionId { get; init; } = string.Empty;
 
-    public string MealTypeName { get; init; } = string.Empty;
+    public string MealSessionName { get; init; } = string.Empty;
 
-    public string MealCssClass { get; init; } = string.Empty;
+    public string MealSessionCssClass { get; init; } = string.Empty;
 
     public IReadOnlyList<MealItemDto> MealItems { get; init; } = [];
 }

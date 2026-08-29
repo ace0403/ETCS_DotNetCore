@@ -1,6 +1,7 @@
 using ETCS.PaymentGateway.Abstractions;
 using ETCS.PaymentGateway.Models;
 using ETCS.Shared.Application.Background;
+using ETCS.Shared.Application.Students;
 using ETCS.Shared.Enumeration;
 using ETCS.Shared.Helpers;
 using ETCS.Shared.Infrastructure.Students;
@@ -21,17 +22,20 @@ public sealed class TopupInitiateService : ITopupInitiateService
     private readonly ITransactionRepository _transactionRepository;
     private readonly IPaymentGatewayRepository _paymentGatewayRepository;
     private readonly IPaymentBackgroundQueue _paymentBackgroundQueue;
+    private readonly IStudentOrderTypeAccessService _orderTypeAccess;
 
     public TopupInitiateService(
         IStudentRepository studentRepository,
         ITransactionRepository transactionRepository,
         IPaymentGatewayRepository paymentGatewayRepository,
-        IPaymentBackgroundQueue paymentBackgroundQueue)
+        IPaymentBackgroundQueue paymentBackgroundQueue,
+        IStudentOrderTypeAccessService orderTypeAccess)
     {
         _studentRepository = studentRepository;
         _transactionRepository = transactionRepository;
         _paymentGatewayRepository = paymentGatewayRepository;
         _paymentBackgroundQueue = paymentBackgroundQueue;
+        _orderTypeAccess = orderTypeAccess;
     }
 
     public async Task<TopupInitiateResponse> InitiateAsync(
@@ -71,6 +75,11 @@ public sealed class TopupInitiateService : ITopupInitiateService
             return Fail("You do not have access to top up this student.");
         }
 
+        if (!await _orderTypeAccess.IsAllowedAsync(studentPk, (int)TransactionTypeEnum.Topup, cancellationToken))
+        {
+            return Fail(_orderTypeAccess.GetDeniedMessage((int)TransactionTypeEnum.Topup));
+        }
+
         var minimumTopup = await _studentRepository.GetStudentMinimumTopupAsync(studentPk, cancellationToken);
         if (!TopupAmountRules.MeetsMinimum(request.Amount, minimumTopup))
         {
@@ -96,84 +105,119 @@ public sealed class TopupInitiateService : ITopupInitiateService
             },
             cancellationToken);
 
-        var paymentRequest = new StudentTopupPaymentRequest(request.StudentId.Trim(), request.Amount);
-        var result = await _paymentGatewayRepository.CreateTopupSessionAsync(
-            paymentRequest,
-            orderId,
-            cancellationToken,
-            request.ReturnUrl);
-
-        var pgResponse = JsonSerializer.Serialize(result, JsonOptions);
-        _paymentBackgroundQueue.EnqueuePaymentLog(orderId, pgResponse ?? string.Empty);
-
-        if (!result.IsSuccess)
+        try
         {
+            var paymentRequest = new StudentTopupPaymentRequest(request.StudentId.Trim(), request.Amount);
+            var result = await _paymentGatewayRepository.CreateTopupSessionAsync(
+                paymentRequest,
+                orderId,
+                cancellationToken,
+                request.ReturnUrl);
+
+            var pgResponse = JsonSerializer.Serialize(result, JsonOptions);
+            _paymentBackgroundQueue.EnqueuePaymentLog(orderId, pgResponse ?? string.Empty);
+
+            if (!result.IsSuccess)
+            {
+                await MarkTopupFailedAsync(
+                    topupTransactionPkId,
+                    parentDetails.GuardianId,
+                    result.TransactionId,
+                    string.IsNullOrWhiteSpace(result.Message) ? "Payment session creation failed." : result.Message);
+
+                return Fail(string.IsNullOrWhiteSpace(result.Message)
+                    ? "Unable to create payment session."
+                    : result.Message);
+            }
+
+            // Keep OrderId in Remarks — completion looks up by deep-link orderid.
             await _transactionRepository.UpdateTopupTransactionStatusAsync(
                 new TopupTransactionUpdateRequest
                 {
                     TransactionPkId = topupTransactionPkId,
-                    GatewayTransactionId = string.IsNullOrWhiteSpace(result.TransactionId) ? string.Empty : result.TransactionId,
-                    StatusId = (int)TransactionStatusEnum.Failed,
+                    GatewayTransactionId = result.TransactionId,
+                    StatusId = (int)TransactionStatusEnum.Initiated,
                     IsTransactionCompleted = false,
-                    Remarks = string.IsNullOrWhiteSpace(result.Message) ? "Payment session creation failed." : result.Message,
+                    Remarks = orderId,
                     UpdatedBy = parentDetails.GuardianId
                 },
                 cancellationToken);
 
-            return Fail(string.IsNullOrWhiteSpace(result.Message)
-                ? "Unable to create payment session."
-                : result.Message);
-        }
+            var requestObj = new
+            {
+                GUID = orderId,
+                TransactionId = result.TransactionId,
+                GrdId = parentDetails.GuardianId,
+                CustomerId = parentDetails.CustomerId,
+                GuardianEmail = parentDetails.Email,
+                Amount = request.Amount.ToString(CultureInfo.InvariantCulture),
+                TransactionType = "topup"
+            };
 
+            await _transactionRepository.InsertPendingTransactionAsync(
+                new PendingTransactionRequest
+                {
+                    CustomerID = parentDetails.CustomerId,
+                    Creby = parentDetails.Email,
+                    Amount = request.Amount.ToString(CultureInfo.InvariantCulture),
+                    Loaded = "0",
+                    TransDate = DateTime.Now.ToString("dd-MM-yyyy hh:mm:ss tt", CultureInfo.InvariantCulture),
+                    Remarks = orderId,
+                    Mode = "O",
+                    BankName = "ETISALAT",
+                    PaymentDetails = result.TransactionId,
+                    Billdate = DateTime.Now.ToString("dd-MM-yyyy hh:mm:ss tt", CultureInfo.InvariantCulture),
+                    RequestObject = JsonSerializer.Serialize(requestObj)
+                },
+                cancellationToken);
+
+            return new TopupInitiateResponse
+            {
+                IsSuccess = true,
+                Message = "Payment session created.",
+                OrderId = orderId,
+                TransactionId = result.TransactionId,
+                RedirectUrl = result.RedirectUrl,
+                MinimumTopupAmount = minimumTopup ?? 0m
+            };
+        }
+        catch (Exception ex)
+        {
+            await MarkTopupFailedAsync(
+                topupTransactionPkId,
+                parentDetails.GuardianId,
+                gatewayTransactionId: string.Empty,
+                remarks: ex is OperationCanceledException
+                    ? "Payment session request timed out or was cancelled."
+                    : "Payment session creation failed unexpectedly.");
+
+            if (ex is OperationCanceledException)
+            {
+                return Fail("Payment gateway request timed out or was cancelled. Please retry.");
+            }
+
+            throw;
+        }
+    }
+
+    private async Task MarkTopupFailedAsync(
+        int topupTransactionPkId,
+        int guardianId,
+        string? gatewayTransactionId,
+        string remarks)
+    {
+        // Use None so a cancelled request still marks the MealDB row Failed.
         await _transactionRepository.UpdateTopupTransactionStatusAsync(
             new TopupTransactionUpdateRequest
             {
                 TransactionPkId = topupTransactionPkId,
-                GatewayTransactionId = result.TransactionId,
-                StatusId = (int)TransactionStatusEnum.Initiated,
+                GatewayTransactionId = string.IsNullOrWhiteSpace(gatewayTransactionId) ? string.Empty : gatewayTransactionId,
+                StatusId = (int)TransactionStatusEnum.Failed,
                 IsTransactionCompleted = false,
-                Remarks = "Payment session created.",
-                UpdatedBy = parentDetails.GuardianId
+                Remarks = remarks,
+                UpdatedBy = guardianId
             },
-            cancellationToken);
-
-        var requestObj = new
-        {
-            GUID = orderId,
-            TransactionId = result.TransactionId,
-            GrdId = parentDetails.GuardianId,
-            CustomerId = parentDetails.CustomerId,
-            GuardianEmail = parentDetails.Email,
-            Amount = request.Amount.ToString(CultureInfo.InvariantCulture),
-            TransactionType = "topup"
-        };
-
-        await _transactionRepository.InsertPendingTransactionAsync(
-            new PendingTransactionRequest
-            {
-                CustomerID = parentDetails.CustomerId,
-                Creby = parentDetails.Email,
-                Amount = request.Amount.ToString(CultureInfo.InvariantCulture),
-                Loaded = "0",
-                TransDate = DateTime.Now.ToString("dd-MM-yyyy hh:mm:ss tt", CultureInfo.InvariantCulture),
-                Remarks = orderId,
-                Mode = "O",
-                BankName = "ETISALAT",
-                PaymentDetails = result.TransactionId,
-                Billdate = DateTime.Now.ToString("dd-MM-yyyy hh:mm:ss tt", CultureInfo.InvariantCulture),
-                RequestObject = JsonSerializer.Serialize(requestObj)
-            },
-            cancellationToken);
-
-        return new TopupInitiateResponse
-        {
-            IsSuccess = true,
-            Message = "Payment session created.",
-            OrderId = orderId,
-            TransactionId = result.TransactionId,
-            RedirectUrl = result.RedirectUrl,
-            MinimumTopupAmount = minimumTopup ?? 0m
-        };
+            CancellationToken.None);
     }
 
     private static TopupInitiateResponse Fail(string message) =>

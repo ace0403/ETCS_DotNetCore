@@ -22,6 +22,7 @@ public sealed class StudentAdminListItemDto
 
     public decimal Balance { get; init; }
 
+    public DateTime? CreatedAt { get; init; }
 }
 
 
@@ -37,6 +38,7 @@ public sealed class StudentAdminSaveRequest
     [Required(ErrorMessage = "Student card number is required.")]
     [Display(Name = "Student Card No")]
     [MaxLength(50)]
+    [RegularExpression(@"^\d+$", ErrorMessage = "Student card number must contain digits only.")]
     public string StudCode { get; set; } = string.Empty;
 
 
@@ -118,6 +120,9 @@ public sealed class StudentAdminSaveRequest
     [Display(Name = "Allergies")]
     public List<int>? AllergyItemIds { get; set; }
 
+    [Display(Name = "Order Types")]
+    public List<int>? OrderTypeIds { get; set; }
+
 
 
     [Display(Name = "Daily Spend Limit")]
@@ -133,6 +138,12 @@ public sealed class StudentAdminSaveRequest
     [Range(0, double.MaxValue, ErrorMessage = "Weekly spend limit cannot be negative.")]
 
     public decimal? WeeklySpendLimit { get; set; }
+
+
+
+    [Display(Name = "Low balance email notification")]
+
+    public bool LowBalanceEmailNotification { get; set; } = true;
 
 
 
@@ -169,6 +180,8 @@ public sealed class SchoolLookupDto
     public int Id { get; init; }
 
     public string Name { get; init; } = string.Empty;
+
+    public string Code { get; init; } = string.Empty;
 
 }
 

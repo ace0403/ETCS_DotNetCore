@@ -7,7 +7,10 @@ public sealed class MealItemListDto
     public int Id { get; init; }
     public string ItemName { get; init; } = string.Empty;
     public string CategoryName { get; init; } = string.Empty;
+    public string SchoolNames { get; init; } = string.Empty;
+    public string OrderTypeNames { get; init; } = string.Empty;
     public int SchoolId { get; init; }
+    public int MealSessionId { get; init; }
     public int MealTypeId { get; init; }
     public int? MealCategoryId { get; init; }
     public decimal Price { get; init; }
@@ -18,9 +21,15 @@ public sealed class MealItemSaveRequest
 {
     public int Id { get; set; }
 
-    [Required(ErrorMessage = "School is required.")]
-    [Range(1, int.MaxValue, ErrorMessage = "School is required.")]
+    [Display(Name = "School")]
+    public List<int> SchoolIds { get; set; } = [];
+
+    /// <summary>Denormalized primary school for legacy MealItem.SchoolId column.</summary>
     public int SchoolId { get; set; }
+
+    [Required(ErrorMessage = "Meal session is required.")]
+    [Range(1, int.MaxValue, ErrorMessage = "Meal session is required.")]
+    public int MealSessionId { get; set; }
 
     [Required(ErrorMessage = "Meal type is required.")]
     [Range(1, int.MaxValue, ErrorMessage = "Meal type is required.")]
@@ -48,6 +57,9 @@ public sealed class MealItemSaveRequest
     public List<int> DayIds { get; set; } = [];
 
     public List<MealItemNutritionLineDto> NutritionLines { get; set; } = [];
+
+    [Display(Name = "Order type")]
+    public List<int> OrderTypeIds { get; set; } = [];
 
     [Display(Name = "Active")]
     public bool IsActive { get; set; } = true;

@@ -27,6 +27,29 @@ public sealed class StudentRepository : IStudentRepository
         WHERE sl.UserId = @StudentId;
         """;
 
+    private const string StudentCardBalanceMetaSql = """
+        SELECT
+            LTRIM(RTRIM(ISNULL(sl.CustomerId, ''))) AS CustomerId,
+            CAST(ISNULL(s.MinimumTopup, 0) AS decimal(18,2)) AS MinimumTopupAmount,
+            LTRIM(RTRIM(ISNULL(s.SchoolLogo, ''))) AS SchoolLogoFileName
+        FROM StudentLogin sl
+        LEFT JOIN SchoolInfo s
+            ON s.SchoolId = TRY_CONVERT(INT, NULLIF(LTRIM(RTRIM(CONVERT(varchar(50), sl.StudSchoolId))), ''))
+            OR (
+                LTRIM(RTRIM(ISNULL(s.Schoolcode, ''))) <> ''
+                AND LTRIM(RTRIM(s.Schoolcode)) = LTRIM(RTRIM(CONVERT(varchar(50), sl.StudSchoolId)))
+            )
+        WHERE sl.UserId = @StudentId;
+        """;
+
+    private const string SchoolLogoByNameSql = """
+        SELECT TOP (1)
+            LTRIM(RTRIM(ISNULL(s.SchoolLogo, ''))) AS SchoolLogoFileName
+        FROM SchoolInfo s
+        WHERE LTRIM(RTRIM(ISNULL(s.SchoolName, ''))) = LTRIM(RTRIM(@SchoolName))
+          AND LTRIM(RTRIM(ISNULL(s.SchoolLogo, ''))) <> '';
+        """;
+
     private const string GuardianBasicByStudentSql = """
         SELECT TOP (1)
             sl.GrdId AS GuardianId,
@@ -44,6 +67,18 @@ public sealed class StudentRepository : IStudentRepository
             LTRIM(RTRIM(ISNULL(g.Email, ''))) AS Email,
             LTRIM(RTRIM(ISNULL(g.FirstName, ''))) + ' ' + LTRIM(RTRIM(ISNULL(g.LastName, ''))) AS GuardianName,
             LTRIM(RTRIM(ISNULL(sl.CustomerId, ''))) AS CustomerId
+        FROM StudentLogin sl
+        INNER JOIN GuardianInfo g ON g.GrdID = sl.GrdId
+        WHERE sl.CustomerId = @CustomerId;
+        """;
+
+    private const string StudentIdentityByCustomerSql = """
+        SELECT TOP (1)
+            CAST(sl.UserId AS INT) AS UserId,
+            sl.GrdId AS GuardianId,
+            LTRIM(RTRIM(ISNULL(g.Email, ''))) AS Email,
+            LTRIM(RTRIM(ISNULL(sl.CustomerId, ''))) AS CustomerId,
+            LTRIM(RTRIM(ISNULL(sl.StudFirstName, ''))) + ' ' + LTRIM(RTRIM(ISNULL(sl.StudLastName, ''))) AS StudentName
         FROM StudentLogin sl
         INNER JOIN GuardianInfo g ON g.GrdID = sl.GrdId
         WHERE sl.CustomerId = @CustomerId;
@@ -150,6 +185,69 @@ public sealed class StudentRepository : IStudentRepository
                 cancellationToken: cancellationToken));
     }
 
+    public async Task<StudentCardBalanceMetaDto?> GetStudentCardBalanceMetaAsync(
+        int studentId,
+        CancellationToken cancellationToken = default)
+    {
+        if (studentId <= 0)
+        {
+            return null;
+        }
+
+        using var connection = _connectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+
+        var row = await dbConnection.QueryFirstOrDefaultAsync<StudentCardBalanceMetaRow>(
+            new CommandDefinition(
+                StudentCardBalanceMetaSql,
+                new { StudentId = studentId },
+                commandType: CommandType.Text,
+                cancellationToken: cancellationToken));
+
+        if (row is null)
+        {
+            return null;
+        }
+
+        return new StudentCardBalanceMetaDto(
+            string.IsNullOrWhiteSpace(row.CustomerId) ? null : row.CustomerId.Trim(),
+            row.MinimumTopupAmount,
+            string.IsNullOrWhiteSpace(row.SchoolLogoFileName) ? null : row.SchoolLogoFileName.Trim());
+    }
+
+    public async Task<string?> GetSchoolLogoFileNameByNameAsync(
+        string schoolName,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(schoolName))
+        {
+            return null;
+        }
+
+        using var connection = _connectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+
+        var fileName = await dbConnection.QueryFirstOrDefaultAsync<string?>(
+            new CommandDefinition(
+                SchoolLogoByNameSql,
+                new { SchoolName = schoolName.Trim() },
+                commandType: CommandType.Text,
+                cancellationToken: cancellationToken));
+
+        return string.IsNullOrWhiteSpace(fileName) ? null : fileName.Trim();
+    }
+
+    private sealed class StudentCardBalanceMetaRow
+    {
+        public string? CustomerId { get; init; }
+
+        public decimal? MinimumTopupAmount { get; init; }
+
+        public string? SchoolLogoFileName { get; init; }
+    }
+
     public async Task<bool?> GetSchoolEmailAlertsEnabledAsync(int schoolId, CancellationToken cancellationToken = default)
     {
         if (schoolId <= 0)
@@ -229,6 +327,68 @@ public sealed class StudentRepository : IStudentRepository
         };
     }
 
+    public async Task<StudentIdentityByCustomerDto?> GetStudentIdentityByCustomerIdAsync(
+        string customerId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(customerId))
+        {
+            return null;
+        }
+
+        using var connection = _connectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+
+        var row = await dbConnection.QueryFirstOrDefaultAsync<StudentIdentityByCustomerDto>(
+            new CommandDefinition(
+                StudentIdentityByCustomerSql,
+                new { CustomerId = customerId.Trim() },
+                commandType: CommandType.Text,
+                cancellationToken: cancellationToken));
+
+        if (row is null)
+        {
+            return null;
+        }
+
+        return row with
+        {
+            Email = row.Email.Trim(),
+            CustomerId = row.CustomerId.Trim(),
+            StudentName = row.StudentName.Trim()
+        };
+    }
+
+    public async Task<decimal> GetPrepaidBalanceByCustomerIdAsync(
+        string customerId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(customerId))
+        {
+            return 0m;
+        }
+
+        const string sql = """
+            SELECT TOP (1)
+                CAST(ISNULL(m.BalPrepaid, 0) AS decimal(18,2))
+            FROM IdMember m
+            WHERE m.IdCardStatus = 1
+              AND LTRIM(RTRIM(m.CustomerID)) = LTRIM(RTRIM(@CustomerId));
+            """;
+
+        using var connection = _connectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+
+        return await dbConnection.ExecuteScalarAsync<decimal?>(
+            new CommandDefinition(
+                sql,
+                new { CustomerId = customerId.Trim() },
+                commandType: CommandType.Text,
+                cancellationToken: cancellationToken)) ?? 0m;
+    }
+
     public async Task<IReadOnlyList<GradeListItemDto>> GetAllGradesAsync(CancellationToken cancellationToken)
     {
         using var connection = _connectionFactory.CreateConnection();
@@ -268,7 +428,13 @@ public sealed class StudentRepository : IStudentRepository
 
     public async Task SaveStudentAsync(UpsertStudentRequest request, bool isInsert, CancellationToken cancellationToken)
     {
-        if (isInsert && string.IsNullOrWhiteSpace(request.StudPassword))
+        if (!isInsert)
+        {
+            throw new InvalidOperationException(
+                "spInsertStudentInfo only supports create. Use a direct StudentLogin UPDATE for edits.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.StudPassword))
         {
             throw new ArgumentException("StudPassword is required when creating a student.", nameof(request));
         }
@@ -312,12 +478,25 @@ public sealed class StudentRepository : IStudentRepository
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
 
-        await dbConnection.ExecuteAsync(
-            new CommandDefinition(
-                InsertStudentInfoSp,
-                p,
-                commandType: CommandType.StoredProcedure,
-                cancellationToken: cancellationToken));
+        var cardNo = string.IsNullOrWhiteSpace(request.CustomerId) ? request.StudCode : request.CustomerId;
+        if (await StudentCardNumber.IsTakenAsync(dbConnection, cardNo, excludeUserId: null, cancellationToken))
+        {
+            throw new InvalidOperationException(StudentCardNumber.DuplicateMessage);
+        }
+
+        try
+        {
+            await dbConnection.ExecuteAsync(
+                new CommandDefinition(
+                    InsertStudentInfoSp,
+                    p,
+                    commandType: CommandType.StoredProcedure,
+                    cancellationToken: cancellationToken));
+        }
+        catch (Exception ex) when (StudentCardNumber.IsDuplicateConflict(ex))
+        {
+            throw new InvalidOperationException(StudentCardNumber.DuplicateMessage, ex);
+        }
     }
 
     private static SchoolListItemDto TrimSchoolRow(SchoolListItemDto row)

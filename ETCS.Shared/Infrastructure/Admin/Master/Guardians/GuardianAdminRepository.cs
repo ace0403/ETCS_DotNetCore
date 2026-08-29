@@ -1,8 +1,10 @@
 using System.Data;
 using System.Data.Common;
 using Dapper;
+using ETCS.Shared.Application.Students;
 using ETCS.Shared.Helpers;
 using ETCS.Shared.Infrastructure.Admin.Models;
+using ETCS.Shared.Infrastructure.Admin.Master.Schools;
 using ETCS.Shared.Infrastructure.Data;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Infrastructure.Admin.Master.Students;
@@ -65,15 +67,21 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
     private readonly IDbConnectionFactory _connectionFactory;
     private readonly IStudentRepository _studentRepository;
     private readonly IStudentAllergyAdminRepository _allergyRepository;
+    private readonly IStudentOrderTypeAdminRepository _orderTypeRepository;
+    private readonly ISchoolOrderTypeAdminRepository _schoolOrderTypeRepository;
 
     public GuardianAdminRepository(
         IDbConnectionFactory connectionFactory,
         IStudentRepository studentRepository,
-        IStudentAllergyAdminRepository allergyRepository)
+        IStudentAllergyAdminRepository allergyRepository,
+        IStudentOrderTypeAdminRepository orderTypeRepository,
+        ISchoolOrderTypeAdminRepository schoolOrderTypeRepository)
     {
         _connectionFactory = connectionFactory;
         _studentRepository = studentRepository;
         _allergyRepository = allergyRepository;
+        _orderTypeRepository = orderTypeRepository;
+        _schoolOrderTypeRepository = schoolOrderTypeRepository;
     }
 
     public async Task<DataTableResponse<GuardianListItemDto>> GetDataAsync(
@@ -90,9 +98,10 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
             baseFilterSql: null,
             SearchFilterSql,
             SortColumns,
-            "g.FirstName",
+            "g.GrdID",
             request,
-            cancellationToken: cancellationToken);
+            cancellationToken: cancellationToken,
+            defaultSortDirection: "DESC");
     }
 
     public async Task<GuardianSaveRequest?> GetAsync(int id, CancellationToken cancellationToken = default)
@@ -514,10 +523,6 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
         if (request.SchoolId <= 0)
             return AdminOperationResult.Fail("School is required.");
 
-        var cardNo = request.StudentCardNo.Trim();
-        if (cardNo.Length > 50)
-            return AdminOperationResult.Fail("Student card number is too long.");
-
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
@@ -533,19 +538,6 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
                 cancellationToken: cancellationToken));
         if (!guardianRow.HasValue)
             return AdminOperationResult.Fail("Parent was not found.");
-
-        var duplicate = await dbConnection.ExecuteScalarAsync<int?>(
-            new CommandDefinition(
-                """
-                SELECT TOP (1) CAST(UserId AS int)
-                FROM StudentLogin
-                WHERE LTRIM(RTRIM(ISNULL(CustomerId, ''))) = @CardNo
-                   OR LTRIM(RTRIM(ISNULL(StudCode, ''))) = @CardNo;
-                """,
-                new { CardNo = cardNo },
-                cancellationToken: cancellationToken));
-        if (duplicate.HasValue)
-            return AdminOperationResult.Fail("A student with this card number already exists.");
 
         var grades = await _studentRepository.GetAllGradesAsync(cancellationToken);
         var grade = grades.FirstOrDefault(g => g.Id == request.GradeId);
@@ -566,6 +558,19 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
                 cancellationToken: cancellationToken));
         if (school is null)
             return AdminOperationResult.Fail("Selected school was not found.");
+
+        var cardError = StudentCardNumber.ResolveForCreate(request.StudentCardNo, school.SchoolCode, out var cardNo);
+        if (cardError is not null)
+            return AdminOperationResult.Fail(cardError);
+
+        if (await StudentCardNumber.IsTakenAsync(dbConnection, cardNo, excludeUserId: null, cancellationToken))
+            return AdminOperationResult.Fail(StudentCardNumber.DuplicateMessage);
+
+        var schoolOrderTypeError = StudentOrderTypeValidation.ValidateAgainstSchool(
+            await _schoolOrderTypeRepository.GetOrderTypeIdsAsync(request.SchoolId, cancellationToken),
+            request.OrderTypeIds);
+        if (schoolOrderTypeError is not null)
+            return AdminOperationResult.Fail(schoolOrderTypeError);
 
         var gender = string.IsNullOrWhiteSpace(request.Gender) ? "Male" : request.Gender.Trim();
         var dob = request.DateOfBirth.HasValue
@@ -598,7 +603,7 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
         }
         catch (Exception ex)
         {
-            return AdminOperationResult.Fail(ex.Message);
+            return AdminOperationResult.Fail(StudentCardNumber.MessageOrDuplicate(ex));
         }
 
         var userId = await dbConnection.ExecuteScalarAsync<decimal?>(
@@ -621,6 +626,7 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
                 UPDATE StudentLogin
                 SET DailyLimit = @DailySpendLimit,
                     WeeklyLimit = @WeeklySpendLimit,
+                    IsUnsubscribeLowBalNoti = @IsUnsubscribeLowBalNoti,
                     StudDateOfBirth = @DateOfBirth
                 WHERE UserId = @UserId;
                 """,
@@ -629,11 +635,13 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
                     UserId = userId.Value,
                     DailySpendLimit = request.DailySpendLimit ?? 0m,
                     WeeklySpendLimit = request.WeeklySpendLimit ?? 0m,
+                    IsUnsubscribeLowBalNoti = !request.LowBalanceEmailNotification,
                     request.DateOfBirth
                 },
                 cancellationToken: cancellationToken));
 
         await _allergyRepository.SaveAllergiesAsync(userId.Value, request.AllergyItemIds ?? [], cancellationToken);
+        await _orderTypeRepository.SaveOrderTypesAsync(userId.Value, request.OrderTypeIds ?? [], cancellationToken);
 
         var mappingExists = await dbConnection.ExecuteScalarAsync<int?>(
             new CommandDefinition(
@@ -695,7 +703,8 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
                     LTRIM(RTRIM(ISNULL(sl.StudDiv, ''))) AS Division,
                     sl.StudDateOfBirth AS DateOfBirth,
                     sl.DailyLimit AS DailySpendLimit,
-                    sl.WeeklyLimit AS WeeklySpendLimit
+                    sl.WeeklyLimit AS WeeklySpendLimit,
+                    CAST(ISNULL(sl.IsUnsubscribeLowBalNoti, 0) AS bit) AS IsUnsubscribeLowBalNoti
                 FROM StudentLogin sl
                 INNER JOIN GuardianMaster gm ON sl.CustomerId = gm.StudentCardNo
                 WHERE gm.GrdID = @GuardianId
@@ -726,6 +735,7 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
                 cancellationToken: cancellationToken))).ToList();
 
         var allergyIds = await _allergyRepository.GetAllergyIdsAsync(userId, cancellationToken);
+        var orderTypeIds = await _orderTypeRepository.GetOrderTypeIdsAsync(userId, cancellationToken);
 
         return new GuardianEditStudentViewModel
         {
@@ -743,7 +753,9 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
                 DateOfBirth = row.DateOfBirth,
                 DailySpendLimit = row.DailySpendLimit,
                 WeeklySpendLimit = row.WeeklySpendLimit,
-                AllergyItemIds = allergyIds.ToList()
+                LowBalanceEmailNotification = !row.IsUnsubscribeLowBalNoti,
+                AllergyItemIds = allergyIds.ToList(),
+                OrderTypeIds = orderTypeIds.ToList()
             },
             Grades = grades,
             Schools = schools
@@ -769,9 +781,9 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
         if (request.SchoolId <= 0)
             return AdminOperationResult.Fail("School is required.");
 
-        var cardNo = request.StudentCardNo.Trim();
-        if (cardNo.Length > 50)
-            return AdminOperationResult.Fail("Student card number is too long.");
+        var cardError = StudentCardNumber.ValidateForEdit(request.StudentCardNo, out var cardNo);
+        if (cardError is not null)
+            return AdminOperationResult.Fail(cardError);
 
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
@@ -793,19 +805,8 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
         if (linkedStudent is null)
             return AdminOperationResult.Fail("Student was not found for this parent.");
 
-        var duplicate = await dbConnection.ExecuteScalarAsync<decimal?>(
-            new CommandDefinition(
-                """
-                SELECT TOP (1) UserId
-                FROM StudentLogin
-                WHERE UserId <> @UserId
-                  AND (LTRIM(RTRIM(ISNULL(CustomerId, ''))) = @CardNo
-                   OR LTRIM(RTRIM(ISNULL(StudCode, ''))) = @CardNo);
-                """,
-                new { UserId = request.UserId, CardNo = cardNo },
-                cancellationToken: cancellationToken));
-        if (duplicate.HasValue)
-            return AdminOperationResult.Fail("A student with this card number already exists.");
+        if (await StudentCardNumber.IsTakenAsync(dbConnection, cardNo, request.UserId, cancellationToken))
+            return AdminOperationResult.Fail(StudentCardNumber.DuplicateMessage);
 
         var grades = await _studentRepository.GetAllGradesAsync(cancellationToken);
         var grade = grades.FirstOrDefault(g => g.Id == request.GradeId);
@@ -827,6 +828,12 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
         if (school is null)
             return AdminOperationResult.Fail("Selected school was not found.");
 
+        var schoolOrderTypeError = StudentOrderTypeValidation.ValidateAgainstSchool(
+            await _schoolOrderTypeRepository.GetOrderTypeIdsAsync(request.SchoolId, cancellationToken),
+            request.OrderTypeIds);
+        if (schoolOrderTypeError is not null)
+            return AdminOperationResult.Fail(schoolOrderTypeError);
+
         var gender = string.IsNullOrWhiteSpace(request.Gender) ? "Male" : request.Gender.Trim();
         var oldCustomerId = linkedStudent.CustomerId;
 
@@ -846,7 +853,8 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
                     StudDiv = @Division,
                     StudDateOfBirth = @DateOfBirth,
                     DailyLimit = @DailySpendLimit,
-                    WeeklyLimit = @WeeklySpendLimit
+                    WeeklyLimit = @WeeklySpendLimit,
+                    IsUnsubscribeLowBalNoti = @IsUnsubscribeLowBalNoti
                 WHERE UserId = @UserId;
                 """,
                 new
@@ -862,7 +870,8 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
                     request.Division,
                     request.DateOfBirth,
                     DailySpendLimit = request.DailySpendLimit ?? 0m,
-                    WeeklySpendLimit = request.WeeklySpendLimit ?? 0m
+                    WeeklySpendLimit = request.WeeklySpendLimit ?? 0m,
+                    IsUnsubscribeLowBalNoti = !request.LowBalanceEmailNotification
                 },
                 cancellationToken: cancellationToken));
         if (rows <= 0)
@@ -894,6 +903,7 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
         }
 
         await _allergyRepository.SaveAllergiesAsync(request.UserId, request.AllergyItemIds ?? [], cancellationToken);
+        await _orderTypeRepository.SaveOrderTypesAsync(request.UserId, request.OrderTypeIds ?? [], cancellationToken);
 
         return AdminOperationResult.Ok("Student updated successfully.");
     }
@@ -911,6 +921,7 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
         public DateTime? DateOfBirth { get; init; }
         public decimal? DailySpendLimit { get; init; }
         public decimal? WeeklySpendLimit { get; init; }
+        public bool IsUnsubscribeLowBalNoti { get; init; }
     }
 
     private sealed class LinkedStudentRow

@@ -1,0 +1,69 @@
+@using ETCS.Admin.Infrastructure.Auth
+@{
+    ViewData["Title"] = "Blacklist Card - Transfer Balance";
+    ViewData["PageSubtitle"] = "Block a lost card and move its prepaid balance to a newly activated card.";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewBag.AdminModuleKey = "BlacklistCard";
+    var canEdit = AdminPermissionViewHelper.CanEdit(User, "BlacklistCard");
+}
+<div class="row">
+    @if (canEdit)
+    {
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Blacklist Cards</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Enter the student card number and click <strong>Blacklist Card</strong> to block any active card.</p>
+                    <form id="frmBlacklist" novalidate>
+                        <label class="form-label" for="blacklistCustomerId">Student Card</label>
+                        <input id="blacklistCustomerId" name="CustomerId" type="text" class="form-control" maxlength="20" required autocomplete="off" />
+                        <button type="submit" id="btnBlacklist" class="btn btn-primary mt-3">Blacklist Card</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+    <div class="@(canEdit ? "col-lg-6" : "col-12")">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">View Card Blacklist Info</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Enter the student card number and click <strong>View Blacklist Card Info</strong> to view details of all linked cards.</p>
+                <form id="frmViewBlacklist" novalidate>
+                    <label class="form-label" for="viewCustomerId">Student Card</label>
+                    <input id="viewCustomerId" name="CustomerId" type="text" class="form-control" maxlength="20" required autocomplete="off" />
+                    <button type="submit" id="btnViewBlacklist" class="btn btn-outline-primary mt-3">View Blacklist Card Info</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="card d-none" id="blacklistResultsCard">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered w-100" id="blacklistResultsTable">
+                <thead>
+                    <tr>
+                        <th>Card ID</th>
+                        <th>Student Card Number</th>
+                        <th>Last Used</th>
+                        <th class="text-end">Balance</th>
+                        <th>Status</th>
+                        <th>Balance Transfer</th>
+                        <th class="text-center" style="width:160px">Transfer Balance</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <p class="text-muted small mb-1 mt-3">Click <strong>Transfer Balance</strong> in the last column to transfer the balance from a blacklisted card to the newly activated card.</p>
+        <p class="text-muted small mb-0">The Transfer Balance action is available only for blocked cards that have not already been transferred.</p>
+    </div>
+</div>
+@section Scripts {
+    <script>window.adminModuleKey = 'BlacklistCard';</script>
+    <script src="~/js/custom/blacklist-card.js"></script>
+}

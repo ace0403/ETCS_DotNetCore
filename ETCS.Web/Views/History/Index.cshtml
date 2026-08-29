@@ -36,7 +36,7 @@
         };
     }
 }
-<div class="history-page">
+<div class="history-page mt-2 mt-md-0">
     <div class="">
         <form method="get" asp-action="Index" class="history-panel history-filters" id="historyFilterForm">
             @if (isTransactions)
@@ -151,39 +151,75 @@
                             "tone-combo" => "type-combo",
                             _ => "type-order"
                         };
-                        <a href="@item.DetailUrl" class="history-row @tone" role="listitem">
-                            <div class="history-row-body">
-                                <div class="history-row-icon" aria-hidden="true">
-                                    <i class="ti @icon"></i>
-                                </div>
-                                <div class="history-row-main">
-                                    <div class="history-row-child">@item.StudentName</div>
-                                    <div class="history-row-meta">
-                                        <span>@item.CreatedOn.ToString("dd MMM yyyy")</span>
-                                        <span class="history-meta-sep" aria-hidden="true">·</span>
-                                        <span>@item.CreatedOn.ToString("hh:mm tt")</span>
+                        if (item.HasDetail)
+                        {
+                            <a href="@item.DetailUrl" class="history-row @tone" role="listitem">
+                                <div class="history-row-body">
+                                    <div class="history-row-icon" aria-hidden="true">
+                                        <i class="ti @icon"></i>
+                                    </div>
+                                    <div class="history-row-main">
+                                        <div class="history-row-child">@item.StudentName</div>
+                                        <div class="history-row-meta">
+                                            <span>@item.CreatedOn.ToString("dd MMM yyyy")</span>
+                                            <span class="history-meta-sep" aria-hidden="true">·</span>
+                                            <span>@item.CreatedOn.ToString("hh:mm tt")</span>
+                                        </div>
+                                    </div>
+                                    <div class="history-row-side">
+                                        <div class="history-row-amount @(item.IsCredit ? "is-credit" : "is-debit")">
+                                            <span class="history-amount-sign">@(item.IsCredit ? "+" : "−")</span><span class="history-amount-currency">@currency</span>
+                                            <span class="history-amount-value">@item.Amount.ToString("0.00")</span>
+                                        </div>
+                                        <span class="history-row-cta">
+                                            View details <i class="ti ti-arrow-up-right"></i>
+                                        </span>
                                     </div>
                                 </div>
-                                <div class="history-row-side">
-                                    <div class="history-row-amount @(item.IsCredit ? "is-credit" : "is-debit")">
-                                        <span class="history-amount-sign">@(item.IsCredit ? "+" : "−")</span><span class="history-amount-currency">@currency</span>
-                                        <span class="history-amount-value">@item.Amount.ToString("0.00")</span>
+                                <div class="history-row-footer">
+                                    <span class="history-type-badge @typeClass">
+                                        <i class="ti @icon"></i> @item.TypeLabel
+                                    </span>
+                                    <span class="history-status-badge @item.StatusCss">
+                                        <span class="history-status-dot" aria-hidden="true"></span>
+                                        @item.StatusLabel
+                                    </span>
+                                </div>
+                            </a>
+                        }
+                        else
+                        {
+                            <div class="history-row @tone is-static" role="listitem">
+                                <div class="history-row-body">
+                                    <div class="history-row-icon" aria-hidden="true">
+                                        <i class="ti @icon"></i>
                                     </div>
-                                    <span class="history-row-cta">
-                                        View details <i class="ti ti-arrow-up-right"></i>
+                                    <div class="history-row-main">
+                                        <div class="history-row-child">@item.StudentName</div>
+                                        <div class="history-row-meta">
+                                            <span>@item.CreatedOn.ToString("dd MMM yyyy")</span>
+                                            <span class="history-meta-sep" aria-hidden="true">·</span>
+                                            <span>@item.CreatedOn.ToString("hh:mm tt")</span>
+                                        </div>
+                                    </div>
+                                    <div class="history-row-side">
+                                        <div class="history-row-amount @(item.IsCredit ? "is-credit" : "is-debit")">
+                                            <span class="history-amount-sign">@(item.IsCredit ? "+" : "−")</span><span class="history-amount-currency">@currency</span>
+                                            <span class="history-amount-value">@item.Amount.ToString("0.00")</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="history-row-footer">
+                                    <span class="history-type-badge @typeClass">
+                                        <i class="ti @icon"></i> @item.TypeLabel
+                                    </span>
+                                    <span class="history-status-badge @item.StatusCss">
+                                        <span class="history-status-dot" aria-hidden="true"></span>
+                                        @item.StatusLabel
                                     </span>
                                 </div>
                             </div>
-                            <div class="history-row-footer">
-                                <span class="history-type-badge @typeClass">
-                                    <i class="ti @icon"></i> @item.TypeLabel
-                                </span>
-                                <span class="history-status-badge @item.StatusCss">
-                                    <span class="history-status-dot" aria-hidden="true"></span>
-                                    @item.StatusLabel
-                                </span>
-                            </div>
-                        </a>
+                        }
                     }
                 </div>
 

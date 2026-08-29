@@ -27,20 +27,46 @@ public sealed class MealComboSearchRequest
     public DateTime MealDate { get; set; }
 }
 
-public sealed class MealComboPackageTypeGroup
+public sealed class MealComboSessionSection
 {
-    public string MealTypeId { get; init; } = string.Empty;
+    public string MealSessionId { get; init; } = string.Empty;
 
-    public string MealTypeName { get; init; } = string.Empty;
+    public string MealSessionName { get; init; } = string.Empty;
 
-    public string MealCssClass { get; init; } = string.Empty;
+    public string MealSessionCssClass { get; init; } = string.Empty;
 
     public IReadOnlyList<MealPackageDto> Packages { get; init; } = [];
+
+    public IReadOnlyList<MealItemDto> AddonItems { get; init; } = [];
+
+    public IReadOnlyList<MealComboMenuCard> DisplayItems { get; init; } = [];
+
+    public IReadOnlyList<MealComboMealTypeFilterOption> MealTypeFilters { get; init; } = [];
 }
 
-public sealed class MealComboSelectedPackageRequest
+public sealed class MealComboMenuCard
+{
+    public bool IsAddon { get; init; }
+
+    public MealPackageDto? Package { get; init; }
+
+    public MealItemDto? Addon { get; init; }
+}
+
+public sealed class MealComboMealTypeFilterOption
+{
+    public string FilterKey { get; init; } = string.Empty;
+
+    public string TypeName { get; init; } = string.Empty;
+
+    public int SortOrder { get; init; }
+}
+
+public sealed class MealComboSelectedLineRequest
 {
     public int PackageId { get; set; }
+
+    public int ItemId { get; set; }
 
     public string MealDate { get; set; } = string.Empty;
 
@@ -53,11 +79,11 @@ public sealed class MealComboSummaryViewModel
 
     public string StudentName { get; set; } = string.Empty;
 
-    public IReadOnlyList<MealComboSummaryItem> SelectedPackages { get; init; } = [];
+    public IReadOnlyList<MealComboSummaryItem> SelectedLines { get; init; } = [];
 
-    public int ItemCount => SelectedPackages.Count;
+    public int ItemCount => SelectedLines.Count;
 
-    public int DayCount => SelectedPackages.Select(x => x.MealDate.Date).Distinct().Count();
+    public int DayCount => SelectedLines.Select(x => x.MealDate.Date).Distinct().Count();
 }
 
 public sealed class MealComboSummaryItem
@@ -66,11 +92,19 @@ public sealed class MealComboSummaryItem
 
     public Guid SelectionId { get; init; }
 
+    public bool IsAddon { get; init; }
+
     public string PackageName { get; init; } = string.Empty;
+
+    public string ItemName { get; init; } = string.Empty;
+
+    public string DisplayName => IsAddon ? ItemName : PackageName;
 
     public string ItemsName { get; init; } = string.Empty;
 
     public string MealTypeName { get; init; } = string.Empty;
+
+    public string MealSessionName { get; init; } = string.Empty;
 
     public string? Detail { get; init; }
 

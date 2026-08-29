@@ -32,7 +32,7 @@
     <form id="etcsAntiforgeryForm" class="d-none" aria-hidden="true">
         @Html.AntiForgeryToken()
     </form>
-    <partial name="_Sidebar" />
+    @await Component.InvokeAsync("ParentPortalNavigation")
     <partial name="_Header" />
     <div class="pc-container">
         <div class="pc-content">

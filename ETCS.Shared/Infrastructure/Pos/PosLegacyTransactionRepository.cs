@@ -22,7 +22,7 @@ public sealed class PosLegacyTransactionRepository : IPosLegacyTransactionReposi
     {
         using var connection = _connectionFactory.CreateConnection();
         await connection.ExecuteAsync(new CommandDefinition(
-            "spInsertCashPurcahse",
+            "spInsertCashPurcahse_New",
             new
             {
                 Amount = (float)amount,
@@ -67,7 +67,7 @@ public sealed class PosLegacyTransactionRepository : IPosLegacyTransactionReposi
     {
         using var connection = _connectionFactory.CreateConnection();
         await connection.ExecuteAsync(new CommandDefinition(
-            "spInsertCreditCardPurcahse",
+            "spInsertCreditCardPurcahse_New",
             new
             {
                 Amount = (float)amount,

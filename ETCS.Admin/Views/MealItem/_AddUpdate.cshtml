@@ -9,12 +9,13 @@
     Layout = null;
     var schools = ViewBag.Schools as IReadOnlyList<SchoolLookupDto> ?? [];
     var categories = ViewBag.Categories as IReadOnlyList<CategoryListItemDto> ?? [];
-    var mealTypes = ViewBag.MealTypes as IReadOnlyList<MealEnumLookupDto> ?? [];
+    var mealSessions = ViewBag.MealSessions as IReadOnlyList<MealEnumLookupDto> ?? [];
     var ingredients = ViewBag.Ingredients as IReadOnlyList<MealEnumLookupDto> ?? [];
     var weekDays = ViewBag.WeekDays as IReadOnlyList<MealEnumLookupDto> ?? [];
     var weekNumbers = ViewBag.WeekNumbers as IReadOnlyList<int> ?? [1, 2, 3, 4];
     var nutritionTypes = ViewBag.NutritionTypes as IReadOnlyList<MealEnumLookupDto> ?? [];
     var measureTypes = ViewBag.MeasureTypes as IReadOnlyList<MealEnumLookupDto> ?? [];
+    var mealItemChannels = ViewBag.MealItemChannels as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> ?? [];
     var nutritionLines = Model.NutritionLines.Count > 0 ? Model.NutritionLines : [new MealItemNutritionLineDto()];
 }
 <form id="frmMealItem" enctype="multipart/form-data">
@@ -31,29 +32,42 @@
                 <input asp-for="ItemName" class="form-control" placeholder="Item Name" />
                 <span asp-validation-for="ItemName" class="text-danger"></span>
             </div>
-            <div class="col-12 col-md-6">
-                <label asp-for="SchoolId" class="form-label">School</label>
-                <select asp-for="SchoolId" class="form-select">
-                    <option value="">- Select school -</option>
+            <div class="col-12 col-md-6 multiselect-custom">
+                <label asp-for="SchoolIds" class="form-label">School</label>
+                <select asp-for="SchoolIds" id="SchoolIds" class="form-select ignore-validation" multiple data-val="false">
                     @foreach (var school in schools)
                     {
-                        <option value="@school.Id">@school.Name</option>
+                        if (Model.SchoolIds.Contains(school.Id))
+                        {
+                            <option value="@school.Id" selected="selected">@school.Name</option>
+                        }
+                        else
+                        {
+                            <option value="@school.Id">@school.Name</option>
+                        }
                     }
                 </select>
-                <span asp-validation-for="SchoolId" class="text-danger"></span>
+                <span asp-validation-for="SchoolIds" class="text-danger"></span>
             </div>
-            <div class="col-12 col-md-6">
-                <label asp-for="MealTypeId" class="form-label">Meal Type</label>
-                <select asp-for="MealTypeId" class="form-select">
-                    <option value="">- Select meal type -</option>
-                    @foreach (var mealType in mealTypes)
+            <div class="col-12 col-md-6 col-lg-4">
+                <label asp-for="MealSessionId" class="form-label">Meal Session</label>
+                <select asp-for="MealSessionId" id="MealSessionId" class="form-select">
+                    <option value="">- Select meal session -</option>
+                    @foreach (var mealSession in mealSessions)
                     {
-                        <option value="@mealType.Id">@mealType.Name</option>
+                        <option value="@mealSession.Id">@mealSession.Name</option>
                     }
+                </select>
+                <span asp-validation-for="MealSessionId" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+                <label asp-for="MealTypeId" class="form-label">Meal Type</label>
+                <select asp-for="MealTypeId" id="MealTypeId" class="form-select" disabled="disabled" data-selected-type-id="@Model.MealTypeId">
+                    <option value="">- Select meal type -</option>
                 </select>
                 <span asp-validation-for="MealTypeId" class="text-danger"></span>
             </div>
-            <div class="col-12 col-md-6">
+            <div class="col-12 col-md-6 col-lg-4">
                 <label asp-for="MealCategoryId" class="form-label">Menu Type</label>
                 <select asp-for="MealCategoryId" class="form-select">
                     <option value="">- Select menu type -</option>
@@ -70,6 +84,23 @@
                 <span asp-validation-for="Price" class="text-danger"></span>
             </div>
             <div class="col-12 col-md-6 multiselect-custom">
+                <label asp-for="OrderTypeIds" class="form-label"></label>
+                <select asp-for="OrderTypeIds" class="form-select ignore-validation" id="OrderTypeIds" multiple data-val="false">
+                    @foreach (var channel in mealItemChannels)
+                    {
+                        if (Model.OrderTypeIds.Contains(int.Parse(channel.Value!, System.Globalization.CultureInfo.InvariantCulture)))
+                        {
+                            <option value="@channel.Value" selected="selected">@channel.Text</option>
+                        }
+                        else
+                        {
+                            <option value="@channel.Value">@channel.Text</option>
+                        }
+                    }
+                </select>
+                <span asp-validation-for="OrderTypeIds" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4 multiselect-custom">
                 <label class="form-label">Ingredients</label>
                 <select name="IngredientIds" id="IngredientIds" class="form-select" multiple="multiple">
                     @foreach (var ingredient in ingredients)
@@ -85,7 +116,7 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-6 multiselect-custom">
+            <div class="col-12 col-md-6 col-lg-4 multiselect-custom">
                 <label class="form-label">Week No.</label>
                 <select name="WeekNos" id="WeekNos" class="form-select" multiple="multiple">
                     @foreach (var weekNo in weekNumbers)
@@ -101,7 +132,7 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-6 multiselect-custom">
+            <div class="col-12 col-md-6 col-lg-4 multiselect-custom">
                 <label class="form-label">Day</label>
                 <select name="DayIds" id="DayIds" class="form-select" multiple="multiple">
                     @foreach (var day in weekDays)

@@ -42,6 +42,16 @@ public sealed class CachedStudentRepository : IStudentRepository
     public Task<decimal?> GetStudentMinimumTopupAsync(int studentId, CancellationToken cancellationToken = default)
         => _inner.GetStudentMinimumTopupAsync(studentId, cancellationToken);
 
+    public Task<StudentCardBalanceMetaDto?> GetStudentCardBalanceMetaAsync(
+        int studentId,
+        CancellationToken cancellationToken = default)
+        => _inner.GetStudentCardBalanceMetaAsync(studentId, cancellationToken);
+
+    public Task<string?> GetSchoolLogoFileNameByNameAsync(
+        string schoolName,
+        CancellationToken cancellationToken = default)
+        => _inner.GetSchoolLogoFileNameByNameAsync(schoolName, cancellationToken);
+
     public async Task<StudentGuardianBasicDetailDto?> GetGuardianBasicDetailByStudentIdAsync(
         string studentId,
         CancellationToken cancellationToken)
@@ -65,6 +75,16 @@ public sealed class CachedStudentRepository : IStudentRepository
         string customerId,
         CancellationToken cancellationToken)
         => _inner.GetGuardianBasicDetailByCustomerIdAsync(customerId, cancellationToken);
+
+    public Task<StudentIdentityByCustomerDto?> GetStudentIdentityByCustomerIdAsync(
+        string customerId,
+        CancellationToken cancellationToken)
+        => _inner.GetStudentIdentityByCustomerIdAsync(customerId, cancellationToken);
+
+    public Task<decimal> GetPrepaidBalanceByCustomerIdAsync(
+        string customerId,
+        CancellationToken cancellationToken)
+        => _inner.GetPrepaidBalanceByCustomerIdAsync(customerId, cancellationToken);
 
     public Task<IReadOnlyList<GradeListItemDto>> GetAllGradesAsync(CancellationToken cancellationToken)
         => _inner.GetAllGradesAsync(cancellationToken);

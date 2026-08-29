@@ -88,28 +88,45 @@ public sealed class StudentAllergyAdminRepository : IStudentAllergyAdminReposito
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
+        using var transaction = await dbConnection.BeginTransactionAsync(cancellationToken);
 
-        await dbConnection.ExecuteAsync(
-            new CommandDefinition(
-                "DELETE FROM StudentAllergies WHERE StudentId = @StudentId;",
-                new { StudentId = studentId },
-                cancellationToken: cancellationToken));
-
-        if (allergyItemIds.Count == 0) return;
-
-        const string insertSql = """
-            INSERT INTO StudentAllergies (StudentId, AllergyItemId, CreatedOn)
-            VALUES (@StudentId, @AllergyItemId, GETDATE());
-            """;
-
-        foreach (var allergyItemId in allergyItemIds.Distinct())
+        try
         {
-            if (allergyItemId <= 0) continue;
             await dbConnection.ExecuteAsync(
                 new CommandDefinition(
-                    insertSql,
-                    new { StudentId = studentId, AllergyItemId = allergyItemId },
+                    "DELETE FROM StudentAllergies WHERE StudentId = @StudentId;",
+                    new { StudentId = studentId },
+                    transaction: transaction,
                     cancellationToken: cancellationToken));
+
+            if (allergyItemIds.Count == 0)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return;
+            }
+
+            const string insertSql = """
+                INSERT INTO StudentAllergies (StudentId, AllergyItemId, CreatedOn)
+                VALUES (@StudentId, @AllergyItemId, GETDATE());
+                """;
+
+            foreach (var allergyItemId in allergyItemIds.Distinct())
+            {
+                if (allergyItemId <= 0) continue;
+                await dbConnection.ExecuteAsync(
+                    new CommandDefinition(
+                        insertSql,
+                        new { StudentId = studentId, AllergyItemId = allergyItemId },
+                        transaction: transaction,
+                        cancellationToken: cancellationToken));
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
         }
     }
 

@@ -3,6 +3,8 @@
 @{
     Layout = null;
     var countries = ViewBag.Countries as IReadOnlyList<SchoolCountryLookupDto> ?? Array.Empty<SchoolCountryLookupDto>();
+    var orderTypes = ViewBag.OrderTypes as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> ?? [];
+    var selectedOrderTypeIds = Model.OrderTypeIds ?? [];
 }
 <form id="frmSchool" enctype="multipart/form-data">
     <div class="modal-header">
@@ -56,8 +58,25 @@
                     <small class="text-muted d-block mt-1">Current: @Model.PdfPath</small>
                 }
             </div>
+            <div class="col-12 col-md-6 multiselect-custom">
+                <label asp-for="OrderTypeIds" class="form-label"></label>
+                <select asp-for="OrderTypeIds" class="form-select ignore-validation" id="OrderTypeIds" multiple data-val="false">
+                    @foreach (var orderType in orderTypes)
+                    {
+                        if (selectedOrderTypeIds.Contains(int.Parse(orderType.Value!, System.Globalization.CultureInfo.InvariantCulture)))
+                        {
+                            <option value="@orderType.Value" selected="selected">@orderType.Text</option>
+                        }
+                        else
+                        {
+                            <option value="@orderType.Value">@orderType.Text</option>
+                        }
+                    }
+                </select>
+                <span asp-validation-for="OrderTypeIds" class="text-danger"></span>
+            </div>
             <div class="col-12 col-md-6">
-                <div class="form-check pt-1">
+                <div class="form-check pt-1 pt-md-3 mt-0 mt-md-4">
                     <input asp-for="HasEmailNotification" class="form-check-input" />
                     <label asp-for="HasEmailNotification" class="form-check-label"></label>
                 </div>

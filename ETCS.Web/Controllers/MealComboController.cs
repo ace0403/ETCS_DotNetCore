@@ -3,8 +3,10 @@ using ETCS.Shared.Helpers;
 using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
 using ETCS.Shared.Infrastructure.Meals;
 using ETCS.Shared.Infrastructure.Orders;
+using ETCS.Shared.Infrastructure.Schools.Calendar;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Application.Orders;
+using ETCS.Shared.Application.Students;
 using ETCS.Web.Infrastructure.AlaCarte;
 using ETCS.Web.Infrastructure.Auth;
 using ETCS.Web.Infrastructure.Orders;
@@ -23,17 +25,26 @@ public class MealComboController : Controller
     private readonly IMealEnumAdminRepository _mealEnumRepository;
     private readonly IMealRepository _mealRepository;
     private readonly IOrderInitiateService _orderInitiateService;
+    private readonly IStudentOrderTypeAccessService _orderTypeAccess;
+    private readonly MealOrderBookingWindow _bookingWindow;
+    private readonly ISchoolCalendarService _schoolCalendar;
 
     public MealComboController(
         IStudentRepository studentRepository,
         IMealEnumAdminRepository mealEnumRepository,
         IMealRepository mealRepository,
-        IOrderInitiateService orderInitiateService)
+        IOrderInitiateService orderInitiateService,
+        IStudentOrderTypeAccessService orderTypeAccess,
+        MealOrderBookingWindow bookingWindow,
+        ISchoolCalendarService schoolCalendar)
     {
         _studentRepository = studentRepository;
         _mealEnumRepository = mealEnumRepository;
         _mealRepository = mealRepository;
         _orderInitiateService = orderInitiateService;
+        _orderTypeAccess = orderTypeAccess;
+        _bookingWindow = bookingWindow;
+        _schoolCalendar = schoolCalendar;
     }
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -57,19 +68,39 @@ public class MealComboController : Controller
 
         if (!ModelState.IsValid || !await StudentBelongsToGuardianAsync(guardianId, request.StudentId, cancellationToken))
         {
-            return PartialView("_PackageList", Array.Empty<MealComboPackageTypeGroup>());
+            return PartialView("_PackageList", Array.Empty<MealComboSessionSection>());
         }
 
-        var groups = await LoadPackageGroupsAsync(request.StudentId, request.MealDate, cancellationToken);
+        if (!await _orderTypeAccess.IsAllowedAsync(request.StudentId, (int)TransactionTypeEnum.MealOrder, cancellationToken))
+        {
+            return PartialView("_PackageList", Array.Empty<MealComboSessionSection>());
+        }
+
+        if (!_bookingWindow.IsBookable(request.MealDate))
+        {
+            ViewData["SelectedMealDate"] = request.MealDate.ToString("yyyy-MM-dd");
+            ViewData["SelectedMealDateDisplay"] = request.MealDate.ToString("dddd, dd MMM yyyy", CultureInfo.InvariantCulture);
+            return PartialView("_PackageList", Array.Empty<MealComboSessionSection>());
+        }
+
+        var schoolId = await ResolveStudentSchoolIdAsync(request.StudentId, cancellationToken);
+        if (schoolId is > 0
+            && !await _schoolCalendar.IsOrderableAsync(schoolId.Value, request.MealDate.Date, cancellationToken))
+        {
+            var day = await _schoolCalendar.GetDayInfoAsync(schoolId.Value, request.MealDate.Date, cancellationToken);
+            return MenuClosedDayPartial(request.MealDate.Date, day);
+        }
+
+        var sections = await LoadSessionSectionsAsync(request.StudentId, request.MealDate, cancellationToken);
         ViewData["SelectedMealDate"] = request.MealDate.ToString("yyyy-MM-dd");
         ViewData["SelectedMealDateDisplay"] = request.MealDate.ToString("dddd, dd MMM yyyy", CultureInfo.InvariantCulture);
-        return PartialView("_PackageList", groups);
+        return PartialView("_PackageList", sections);
     }
 
     [HttpPost]
     public async Task<IActionResult> GetOrderSummary(
         [FromForm] int studentId,
-        [FromForm] List<MealComboSelectedPackageRequest>? items,
+        [FromForm] List<MealComboSelectedLineRequest>? items,
         CancellationToken cancellationToken)
     {
         if (!User.TryGetGuardianId(out var guardianId))
@@ -87,6 +118,11 @@ public class MealComboController : Controller
             return PartialView("_OrderSummary", new MealComboSummaryViewModel());
         }
 
+        if (!await _orderTypeAccess.IsAllowedAsync(studentId, (int)TransactionTypeEnum.MealOrder, cancellationToken))
+        {
+            return PartialView("_OrderSummary", new MealComboSummaryViewModel());
+        }
+
         var summary = await BuildSummaryAsync(studentId, items ?? [], cancellationToken);
         var children = await LoadChildrenAsync(guardianId, cancellationToken);
         summary.StudentName = children.FirstOrDefault(c => c.Id == studentId)?.Name ?? string.Empty;
@@ -96,7 +132,7 @@ public class MealComboController : Controller
     [HttpPost]
     public async Task<JsonResult> PlaceOrder(
         [FromForm] int studentId,
-        [FromForm] List<MealComboSelectedPackageRequest>? mealList,
+        [FromForm] List<MealComboSelectedLineRequest>? mealList,
         CancellationToken cancellationToken)
     {
         if (!User.TryGetGuardianId(out var guardianId))
@@ -111,18 +147,24 @@ public class MealComboController : Controller
 
         if (mealList is null || mealList.Count == 0)
         {
-            return Json(new { Success = false, Message = "No combos selected." });
+            return Json(new { Success = false, Message = "No items selected." });
+        }
+
+        if (await TryGetClosedDateMessageAsync(studentId, mealList.Select(x => x.MealDate), cancellationToken) is { } closedMessage)
+        {
+            return Json(new { Success = false, Message = closedMessage });
         }
 
         var summary = await BuildSummaryAsync(studentId, mealList, cancellationToken);
-        if (summary.SelectedPackages.Count == 0)
+        if (summary.SelectedLines.Count == 0)
         {
-            return Json(new { Success = false, Message = "Selected combos are no longer available." });
+            return Json(new { Success = false, Message = "Selected items are no longer available." });
         }
 
-        var mealLines = summary.SelectedPackages.Select(item => new OrderMealLineItemRequest
+        var mealLines = summary.SelectedLines.Select(item => new OrderMealLineItemRequest
         {
-            PackageId = item.Id,
+            PackageId = item.IsAddon ? null : item.Id,
+            ItemId = item.IsAddon ? item.Id : null,
             MealDate = item.MealDate,
             Price = item.Price,
             Total = item.Price,
@@ -159,13 +201,14 @@ public class MealComboController : Controller
 
     private async Task<MealComboPageViewModel> BuildPageModelAsync(int guardianId, CancellationToken cancellationToken)
     {
-        var children = await LoadChildrenAsync(guardianId, cancellationToken);
+        var children = await LoadEligibleChildrenAsync(guardianId, cancellationToken);
         const int defaultDurationDays = 30;
 
         return new MealComboPageViewModel
         {
             StudentId = children.FirstOrDefault()?.Id ?? 0,
             Duration = defaultDurationDays,
+            MealDate = _bookingWindow.GetEarliestBookableDate(),
             DurationList = new SelectList(
                 new[] { new { Value = defaultDurationDays, Text = "30 Days" } },
                 "Value",
@@ -173,6 +216,19 @@ public class MealComboController : Controller
                 defaultDurationDays),
             Children = children
         };
+    }
+
+    private async Task<IReadOnlyList<AlaCarteChildOption>> LoadEligibleChildrenAsync(
+        int guardianId,
+        CancellationToken cancellationToken)
+    {
+        var children = await LoadChildrenAsync(guardianId, cancellationToken);
+        var allowedIds = (await _orderTypeAccess.FilterAllowedAsync(
+            children.Select(c => c.Id),
+            (int)TransactionTypeEnum.MealOrder,
+            cancellationToken)).ToHashSet();
+
+        return children.Where(c => allowedIds.Contains(c.Id)).ToList();
     }
 
     private async Task<IReadOnlyList<AlaCarteChildOption>> LoadChildrenAsync(int guardianId, CancellationToken cancellationToken)
@@ -199,7 +255,7 @@ public class MealComboController : Controller
         return await _studentRepository.GetStudentSchoolIdAsync(studentId, cancellationToken);
     }
 
-    private async Task<IReadOnlyList<MealComboPackageTypeGroup>> LoadPackageGroupsAsync(
+    private async Task<IReadOnlyList<MealComboSessionSection>> LoadSessionSectionsAsync(
         int studentId,
         DateTime mealDate,
         CancellationToken cancellationToken)
@@ -210,23 +266,126 @@ public class MealComboController : Controller
             return [];
         }
 
-        var packages = await _mealRepository.GetMealPackagesForStudentAsync(studentId, schoolId.Value, mealDate, mealTypeId: null, cancellationToken);
-        return packages
-            .GroupBy(x => new { x.MealTypeId, x.MealTypeName, x.MealCssClass })
-            .OrderBy(g => g.Key.MealTypeId)
-            .Select(g => new MealComboPackageTypeGroup
-            {
-                MealTypeId = g.Key.MealTypeId,
-                MealTypeName = g.Key.MealTypeName,
-                MealCssClass = g.Key.MealCssClass,
-                Packages = g.ToList()
-            })
+        var packagesTask = _mealRepository.GetMealPackagesForStudentAsync(
+            studentId,
+            schoolId.Value,
+            mealDate,
+            cancellationToken: cancellationToken);
+        var itemsTask = _mealRepository.GetMealItemsForStudentAsync(
+            studentId,
+            schoolId.Value,
+            mealDate,
+            cancellationToken: cancellationToken);
+
+        await Task.WhenAll(packagesTask, itemsTask);
+
+        var activeSessions = await _mealEnumRepository.GetMealSessionsAsync(cancellationToken);
+        var activeSessionIds = activeSessions
+            .Select(s => s.Id)
+            .ToHashSet();
+
+        var packages = (await packagesTask)
+            .Where(p => int.TryParse(p.MealSessionId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var sessionId)
+                && activeSessionIds.Contains(sessionId))
             .ToList();
+        var addonItems = (await itemsTask)
+            .Where(i => int.TryParse(i.MealSessionId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var sessionId)
+                && activeSessionIds.Contains(sessionId))
+            .ToList();
+
+        var packageGroups = packages
+            .GroupBy(x => new { x.MealSessionId, x.MealSessionName, x.MealSessionCssClass })
+            .ToDictionary(
+                g => g.Key.MealSessionId,
+                g => g.OrderBy(p => p.MealTypeSortOrder)
+                    .ThenBy(p => p.MealTypeName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(p => p.PackageName, StringComparer.OrdinalIgnoreCase)
+                    .ToList());
+
+        var addonGroups = addonItems
+            .GroupBy(x => new { x.MealSessionId, x.MealSessionName, x.MealSessionCssClass })
+            .ToDictionary(
+                g => g.Key.MealSessionId,
+                g => g.OrderBy(i => i.MealTypeSortOrder)
+                    .ThenBy(i => i.MealTypeName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(i => i.ItemName, StringComparer.OrdinalIgnoreCase)
+                    .ToList());
+
+        var sessionMetaById = packages
+            .Select(x => new { x.MealSessionId, x.MealSessionName, x.MealSessionCssClass })
+            .Concat(addonItems.Select(x => new { x.MealSessionId, x.MealSessionName, x.MealSessionCssClass }))
+            .GroupBy(x => x.MealSessionId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        var sessionMeta = activeSessions
+            .Select(session => session.Id.ToString(CultureInfo.InvariantCulture))
+            .Where(sessionMetaById.ContainsKey)
+            .Select(sessionId => sessionMetaById[sessionId])
+            .ToList();
+
+        var mealTypeResults = await Task.WhenAll(
+            activeSessions.Select(async session =>
+                (session.Id, Types: await _mealEnumRepository.GetMealTypesBySessionAsync(session.Id, cancellationToken))));
+        var mealTypesBySession = mealTypeResults.ToDictionary(x => x.Id, x => x.Types);
+
+        var sections = new List<MealComboSessionSection>();
+        foreach (var meta in sessionMeta)
+        {
+            packageGroups.TryGetValue(meta.MealSessionId, out var sessionPackages);
+            addonGroups.TryGetValue(meta.MealSessionId, out var sessionAddons);
+            sessionPackages ??= [];
+            sessionAddons ??= [];
+
+            var mealTypeSources = sessionPackages
+                .Select(p => (p.MealTypeId, p.MealTypeName))
+                .Concat(sessionAddons.Select(i => (i.MealTypeId, i.MealTypeName)));
+            IReadOnlyList<MealEnumLookupDto> sessionMealTypes = [];
+            if (int.TryParse(meta.MealSessionId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedSessionId)
+                && mealTypesBySession.TryGetValue(parsedSessionId, out var resolvedMealTypes)
+                && resolvedMealTypes is not null)
+            {
+                sessionMealTypes = resolvedMealTypes;
+            }
+
+            var section = new MealComboSessionSection
+            {
+                MealSessionId = meta.MealSessionId,
+                MealSessionName = meta.MealSessionName,
+                MealSessionCssClass = meta.MealSessionCssClass,
+                Packages = sessionPackages,
+                AddonItems = sessionAddons,
+                DisplayItems = AlaCarteMealTypeHelper.BuildMergedMenuCards(sessionPackages, sessionAddons),
+                MealTypeFilters = AlaCarteMealTypeHelper.BuildSortedMealTypeFilters(mealTypeSources, sessionMealTypes)
+            };
+
+            if (IsDisplayableMealSession(section))
+            {
+                sections.Add(section);
+            }
+        }
+
+        return sections;
+    }
+
+    private static bool IsDisplayableMealSession(MealComboSessionSection section)
+    {
+        if (section.Packages.Count == 0 && section.AddonItems.Count == 0)
+        {
+            return false;
+        }
+
+        if (!int.TryParse(section.MealSessionId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var sessionId)
+            || sessionId <= 0)
+        {
+            return false;
+        }
+
+        return !string.IsNullOrWhiteSpace(section.MealSessionName);
     }
 
     private async Task<MealComboSummaryViewModel> BuildSummaryAsync(
         int studentId,
-        IReadOnlyList<MealComboSelectedPackageRequest> selections,
+        IReadOnlyList<MealComboSelectedLineRequest> selections,
         CancellationToken cancellationToken)
     {
         if (selections.Count == 0)
@@ -241,18 +400,39 @@ public class MealComboController : Controller
         }
 
         var packageLookup = new Dictionary<int, MealPackageDto>();
-        var mealDates = selections
+        var itemLookup = new Dictionary<int, MealItemDto>();
+        var mealDates = new List<DateTime>();
+        foreach (var raw in selections
             .Select(s => OrderPaymentSummaryBuilder.ParseMealDate(s.MealDate))
             .Where(d => d != default)
-            .Distinct()
-            .ToList();
+            .Distinct())
+        {
+            if (await IsMealDateBookableAsync(schoolId.Value, raw, cancellationToken))
+            {
+                mealDates.Add(raw);
+            }
+        }
 
         foreach (var mealDate in mealDates)
         {
-            var packages = await _mealRepository.GetMealPackagesForStudentAsync(studentId, schoolId.Value, mealDate, null, cancellationToken);
+            var packages = await _mealRepository.GetMealPackagesForStudentAsync(
+                studentId,
+                schoolId.Value,
+                mealDate,
+                cancellationToken: cancellationToken);
             foreach (var package in packages)
             {
                 packageLookup[package.Id] = package;
+            }
+
+            var items = await _mealRepository.GetMealItemsForStudentAsync(
+                studentId,
+                schoolId.Value,
+                mealDate,
+                cancellationToken: cancellationToken);
+            foreach (var item in items)
+            {
+                itemLookup[item.Id] = item;
             }
         }
 
@@ -260,40 +440,125 @@ public class MealComboController : Controller
         foreach (var selection in selections)
         {
             var mealDate = OrderPaymentSummaryBuilder.ParseMealDate(selection.MealDate);
-            if (mealDate == default || selection.PackageId <= 0)
+            if (mealDate == default || !await IsMealDateBookableAsync(schoolId.Value, mealDate, cancellationToken))
             {
                 continue;
             }
 
-            if (!packageLookup.TryGetValue(selection.PackageId, out var package))
+            if (selection.PackageId > 0)
             {
+                if (!packageLookup.TryGetValue(selection.PackageId, out var package))
+                {
+                    continue;
+                }
+
+                var totalPrice = MealPackagePricing.GetTotalPrice(package.Price, package.ProcessingFee);
+                summaryItems.Add(new MealComboSummaryItem
+                {
+                    Id = package.Id,
+                    SelectionId = selection.Id == Guid.Empty ? Guid.NewGuid() : selection.Id,
+                    IsAddon = false,
+                    PackageName = package.PackageName,
+                    ItemsName = package.ItemsName,
+                    MealTypeName = package.MealTypeName,
+                    MealSessionName = package.MealSessionName,
+                    Detail = package.Detail,
+                    Price = totalPrice,
+                    MealDate = mealDate,
+                    ImageName = package.ImageName
+                });
                 continue;
             }
 
-            var totalPrice = MealPackagePricing.GetTotalPrice(package.Price, package.ProcessingFee);
-            summaryItems.Add(new MealComboSummaryItem
+            if (selection.ItemId > 0 && itemLookup.TryGetValue(selection.ItemId, out var menuItem))
             {
-                Id = package.Id,
-                SelectionId = selection.Id == Guid.Empty ? Guid.NewGuid() : selection.Id,
-                PackageName = package.PackageName,
-                ItemsName = package.ItemsName,
-                MealTypeName = package.MealTypeName,
-                Detail = package.Detail,
-                Price = totalPrice,
-                MealDate = mealDate,
-                ImageName = package.ImageName
-            });
+                summaryItems.Add(new MealComboSummaryItem
+                {
+                    Id = menuItem.Id,
+                    SelectionId = selection.Id == Guid.Empty ? Guid.NewGuid() : selection.Id,
+                    IsAddon = true,
+                    ItemName = menuItem.ItemName,
+                    MealTypeName = menuItem.MealTypeName,
+                    MealSessionName = menuItem.MealSessionName,
+                    Detail = menuItem.Detail,
+                    Price = menuItem.Price,
+                    MealDate = mealDate,
+                    ImageName = menuItem.ImageName
+                });
+            }
         }
 
         return new MealComboSummaryViewModel
         {
             OrderAmount = summaryItems.Sum(x => x.Price),
-            SelectedPackages = summaryItems
+            SelectedLines = summaryItems
         };
     }
 
     private static int ParseDurationDays(string? value)
     {
         return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var days) ? days : 0;
+    }
+
+    private async Task<bool> IsMealDateBookableAsync(
+        int schoolId,
+        DateTime mealDate,
+        CancellationToken cancellationToken)
+    {
+        if (!_bookingWindow.IsBookable(mealDate))
+        {
+            return false;
+        }
+
+        return await _schoolCalendar.IsOrderableAsync(schoolId, mealDate.Date, cancellationToken);
+    }
+
+    private async Task<string?> TryGetClosedDateMessageAsync(
+        int studentId,
+        IEnumerable<string?> mealDates,
+        CancellationToken cancellationToken)
+    {
+        var schoolId = await ResolveStudentSchoolIdAsync(studentId, cancellationToken);
+        var dates = mealDates
+            .Select(OrderPaymentSummaryBuilder.ParseMealDate)
+            .Where(d => d != default)
+            .OrderBy(d => d)
+            .Distinct()
+            .ToList();
+
+        foreach (var date in dates)
+        {
+            if (!_bookingWindow.IsBookable(date))
+            {
+                return _bookingWindow.FormatClosedDateMessage(date);
+            }
+
+            if (schoolId is > 0
+                && !await _schoolCalendar.IsOrderableAsync(schoolId.Value, date, cancellationToken))
+            {
+                var day = await _schoolCalendar.GetDayInfoAsync(schoolId.Value, date, cancellationToken);
+                return day.GetClosedOrderMessage(date);
+            }
+        }
+
+        return null;
+    }
+
+    private IActionResult MenuClosedDayPartial(DateTime mealDate, SchoolDayInfo day)
+    {
+        var title = string.IsNullOrWhiteSpace(day.Title) ? null : day.Title.Trim();
+        var isGenericHolidayTitle = string.Equals(title, "Holiday", StringComparison.OrdinalIgnoreCase);
+        var isWeekend = mealDate.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday
+            && (string.IsNullOrWhiteSpace(title) || isGenericHolidayTitle);
+
+        ViewData["ClosedDate"] = mealDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        ViewData["ClosedDayName"] = mealDate.ToString("dddd", CultureInfo.InvariantCulture);
+        ViewData["ClosedDayType"] = day.Status == SchoolDayStatus.HalfDay
+            ? "halfday"
+            : isWeekend
+                ? "weekend"
+                : "holiday";
+        ViewData["ClosedDayTitle"] = isGenericHolidayTitle ? null : title;
+        return PartialView("_MenuClosedDay");
     }
 }

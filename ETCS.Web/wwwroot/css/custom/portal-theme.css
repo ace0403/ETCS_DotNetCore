@@ -723,3 +723,12 @@ a.text-primary {
 .pc-sidebar .pc-navbar > .pc-item > .pc-link::after {
     border-radius: 20px !important
 }
+
+.form-control.form-control-radius-grp {
+    border-radius: 0 8px 8px 0 !important;
+    overflow: hidden;
+}
+
+.input-group > .input-group-text {
+    padding: .6rem .75rem !important;
+}

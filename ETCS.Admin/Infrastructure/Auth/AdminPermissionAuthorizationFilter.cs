@@ -89,6 +89,16 @@ public sealed class AdminPermissionAuthorizationFilter : IAsyncActionFilter
             return "Report.TerminalSalesSummary";
         }
 
+        if (action.Contains("MealOrderPaymentsMealDb", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Report.MealOrderPaymentsMealDb";
+        }
+
+        if (action.Contains("MealOrderPayments", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Report.MealOrderPayments";
+        }
+
         if (action.Contains("MealOrdersMealDb", StringComparison.OrdinalIgnoreCase))
         {
             return "Report.MealOrdersMealDb";
@@ -110,6 +120,12 @@ public sealed class AdminPermissionAuthorizationFilter : IAsyncActionFilter
         if (string.Equals(actionName, "Delete", StringComparison.OrdinalIgnoreCase))
         {
             return AdminPermissionAction.Delete;
+        }
+
+        if (string.Equals(actionName, "Blacklist", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(actionName, "Transfer", StringComparison.OrdinalIgnoreCase))
+        {
+            return AdminPermissionAction.Edit;
         }
 
         if (string.Equals(actionName, "Save", StringComparison.OrdinalIgnoreCase))

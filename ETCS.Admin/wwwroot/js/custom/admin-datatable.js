@@ -136,6 +136,15 @@ function bindAdminDataTableEmptyStateFix(table) {
     table.on('draw.dt.adminEmptyFix', clearStuckProcessing);
 }
 
+function bindAdminGridOrderTypeFilter(table, filterSelector) {
+    var $filter = $(filterSelector || '#adminGridOrderTypeFilter');
+    if (!$filter.length) return;
+
+    $filter.off('.adminGridOrderTypeFilter').on('change.adminGridOrderTypeFilter', function () {
+        table.draw();
+    });
+}
+
 function initAdminDataTable(selector, relativeUrl, columns, options) {
     options = options || {};
     var searchDelay = options.searchDelay || 400;
@@ -154,6 +163,35 @@ function initAdminDataTable(selector, relativeUrl, columns, options) {
             if (schoolId) {
                 payload.SchoolId = schoolId;
             }
+        };
+    }
+
+    if (options.orderTypeFilterSelector) {
+        var orderTypeFilterSelector = options.orderTypeFilterSelector;
+        var previousDataFn = ajaxConfig.data;
+
+        ajaxConfig.data = function (payload) {
+            if (typeof previousDataFn === 'function') {
+                previousDataFn(payload);
+            }
+
+            var orderTypeId = $(orderTypeFilterSelector).val();
+            if (orderTypeId) {
+                payload.OrderTypeId = orderTypeId;
+            }
+        };
+    }
+
+    if (typeof options.extraAjaxData === 'function') {
+        var extraAjaxData = options.extraAjaxData;
+        var extraPreviousDataFn = ajaxConfig.data;
+
+        ajaxConfig.data = function (payload) {
+            if (typeof extraPreviousDataFn === 'function') {
+                extraPreviousDataFn(payload);
+            }
+
+            extraAjaxData(payload);
         };
     }
 
@@ -189,6 +227,7 @@ function initAdminDataTable(selector, relativeUrl, columns, options) {
     );
 
     bindAdminGridSchoolFilter(table, options.schoolFilterSelector);
+    bindAdminGridOrderTypeFilter(table, options.orderTypeFilterSelector);
     bindAdminDataTableEmptyStateFix(table);
 
     if (window.adminSchoolScope && window.adminSchoolScope.restricted && options.schoolFilterSelector) {
@@ -201,4 +240,11 @@ function initAdminDataTable(selector, relativeUrl, columns, options) {
     }
 
     return table;
+}
+
+function formatReportDate(value) {
+    if (!value) return '';
+    var d = new Date(value);
+    if (isNaN(d.getTime())) return value;
+    return d.toLocaleString();
 }

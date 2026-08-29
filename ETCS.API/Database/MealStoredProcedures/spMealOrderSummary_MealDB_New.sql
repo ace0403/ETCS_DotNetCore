@@ -8,6 +8,11 @@ Pagination:
   @Start   = zero-based row offset (DataTables start)
   @Length  = page size; 0 or NULL returns all rows (export)
 
+Filters:
+  @SchoolId       = SchoolInfo.SchoolID; empty = all
+  @MealSessionId  = Enums session id; 0 = all
+  @MealTypeId     = Enums type id; 0 = all
+
 Outputs:
   @TotalCount = total rows for current filters
 */
@@ -20,6 +25,8 @@ CREATE OR ALTER PROCEDURE [dbo].[spMealOrderSummary_MealDB_New]
     @startdate AS DATETIME,
     @enddate AS DATETIME,
     @SchoolId AS VARCHAR(10) = '',
+    @MealSessionId AS INT = 0,
+    @MealTypeId AS INT = 0,
     @Start AS INT = 0,
     @Length AS INT = 0,
     @TotalCount AS INT OUTPUT
@@ -35,6 +42,9 @@ BEGIN
     IF (@SchoolId <> '' AND @SchoolId <> 'All')
         SET @SchoolIdInt = TRY_CAST(@SchoolId AS INT);
 
+    SET @MealSessionId = ISNULL(@MealSessionId, 0);
+    SET @MealTypeId = ISNULL(@MealTypeId, 0);
+
     DECLARE @RangeStart DATETIME = CAST(CAST(@startdate AS DATE) AS DATETIME);
     DECLARE @RangeEndExclusive DATETIME = DATEADD(DAY, 1, CAST(CAST(@enddate AS DATE) AS DATETIME));
 
@@ -45,6 +55,7 @@ BEGIN
         OrderDate DATETIME NOT NULL,
         StudentId INT NOT NULL,
         PaymentStatus NVARCHAR(50) NOT NULL,
+        MealSession NVARCHAR(100) NULL,
         Category NVARCHAR(100) NULL,
         Choice NVARCHAR(250) NULL,
         DeliveryDate DATETIME NULL,
@@ -59,6 +70,7 @@ BEGIN
         OrderDate,
         StudentId,
         PaymentStatus,
+        MealSession,
         Category,
         Choice,
         DeliveryDate,
@@ -72,6 +84,7 @@ BEGIN
         o.OrderDate,
         o.StudentId,
         CASE WHEN ISNULL(o.IsPaid, 0) = 1 THEN 'PAID' ELSE 'PENDING' END,
+        LTRIM(RTRIM(ISNULL(COALESCE(ms_pkg.EnumValue, ms_item.EnumValue), ''))),
         LTRIM(RTRIM(ISNULL(COALESCE(mt_pkg.EnumValue, mt_item.EnumValue), ''))),
         LTRIM(RTRIM(ISNULL(
             CASE
@@ -88,6 +101,8 @@ BEGIN
     INNER JOIN [OrderItem] oi ON oi.OrderId = o.Id
     LEFT JOIN [MealPackages] mp ON mp.Id = oi.PackageId
     LEFT JOIN [MealItem] mi ON mi.Id = oi.ItemId
+    LEFT JOIN Enums ms_pkg ON mp.MealSessionId = ms_pkg.Id
+    LEFT JOIN Enums ms_item ON mi.MealSessionId = ms_item.Id
     LEFT JOIN Enums mt_pkg ON mp.MealTypeId = mt_pkg.Id
     LEFT JOIN Enums mt_item ON mi.MealTypeId = mt_item.Id
     LEFT JOIN Enums mc_item ON mi.MealCategotyId = mc_item.Id
@@ -100,7 +115,24 @@ BEGIN
     WHERE o.OrderTypeId IN (24, 42)
       AND oi.MealDate >= @RangeStart
       AND oi.MealDate < @RangeEndExclusive
-      AND (@SchoolIdInt IS NULL OR COALESCE(mp.SchoolId, mi.SchoolId) = @SchoolIdInt)
+      AND (@SchoolIdInt IS NULL
+           OR (mp.Id IS NOT NULL AND mp.SchoolId = @SchoolIdInt)
+           OR (oi.ItemId IS NOT NULL AND (
+               EXISTS (
+                   SELECT 1
+                   FROM MealItemSchools mis
+                   WHERE mis.MealItemId = mi.Id
+                     AND mis.SchoolId = @SchoolIdInt
+               )
+               OR (
+                   NOT EXISTS (SELECT 1 FROM MealItemSchools mis2 WHERE mis2.MealItemId = mi.Id)
+                   AND mi.SchoolId = @SchoolIdInt
+               )
+           )))
+      AND (@MealSessionId <= 0
+           OR COALESCE(mp.MealSessionId, mi.MealSessionId) = @MealSessionId)
+      AND (@MealTypeId <= 0
+           OR COALESCE(mp.MealTypeId, mi.MealTypeId) = @MealTypeId)
     OPTION (RECOMPILE);
 
     CREATE CLUSTERED INDEX CX_MealOrderSummary_MealDB
@@ -115,6 +147,7 @@ BEGIN
             OrderDate,
             StudentId,
             PaymentStatus,
+            MealSession,
             Category,
             Choice,
             DeliveryDate,
@@ -129,6 +162,7 @@ BEGIN
             OrderDate,
             StudentId,
             PaymentStatus,
+            MealSession,
             Category,
             Choice,
             DeliveryDate,

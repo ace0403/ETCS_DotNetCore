@@ -2,11 +2,15 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 using System.Security.Claims;
 using System.Text;
+using ETCS.API.Infrastructure.Auth;
+using ETCS.Shared.Application.Email;
 using ETCS.Shared.Auth;
 using ETCS.Shared.Helpers;
 using ETCS.Shared.Infrastructure.Auth;
 using ETCS.Shared.Infrastructure.Auth.Models;
 using ETCS.Shared.Options;
+using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
@@ -15,21 +19,79 @@ using Microsoft.IdentityModel.Tokens;
 namespace ETCS.API.Controllers;
 
 [ApiController]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/[controller]")]
 [Route("api/[controller]")]
 public sealed class AuthController : ControllerBase
 {
     private readonly JwtOptions _jwtOptions;
+    private readonly ParentPortalOptions _parentPortalOptions;
     private readonly IParentLoginRepository _parentLoginRepository;
     private readonly IRefreshTokenStore _refreshTokenStore;
+    private readonly IRegistrationOtpService _registrationOtpService;
+    private readonly IDeleteAccountOtpService _deleteAccountOtpService;
+    private readonly IGuardianEmailNotificationService _emailNotificationService;
+    private readonly ILogger<AuthController> _logger;
 
     public AuthController(
         IOptions<JwtOptions> jwtOptions,
+        IOptions<ParentPortalOptions> parentPortalOptions,
         IParentLoginRepository parentLoginRepository,
-        IRefreshTokenStore refreshTokenStore)
+        IRefreshTokenStore refreshTokenStore,
+        IRegistrationOtpService registrationOtpService,
+        IDeleteAccountOtpService deleteAccountOtpService,
+        IGuardianEmailNotificationService emailNotificationService,
+        ILogger<AuthController> logger)
     {
         _jwtOptions = jwtOptions.Value;
+        _parentPortalOptions = parentPortalOptions.Value;
         _parentLoginRepository = parentLoginRepository;
         _refreshTokenStore = refreshTokenStore;
+        _registrationOtpService = registrationOtpService;
+        _deleteAccountOtpService = deleteAccountOtpService;
+        _emailNotificationService = emailNotificationService;
+        _logger = logger;
+    }
+
+    [EnableRateLimiting("AuthPolicy")]
+    [HttpPost("send-otp")]
+    public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return BadRequest(new { message = "Email is required." });
+        }
+
+        var result = await _registrationOtpService.SendOtpAsync(request.Email, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return BadRequest(new { message = result.Message });
+        }
+
+        return Ok(new SendOtpResponse(result.Message, result.ExpiresInSeconds));
+    }
+
+    [EnableRateLimiting("AuthPolicy")]
+    [HttpPost("verify-otp")]
+    public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return BadRequest(new { message = "Email is required." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Otp))
+        {
+            return BadRequest(new { message = "Verification code is required." });
+        }
+
+        var result = await _registrationOtpService.VerifyOtpAsync(request.Email, request.Otp, cancellationToken);
+        if (!result.IsSuccess || string.IsNullOrWhiteSpace(result.VerificationToken))
+        {
+            return BadRequest(new { message = result.Message });
+        }
+
+        return Ok(new VerifyOtpResponse(result.VerificationToken, result.ExpiresInSeconds));
     }
 
     [EnableRateLimiting("AuthPolicy")]
@@ -61,10 +123,43 @@ public sealed class AuthController : ControllerBase
             return BadRequest(new { message = "Password is required." });
         }
 
+        if (string.IsNullOrWhiteSpace(request.VerificationToken))
+        {
+            return BadRequest(new { message = "Email verification is required to complete registration." });
+        }
+
+        var verification = await _registrationOtpService.ValidateVerificationTokenAsync(
+            request.Email,
+            request.VerificationToken,
+            cancellationToken);
+        if (!verification.IsSuccess)
+        {
+            return BadRequest(new { message = verification.Message });
+        }
+
         var result = await _parentLoginRepository.RegisterAsync(request, cancellationToken);
         if (!result.IsSuccess || result.User is null)
         {
             return BadRequest(new { message = result.Message });
+        }
+
+        await _registrationOtpService.MarkVerificationTokenUsedAsync(request.VerificationToken, cancellationToken);
+
+        var guardianName = $"{request.FirstName.Trim()} {request.LastName.Trim()}".Trim();
+        var addChildLink = BuildAddChildLink();
+        if (string.IsNullOrWhiteSpace(addChildLink))
+        {
+            _logger.LogWarning(
+                "Registration succeeded for {Email} but ParentPortal:PublicBaseUrl is not configured; skipping registration success email.",
+                request.Email);
+        }
+        else
+        {
+            await _emailNotificationService.QueueRegistrationSuccessAsync(
+                request.Email,
+                guardianName,
+                addChildLink,
+                cancellationToken);
         }
 
         return Ok(new RegisterResponse(result.GuardianId, result.User));
@@ -102,6 +197,11 @@ public sealed class AuthController : ControllerBase
             return Unauthorized(new { message = "Invalid login." });
         }
 
+        if (await _parentLoginRepository.IsAccountDeletedAsync(loginRow.id, cancellationToken))
+        {
+            return Unauthorized(new { message = "This account has been deleted." });
+        }
+
         var (accessToken, expiresAtUtc) = CreateAccessToken(loginRow.id, loginName);
         var refreshToken = CreateRefreshToken();
         var refreshExpiresAtUtc = DateTime.UtcNow.AddDays(_jwtOptions.RefreshTokenDays);
@@ -126,6 +226,12 @@ public sealed class AuthController : ControllerBase
             return Unauthorized(new { message = "Invalid or expired refresh token." });
         }
 
+        if (await _parentLoginRepository.IsAccountDeletedAsync(record.Id, cancellationToken))
+        {
+            await _refreshTokenStore.RevokeAsync(request.RefreshToken, cancellationToken);
+            return Unauthorized(new { message = "This account has been deleted." });
+        }
+
         await _refreshTokenStore.RevokeAsync(request.RefreshToken, cancellationToken);
 
         var (accessToken, expiresAtUtc) = CreateAccessToken(record.Id, record.Username);
@@ -148,6 +254,74 @@ public sealed class AuthController : ControllerBase
     {
         await _refreshTokenStore.RevokeAsync(request.RefreshToken, cancellationToken);
         return Ok(new { message = "Refresh token revoked." });
+    }
+
+    [Authorize]
+    [EnableRateLimiting("AuthPolicy")]
+    [HttpPost("delete-account/send-otp")]
+    public async Task<IActionResult> SendDeleteAccountOtp(CancellationToken cancellationToken)
+    {
+        if (!User.TryGetGuardianId(out var guardianId))
+        {
+            return Unauthorized(new { message = "Guardian claim is missing in token." });
+        }
+
+        var result = await _deleteAccountOtpService.SendOtpAsync(guardianId, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return BadRequest(new { message = result.Message });
+        }
+
+        return Ok(new
+        {
+            message = result.Message,
+            expiresInSeconds = result.ExpiresInSeconds,
+            maskedEmail = result.MaskedEmail
+        });
+    }
+
+    [Authorize]
+    [EnableRateLimiting("AuthPolicy")]
+    [HttpPost("delete-account")]
+    public async Task<IActionResult> DeleteAccount(
+        [FromBody] DeleteAccountRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetGuardianId(out var guardianId))
+        {
+            return Unauthorized(new { message = "Guardian claim is missing in token." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Otp))
+        {
+            return BadRequest(new { message = "Verification code is required." });
+        }
+
+        var otpResult = await _deleteAccountOtpService.VerifyOtpAsync(guardianId, request.Otp, cancellationToken);
+        if (!otpResult.IsSuccess)
+        {
+            return BadRequest(new { message = otpResult.Message });
+        }
+
+        var result = await _parentLoginRepository.SoftDeleteAccountAsync(guardianId, cancellationToken);
+        if (!result.Success)
+        {
+            return BadRequest(new { message = result.Message });
+        }
+
+        await _refreshTokenStore.RevokeAllByUserIdAsync(guardianId, cancellationToken);
+        return Ok(new { message = result.Message });
+    }
+
+    private string? BuildAddChildLink()
+    {
+        var baseUrl = (_parentPortalOptions.PublicBaseUrl ?? string.Empty).Trim().TrimEnd('/');
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return null;
+        }
+
+        return $"{baseUrl}/MyKids";
     }
 
     private (string AccessToken, DateTime ExpiresAtUtc) CreateAccessToken(int id, string username)

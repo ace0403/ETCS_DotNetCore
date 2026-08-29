@@ -2,20 +2,25 @@ using ETCS.API.Features.Payment;
 using ETCS.API.Infrastructure.Auth;
 using ETCS.Shared.Application.Topup;
 using ETCS.PaymentGateway.Models;
+using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Infrastructure.Transaction;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ETCS.API.Controllers;
 
 [ApiController]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/[controller]")]
 [Route("api/[controller]")]
 [Authorize]
 public sealed class PaymentController : ControllerBase
 {
     private readonly IStudentRepository _studentRepository;
     private readonly ITransactionRepository _transactionRepository;
+    private readonly IMealOrderRepository _mealOrderRepository;
     private readonly ITopupInitiateService _topupInitiateService;
     private readonly ITopupPaymentCompleteService _topupPaymentCompleteService;
     private readonly IPaymentStatusService _paymentStatusService;
@@ -23,12 +28,14 @@ public sealed class PaymentController : ControllerBase
     public PaymentController(
         IStudentRepository studentRepository,
         ITransactionRepository transactionRepository,
+        IMealOrderRepository mealOrderRepository,
         ITopupInitiateService topupInitiateService,
         ITopupPaymentCompleteService topupPaymentCompleteService,
         IPaymentStatusService paymentStatusService)
     {
         _studentRepository = studentRepository;
         _transactionRepository = transactionRepository;
+        _mealOrderRepository = mealOrderRepository;
         _topupInitiateService = topupInitiateService;
         _topupPaymentCompleteService = topupPaymentCompleteService;
         _paymentStatusService = paymentStatusService;
@@ -125,15 +132,22 @@ public sealed class PaymentController : ControllerBase
 
     /// <summary>
     /// Captures/finalizes payment status using transaction reference.
+    /// TransactionId may be omitted when OrderId is provided (resolved from MealDB).
     /// </summary>
     [HttpPost("topup/update")]
     public async Task<IActionResult> CaptureTopupPayment(
         [FromBody] PaymentCaptureRequest request,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.TransactionId))
+        if (string.IsNullOrWhiteSpace(request.OrderId)
+            && string.IsNullOrWhiteSpace(request.TransactionId))
         {
-            return BadRequest(new { message = "TransactionId is required." });
+            return BadRequest(new { message = "OrderId or TransactionId is required." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.OrderId))
+        {
+            return BadRequest(new { message = "OrderId is required." });
         }
 
         var result = await _topupPaymentCompleteService.CompleteAsync(
@@ -141,7 +155,7 @@ public sealed class PaymentController : ControllerBase
             {
                 StudentId = request.StudentId,
                 OrderId = request.OrderId,
-                TransactionId = request.TransactionId
+                TransactionId = request.TransactionId ?? string.Empty
             },
             cancellationToken);
 
@@ -289,5 +303,57 @@ public sealed class PaymentController : ControllerBase
         }
 
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Meal activity for the selected month from AccessLog:
+    /// Meal Plan count (Description), Parent Orders total (Description Meal Order),
+    /// Canteen Purchases total (TransactionType 1004/2004).
+    /// </summary>
+    [HttpGet("transactions/meal-activity")]
+    public async Task<IActionResult> GetMealActivity(
+        [FromQuery] int? studentId,
+        [FromQuery] int year,
+        [FromQuery] int month,
+        CancellationToken cancellationToken = default)
+    {
+        if (!User.TryGetGuardianId(out var guardianId))
+        {
+            return Unauthorized(new { message = "Guardian claim is missing in token." });
+        }
+
+        if (year < 2000 || year > 2100)
+        {
+            return BadRequest(new { message = "Year is invalid." });
+        }
+
+        if (month is < 1 or > 12)
+        {
+            return BadRequest(new { message = "Month must be between 1 and 12." });
+        }
+
+        if (studentId is <= 0)
+        {
+            return BadRequest(new { message = "StudentId is invalid." });
+        }
+
+        var fromDate = new DateTime(year, month, 1);
+        var toDateExclusive = fromDate.AddMonths(1);
+
+        var summary = await _mealOrderRepository.GetMealActivitySummaryAsync(
+            guardianId,
+            studentId,
+            fromDate,
+            toDateExclusive,
+            cancellationToken);
+
+        return Ok(new MealActivitySummaryResponse
+        {
+            Year = year,
+            Month = month,
+            MealPlanMealsUsed = summary.MealPlanMealsUsed,
+            AlaCarteAmount = summary.AlaCarteAmount,
+            PosAmount = summary.PosAmount
+        });
     }
 }

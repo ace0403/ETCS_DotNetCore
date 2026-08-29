@@ -96,7 +96,7 @@
                 btn.classList.add('is-active');
                 btn.setAttribute('aria-selected', 'true');
                 state.selectedCategoryId = Number(btn.dataset.categoryId || 0);
-                if (state.selectedSchoolId > 0 && state.selectedCategoryId > 0) {
+                if (state.selectedSchoolId > 0 && state.selectedCategoryId >= 0) {
                     App.catalog.loadProducts(state.selectedSchoolId, state.selectedCategoryId);
                 }
             });
@@ -181,7 +181,7 @@
                 || document.querySelector('.pos-category-item');
             if (activeCategory) {
                 state.selectedCategoryId = Number(activeCategory.dataset.categoryId || 0);
-                if (state.selectedCategoryId > 0) {
+                if (state.selectedCategoryId >= 0) {
                     await App.catalog.loadProducts(schoolId, state.selectedCategoryId);
                 } else {
                     document.getElementById('productGrid').innerHTML = '<p class="pos-placeholder">No categories for this school.</p>';

@@ -10,6 +10,7 @@ public sealed class AdminTransactionReportFilter
     public string? TerminalCode { get; set; }
     public string? TransactionType { get; set; }
     public string? StudentCardNo { get; set; }
+    public string? TransactionId { get; set; }
 }
 
 public sealed class AdminTransactionReportListRequest
@@ -23,6 +24,7 @@ public sealed class AdminTransactionReportListRequest
     public string? TerminalCode { get; set; }
     public string? TransactionType { get; set; }
     public string? StudentCardNo { get; set; }
+    public string? TransactionId { get; set; }
 
     public int PageSize => Length <= 0 ? DataTableRequest.DefaultPageSize : Length;
 }

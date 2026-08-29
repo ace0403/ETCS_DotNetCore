@@ -1,79 +1,97 @@
 @model ETCS.Web.Models.MealComboPageViewModel
+@inject MealOrderBookingWindow BookingWindow
 @{
     ViewData["Title"] = "Menu";
     ViewData["PageSubtitle"] = "Order meal packages for your children";
+    var hasEligibleChildren = Model.Children.Count > 0;
 }
 <div class="meal-combo-page ala-carte-page menu-browse-page">
-    <form id="frmMealCombo" class="menu-browse-shell">
-        <input type="hidden" asp-for="MealDate" id="MealDate" />
-        <input type="hidden" id="Duration" name="Duration" value="30" />
-
-        <div class="menu-browse-filters">
-            <div class="menu-browse-child">
-                <label asp-for="StudentId" class="menu-filter-label">Child</label>
-                <select asp-for="StudentId" class="form-select ala-carte-select menu-child-select" id="StudentId">
-                    @foreach (var child in Model.Children)
-                    {
-                        <option value="@child.Id">@child.Name</option>
-                    }
-                </select>
+    @if (!hasEligibleChildren)
+    {
+        <div class="ala-carte-empty-state">
+            <div class="ala-carte-empty-icon">
+                <i class="ti ti-lock"></i>
             </div>
+            <h5>Meal plans are not available</h5>
+            <p class="text-muted mb-0">None of your children are allowed to order meal plans.</p>
+        </div>
+    }
+    else
+    {
+        <form id="frmMealCombo" class="menu-browse-shell">
+            <input type="hidden" asp-for="MealDate" id="MealDate" />
+            <input type="hidden" id="Duration" name="Duration" value="30" />
 
-            <div class="menu-search-wrap">
-                <label class="menu-filter-label" for="menuSearchInput">Search</label>
-                <div class="menu-search-field">
-                    <i class="ti ti-search menu-search-icon" aria-hidden="true"></i>
-                    <input type="search"
-                           id="menuSearchInput"
-                           class="menu-search-input"
-                           placeholder="Search packages..."
-                           autocomplete="off"
-                           aria-label="Search packages" />
+            <div class="menu-browse-filters">
+                <div class="menu-browse-child">
+                    <label asp-for="StudentId" class="menu-filter-label">Child</label>
+                    <select asp-for="StudentId" class="form-select ala-carte-select menu-child-select" id="StudentId">
+                        @foreach (var child in Model.Children)
+                        {
+                            <option value="@child.Id">@child.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="menu-search-wrap">
+                    <label class="menu-filter-label" for="menuSearchInput">Search</label>
+                    <div class="menu-search-field">
+                        <i class="ti ti-search menu-search-icon" aria-hidden="true"></i>
+                        <input type="search"
+                               id="menuSearchInput"
+                               class="menu-search-input"
+                               placeholder="Search combos and add-ons..."
+                               autocomplete="off"
+                               aria-label="Search combos and add-ons" />
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="menu-date-block">
-            <label class="form-label ala-carte-label menu-date-label mb-2">
-                <i class="ti ti-calendar" aria-hidden="true"></i>
-                Select Order Date
-            </label>
-            <div class="ala-carte-date-strip menu-date-strip">
-                <button type="button" id="prev-button" class="ala-carte-date-nav-btn" aria-label="Previous dates">
-                    <i class="ti ti-chevron-left"></i>
-                </button>
-                <div class="swiper ala-carte-swiper">
-                    <div class="swiper-wrapper" id="date-container"></div>
+            <div class="menu-date-block">
+                <label class="form-label ala-carte-label menu-date-label mb-2">
+                    <i class="ti ti-calendar" aria-hidden="true"></i>
+                    Select Order Date
+                </label>
+                <div class="ala-carte-date-strip menu-date-strip">
+                    <button type="button" id="prev-button" class="ala-carte-date-nav-btn" aria-label="Previous dates">
+                        <i class="ti ti-chevron-left"></i>
+                    </button>
+                    <div class="swiper ala-carte-swiper">
+                        <div class="swiper-wrapper" id="date-container" data-cutoff-hour="@BookingWindow.CutoffHour"></div>
+                    </div>
+                    <button type="button" id="next-button" class="ala-carte-date-nav-btn" aria-label="Next dates">
+                        <i class="ti ti-chevron-right"></i>
+                    </button>
                 </div>
-                <button type="button" id="next-button" class="ala-carte-date-nav-btn" aria-label="Next dates">
-                    <i class="ti ti-chevron-right"></i>
-                </button>
-            </div>
-            <div class="ala-carte-selected-date mt-2" id="mealComboSelectedDate" hidden>
-                <span>Combos for <strong id="mealComboSelectedDateText"></strong></span>
-            </div>
-        </div>
-
-        <div class="menu-browse-results" id="div-packagelist">
-            <div class="ala-carte-empty-state">
-                <div class="ala-carte-empty-icon">
-                    <i class="ti ti-calendar-search"></i>
+                <div class="ala-carte-selected-date mt-2" id="mealComboSelectedDate" hidden>
+                    <span>Combos for <strong id="mealComboSelectedDateText"></strong></span>
                 </div>
-                <h5>Choose a date</h5>
-                <p class="text-muted mb-0">Meal combos for the selected day will appear here.</p>
             </div>
-        </div>
-    </form>
 
-    <div id="summary_div"></div>
+            <div class="menu-browse-results" id="div-packagelist">
+                <div class="ala-carte-empty-state">
+                    <div class="ala-carte-empty-icon">
+                        <i class="ti ti-calendar-search"></i>
+                    </div>
+                    <h5>Choose a date</h5>
+                    <p class="text-muted mb-0">Meal combos and add-ons for the selected day will appear here.</p>
+                </div>
+            </div>
+        </form>
+
+        <div id="summary_div"></div>
+    }
 </div>
 
-<div id="mealComboPageOverlay" class="ala-carte-page-overlay" hidden aria-live="polite" aria-busy="true">
-    <div class="ala-carte-page-overlay-card">
-        <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
-        <span class="ala-carte-page-overlay-text" id="mealComboPageOverlayText">Please wait...</span>
+@if (hasEligibleChildren)
+{
+    <div id="mealComboPageOverlay" class="ala-carte-page-overlay" hidden aria-live="polite" aria-busy="true">
+        <div class="ala-carte-page-overlay-card">
+            <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+            <span class="ala-carte-page-overlay-text" id="mealComboPageOverlayText">Please wait...</span>
+        </div>
     </div>
-</div>
+}
 
 @section Styles {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.css" />
@@ -83,9 +101,12 @@
     <link href="~/css/custom/meal-combo.css" asp-append-version="true" rel="stylesheet" />
 }
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script src="~/js/custom/guid.js"></script>
-    <script src="~/js/custom/meal-combo.js" asp-append-version="true"></script>
+    @if (hasEligibleChildren)
+    {
+        <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+        <script src="~/js/custom/guid.js"></script>
+        <script src="~/js/custom/meal-combo.js" asp-append-version="true"></script>
+    }
 }

@@ -1,5 +1,7 @@
 ﻿@model ETCS.Web.Models.ParentLoginRequest
-@{ Layout = null; }
+@{
+    Layout = null;
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -16,12 +18,38 @@
 </head>
 <body class="login-page">
     <div class="login-shell">
-        <section class="login-hero" aria-hidden="true">
-            <div class="login-hero-bg"></div>
+        <section class="login-hero" aria-label="ETCS Parent Portal highlights">
+            <div class="login-hero-bg" aria-hidden="true"></div>
             <div class="login-hero-content">
-                <img src="~/images/logo.png" alt="ETCS" class="login-hero-logo" />
-                <h1 class="login-hero-title">ETCS Portal</h1>
-                <p class="login-hero-text">View balances, meal orders, and student activity from one secure dashboard.</p>
+            </div>
+            <div class="login-features" role="list">
+                <article class="login-feature-card" role="listitem">
+                    <span class="login-feature-icon" aria-hidden="true">
+                        <i class="ti ti-tools-kitchen-2"></i>
+                    </span>
+                    <div class="login-feature-body">
+                        <h3 class="login-feature-title">Meal Ordering</h3>
+                        <p class="login-feature-text">Order meals easily for your children.</p>
+                    </div>
+                </article>
+                <article class="login-feature-card" role="listitem">
+                    <span class="login-feature-icon" aria-hidden="true">
+                        <i class="ti ti-wallet"></i>
+                    </span>
+                    <div class="login-feature-body">
+                        <h3 class="login-feature-title">Wallet &amp; Top-up</h3>
+                        <p class="login-feature-text">Top up and manage wallet balances.</p>
+                    </div>
+                </article>
+                <article class="login-feature-card" role="listitem">
+                    <span class="login-feature-icon" aria-hidden="true">
+                        <i class="ti ti-file-invoice"></i>
+                    </span>
+                    <div class="login-feature-body">
+                        <h3 class="login-feature-title">Order History</h3>
+                        <p class="login-feature-text">View previous orders and invoices.</p>
+                    </div>
+                </article>
             </div>
         </section>
 
@@ -38,10 +66,10 @@
                     <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
 
                     <div class="mb-3">
-                        <label asp-for="Username" class="form-label login-label">Username</label>
+                        <label asp-for="Username" class="form-label login-label">Username Or Email</label>
                         <div class="input-group login-input-group">
                             <span class="input-group-text login-input-addon"><i class="ti ti-user"></i></span>
-                            <input asp-for="Username" class="form-control" placeholder="Enter your username" autocomplete="username" />
+                            <input asp-for="Username" class="form-control" placeholder="Enter your username/email" autocomplete="username" />
                         </div>
                         <span asp-validation-for="Username" class="text-danger small"></span>
                     </div>
@@ -72,6 +100,8 @@
                     <a asp-controller="Home" asp-action="Register" class="small text-decoration-none">Don’t have an account? Register</a>
                 </p>
 
+                <partial name="_LoginAppPromo" />
+
                 <p class="login-footer text-center mb-0 mt-3">&copy; @DateTime.Now.Year ETCS. All rights reserved.</p>
                 <div class="login-footer-links">
                     <a asp-controller="Legal" asp-action="Terms">Terms</a>
@@ -89,19 +119,19 @@
     <script src="~/js/custom/siteurl.js"></script>
     <script src="~/js/custom/common.js"></script>
     <script>
-        $(function () {
-            initAdminFormValidation('.login-form');
+            $(function() {
+                initAdminFormValidation('.login-form');
 
-            $('#btnTogglePassword').on('click', function () {
-                var $input = $('#loginPassword');
-                var $icon = $(this).find('i');
-                var isPassword = $input.attr('type') === 'password';
-                $input.attr('type', isPassword ? 'text' : 'password');
-                $icon.toggleClass('ti-eye ti-eye-off');
-                $(this).attr('aria-label', isPassword ? 'Hide password' : 'Show password')
-                    .attr('title', isPassword ? 'Hide password' : 'Show password');
+                $('#btnTogglePassword').on('click', function() {
+                    var $input = $('#loginPassword');
+                    var $icon = $(this).find('i');
+                    var isPassword = $input.attr('type') === 'password';
+                    $input.attr('type', isPassword ? 'text' : 'password');
+                    $icon.toggleClass('ti-eye ti-eye-off');
+                    $(this).attr('aria-label', isPassword ? 'Hide password' : 'Show password')
+                        .attr('title', isPassword ? 'Hide password' : 'Show password');
+                });
             });
-        });
     </script>
     <partial name="_CommonMessages" />
 </body>

@@ -1,11 +1,14 @@
 using ETCS.API.Infrastructure.Auth;
 using ETCS.Shared.Infrastructure.Notifications;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ETCS.API.Controllers;
 
 [ApiController]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/notifications")]
 [Route("api/notifications")]
 [Authorize]
 public sealed class NotificationsController : ControllerBase

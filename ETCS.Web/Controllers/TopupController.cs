@@ -1,4 +1,5 @@
 using ETCS.PaymentGateway.Models;
+using ETCS.Shared.Application.Students;
 using ETCS.Shared.Application.Topup;
 using ETCS.Shared.Enumeration;
 using ETCS.Shared.Infrastructure.Students;
@@ -22,17 +23,20 @@ public sealed class TopupController : Controller
     private readonly ITransactionRepository _transactionRepository;
     private readonly ITopupInitiateService _topupInitiateService;
     private readonly ITopupPaymentCompleteService _topupPaymentCompleteService;
+    private readonly IStudentOrderTypeAccessService _orderTypeAccess;
 
     public TopupController(
         IStudentRepository studentRepository,
         ITransactionRepository transactionRepository,
         ITopupInitiateService topupInitiateService,
-        ITopupPaymentCompleteService topupPaymentCompleteService)
+        ITopupPaymentCompleteService topupPaymentCompleteService,
+        IStudentOrderTypeAccessService orderTypeAccess)
     {
         _studentRepository = studentRepository;
         _transactionRepository = transactionRepository;
         _topupInitiateService = topupInitiateService;
         _topupPaymentCompleteService = topupPaymentCompleteService;
+        _orderTypeAccess = orderTypeAccess;
     }
 
     [HttpGet]
@@ -260,10 +264,17 @@ public sealed class TopupController : Controller
             .ThenByDescending(i => i.Id)
             .ToList();
 
+        var allowedTopupIds = (await _orderTypeAccess.FilterAllowedAsync(
+            children.Select(c => c.StudentId),
+            (int)TransactionTypeEnum.Topup,
+            cancellationToken)).ToHashSet();
+        var topupChildren = children.Where(c => allowedTopupIds.Contains(c.StudentId)).ToList();
+
         return new TopupPageViewModel
         {
             Children = children,
-            SelectedStudentId = children.FirstOrDefault()?.StudentId ?? 0,
+            TopupChildren = topupChildren,
+            SelectedStudentId = topupChildren.FirstOrDefault()?.StudentId ?? 0,
             TotalBalance = children.Sum(c => c.Balance),
             WeeklySpendSeries = BuildWeeklySpendSeries(historyItems, weekStart),
             RecentTransactions = orderedItems
@@ -311,9 +322,15 @@ public sealed class TopupController : Controller
         var status = HistoryStatusHelper.Resolve(item.StatusId, item.IsTransactionCompleted);
         var isTopup = string.Equals(item.TransactionType, "topup", StringComparison.OrdinalIgnoreCase);
         var studentName = string.IsNullOrWhiteSpace(item.StudentName) ? "your child" : item.StudentName.Trim();
-        var detailUrl = isTopup
-            ? Url.Action("TopupDetail", "History", new { id = item.Id }) ?? "#"
-            : Url.Action("Detail", "History", new { orderId = item.OrderId }) ?? "#";
+        var hasDetail = item.HasMealTransaction
+            && (isTopup
+                ? item.Id > 0
+                : !string.IsNullOrWhiteSpace(item.OrderId));
+        var detailUrl = !hasDetail
+            ? string.Empty
+            : isTopup
+                ? Url.Action("TopupDetail", "History", new { id = item.Id }) ?? string.Empty
+                : Url.Action("Detail", "History", new { orderId = item.OrderId }) ?? string.Empty;
 
         var title = isTopup
             ? $"Wallet top-up AED {item.Amount:0.00}"
@@ -338,6 +355,7 @@ public sealed class TopupController : Controller
             IconToneCss = isTopup ? "is-topup" : "is-debit",
             StatusLabel = status.Label.ToLowerInvariant(),
             StatusCss = status.Css,
+            HasDetail = hasDetail,
             DetailUrl = detailUrl
         };
     }
@@ -349,13 +367,25 @@ public sealed class TopupController : Controller
             return "Top-up";
         }
 
-        return item.OrderTypeId switch
+        var orderLabel = item.OrderTypeId switch
         {
             (int)TransactionTypeEnum.A_La_Carte => "Ala-Carte",
             (int)TransactionTypeEnum.MealOrder => "Meal Combo",
-            (int)TransactionTypeEnum.POS => "POS Order",
-            _ => "Order"
+            (int)TransactionTypeEnum.POS => "POS",
+            _ => null
         };
+
+        if (!string.IsNullOrWhiteSpace(orderLabel))
+        {
+            return orderLabel;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Remarks))
+        {
+            return item.Remarks.Trim();
+        }
+
+        return "Transaction";
     }
 
     private static string ResolveDebitIcon(TransactionHistoryItemDto item)

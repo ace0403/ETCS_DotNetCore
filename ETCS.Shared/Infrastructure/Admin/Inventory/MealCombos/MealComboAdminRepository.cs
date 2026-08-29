@@ -1,5 +1,7 @@
 using System.Data.Common;
 using Dapper;
+using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
+using ETCS.Shared.Infrastructure.Admin.Inventory.MealItems;
 using ETCS.Shared.Infrastructure.Admin.Models;
 using ETCS.Shared.Infrastructure.Data;
 
@@ -10,13 +12,17 @@ namespace ETCS.Shared.Infrastructure.Admin.Inventory.MealCombos;
 public sealed class MealComboAdminRepository : IMealComboAdminRepository
 {
     private readonly IMealDbConnectionFactory _connectionFactory;
+    private readonly IMealEnumAdminRepository _mealEnumAdminRepository;
 
-    public MealComboAdminRepository(IMealDbConnectionFactory connectionFactory)
+    public MealComboAdminRepository(
+        IMealDbConnectionFactory connectionFactory,
+        IMealEnumAdminRepository mealEnumAdminRepository)
     {
         _connectionFactory = connectionFactory;
+        _mealEnumAdminRepository = mealEnumAdminRepository;
     }
 
-    private const string SelectSql = "SELECT p.Id, p.PackageName, p.SchoolId, p.Price, ISNULL(p.ProcessingFee, 0) AS ProcessingFee, ISNULL(p.IsActive, 1) AS IsActive, (SELECT COUNT(*) FROM MealPackageItems mpi WHERE mpi.MealPackageId = p.Id) AS ItemCount";
+    private const string SelectSql = "SELECT p.Id, p.PackageName, p.SchoolId, p.Price, ISNULL(p.ProcessingFee, 0) AS ProcessingFee, ISNULL(p.IsActive, 1) AS IsActive";
     private const string FromSql = "FROM MealPackages p";
     private const string BaseFilterSql = "ISNULL(p.IsDeleted, 0) = 0";
     private const string SearchFilterSql = "LTRIM(RTRIM(ISNULL(p.PackageName, ''))) LIKE '%' + @Search + '%' OR CAST(p.SchoolId AS varchar(20)) LIKE '%' + @Search + '%' OR CAST(p.Price AS varchar(30)) LIKE '%' + @Search + '%'";
@@ -26,7 +32,6 @@ public sealed class MealComboAdminRepository : IMealComboAdminRepository
         ["Id"] = "p.Id",
         ["PackageName"] = "p.PackageName",
         ["SchoolId"] = "p.SchoolId",
-        ["ItemCount"] = "(SELECT COUNT(*) FROM MealPackageItems mpi WHERE mpi.MealPackageId = p.Id)",
         ["Price"] = "p.Price",
         ["ProcessingFee"] = "p.ProcessingFee",
         ["IsActive"] = "p.IsActive"
@@ -71,7 +76,7 @@ public sealed class MealComboAdminRepository : IMealComboAdminRepository
         var package = await dbConnection.QuerySingleOrDefaultAsync<MealComboSaveRequest>(
             new CommandDefinition(
                 """
-                SELECT Id, SchoolId, MealTypeId, MealCategotyId AS MealCategoryId, PackageName, Detail, Price,
+                SELECT Id, SchoolId, MealSessionId, MealTypeId, MealCategotyId AS MealCategoryId, PackageName, Detail, Price,
                     ISNULL(ProcessingFee, 0) AS ProcessingFee, ImageName, ISNULL(IsActive, 1) AS IsActive
                 FROM MealPackages WHERE Id = @Id;
                 """,
@@ -79,12 +84,6 @@ public sealed class MealComboAdminRepository : IMealComboAdminRepository
                 cancellationToken: cancellationToken));
 
         if (package is null) return null;
-
-        package.MealItemIds = (await dbConnection.QueryAsync<int>(
-            new CommandDefinition(
-                "SELECT MealItemId FROM MealPackageItems WHERE MealPackageId = @Id;",
-                new { Id = id },
-                cancellationToken: cancellationToken))).ToList();
 
         package.WeekNos = (await dbConnection.QueryAsync<int>(
             new CommandDefinition(
@@ -95,6 +94,21 @@ public sealed class MealComboAdminRepository : IMealComboAdminRepository
         package.DayIds = (await dbConnection.QueryAsync<int>(
             new CommandDefinition(
                 "SELECT DayId FROM MealPackageDays WHERE MealPackageId = @Id;",
+                new { Id = id },
+                cancellationToken: cancellationToken))).ToList();
+
+        package.IngredientIds = (await dbConnection.QueryAsync<int>(
+            new CommandDefinition(
+                "SELECT IngredientId FROM MealPackageIngredients WHERE MealPackageId = @Id;",
+                new { Id = id },
+                cancellationToken: cancellationToken))).ToList();
+
+        package.NutritionLines = (await dbConnection.QueryAsync<MealItemNutritionLineDto>(
+            new CommandDefinition(
+                """
+                SELECT NutritionId, MeasureValue, MeasureTypeId
+                FROM MealPackageNutrition WHERE MealPackageId = @Id;
+                """,
                 new { Id = id },
                 cancellationToken: cancellationToken))).ToList();
 
@@ -109,8 +123,23 @@ public sealed class MealComboAdminRepository : IMealComboAdminRepository
         if (request.DayIds is null || request.DayIds.Count == 0)
             return AdminOperationResult.Fail("Select at least one day.");
 
-        if (request.MealItemIds is null || request.MealItemIds.Count == 0)
-            return AdminOperationResult.Fail("Select at least one meal item.");
+        if (request.MealSessionId <= 0)
+            return AdminOperationResult.Fail("Meal session is required.");
+
+        if (request.MealTypeId <= 0)
+            return AdminOperationResult.Fail("Meal type is required.");
+
+        if (!await _mealEnumAdminRepository.IsMealTypeInSessionAsync(
+                request.MealTypeId,
+                request.MealSessionId,
+                cancellationToken))
+        {
+            return AdminOperationResult.Fail("Selected meal type does not belong to the chosen meal session.");
+        }
+
+        var nutritionLines = request.NutritionLines?
+            .Where(n => n.NutritionId > 0 && n.MeasureTypeId > 0)
+            .ToList() ?? [];
 
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
@@ -126,7 +155,7 @@ public sealed class MealComboAdminRepository : IMealComboAdminRepository
                     new CommandDefinition(
                         """
                         UPDATE MealPackages
-                        SET SchoolId = @SchoolId, MealTypeId = @MealTypeId, MealCategotyId = @MealCategoryId,
+                        SET SchoolId = @SchoolId, MealSessionId = @MealSessionId, MealTypeId = @MealTypeId, MealCategotyId = @MealCategoryId,
                             PackageName = @PackageName, Detail = @Detail, Price = @Price, ProcessingFee = @ProcessingFee,
                             ImageName = CASE WHEN @ImageName IS NOT NULL AND @ImageName <> '' THEN @ImageName ELSE ImageName END,
                             IsActive = @IsActive, UpdatedOn = GETUTCDATE(), UpdatedBy = @UpdatedBy
@@ -139,9 +168,10 @@ public sealed class MealComboAdminRepository : IMealComboAdminRepository
                 await dbConnection.ExecuteAsync(
                     new CommandDefinition(
                         """
-                        DELETE FROM MealPackageItems WHERE MealPackageId = @Id;
                         DELETE FROM MealPackageWeeks WHERE MealPackageId = @Id;
                         DELETE FROM MealPackageDays WHERE MealPackageId = @Id;
+                        DELETE FROM MealPackageIngredients WHERE MealPackageId = @Id;
+                        DELETE FROM MealPackageNutrition WHERE MealPackageId = @Id;
                         """,
                         new { request.Id },
                         transaction: tx,
@@ -152,24 +182,13 @@ public sealed class MealComboAdminRepository : IMealComboAdminRepository
                 packageId = await dbConnection.ExecuteScalarAsync<int>(
                     new CommandDefinition(
                         """
-                        INSERT INTO MealPackages (SchoolId, MealTypeId, MealCategotyId, PackageName, Detail, Price, ProcessingFee, ImageName,
+                        INSERT INTO MealPackages (SchoolId, MealSessionId, MealTypeId, MealCategotyId, PackageName, Detail, Price, ProcessingFee, ImageName,
                             IsActive, IsDeleted, CreatedBy, CreatedOn)
-                        VALUES (@SchoolId, @MealTypeId, @MealCategoryId, @PackageName, @Detail, @Price, @ProcessingFee, ISNULL(@ImageName, ''),
+                        VALUES (@SchoolId, @MealSessionId, @MealTypeId, @MealCategoryId, @PackageName, @Detail, @Price, @ProcessingFee, ISNULL(@ImageName, ''),
                             @IsActive, 0, @CreatedBy, GETUTCDATE());
                         SELECT CAST(SCOPE_IDENTITY() AS INT);
                         """,
                         request,
-                        transaction: tx,
-                        cancellationToken: cancellationToken));
-            }
-
-            foreach (var itemId in request.MealItemIds.Distinct())
-            {
-                await dbConnection.ExecuteAsync(
-                    new CommandDefinition(
-                        "INSERT INTO MealPackageItems (MealPackageId, MealItemId, CreatedBy, CreatedOn) " +
-                        "VALUES (@PackageId, @ItemId, @CreatedBy, GETUTCDATE());",
-                        new { PackageId = packageId, ItemId = itemId, request.CreatedBy },
                         transaction: tx,
                         cancellationToken: cancellationToken));
             }
@@ -190,6 +209,37 @@ public sealed class MealComboAdminRepository : IMealComboAdminRepository
                     new CommandDefinition(
                         "INSERT INTO MealPackageDays (MealPackageId, DayId, CreatedOn) VALUES (@PackageId, @DayId, GETUTCDATE());",
                         new { PackageId = packageId, DayId = dayId },
+                        transaction: tx,
+                        cancellationToken: cancellationToken));
+            }
+
+            foreach (var ingredientId in (request.IngredientIds ?? []).Where(id => id > 0).Distinct())
+            {
+                await dbConnection.ExecuteAsync(
+                    new CommandDefinition(
+                        "INSERT INTO MealPackageIngredients (MealPackageId, IngredientId, CreatedOn) " +
+                        "VALUES (@PackageId, @IngredientId, GETUTCDATE());",
+                        new { PackageId = packageId, IngredientId = ingredientId },
+                        transaction: tx,
+                        cancellationToken: cancellationToken));
+            }
+
+            foreach (var line in nutritionLines)
+            {
+                await dbConnection.ExecuteAsync(
+                    new CommandDefinition(
+                        """
+                        INSERT INTO MealPackageNutrition (MealPackageId, NutritionId, MeasureValue, MeasureTypeId, CreatedBy, CreatedOn)
+                        VALUES (@PackageId, @NutritionId, @MeasureValue, @MeasureTypeId, @CreatedBy, GETUTCDATE());
+                        """,
+                        new
+                        {
+                            PackageId = packageId,
+                            line.NutritionId,
+                            line.MeasureValue,
+                            line.MeasureTypeId,
+                            request.CreatedBy
+                        },
                         transaction: tx,
                         cancellationToken: cancellationToken));
             }
