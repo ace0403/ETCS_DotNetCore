@@ -12,21 +12,21 @@ namespace ETCS.Shared.Application.Email;
 public sealed class GuardianEmailNotificationService : IGuardianEmailNotificationService
 {
     private readonly IStudentRepository _studentRepository;
-    private readonly IMealOrderRepository _mealOrderRepository;
     private readonly IEmailNotificationRepository _emailNotificationRepository;
+    private readonly IOrderEmailContentBuilder _orderEmailContentBuilder;
     private readonly ParentPortalOptions _parentPortalOptions;
     private readonly ILogger<GuardianEmailNotificationService> _logger;
 
     public GuardianEmailNotificationService(
         IStudentRepository studentRepository,
-        IMealOrderRepository mealOrderRepository,
         IEmailNotificationRepository emailNotificationRepository,
+        IOrderEmailContentBuilder orderEmailContentBuilder,
         IOptions<ParentPortalOptions> parentPortalOptions,
         ILogger<GuardianEmailNotificationService> logger)
     {
         _studentRepository = studentRepository;
-        _mealOrderRepository = mealOrderRepository;
         _emailNotificationRepository = emailNotificationRepository;
+        _orderEmailContentBuilder = orderEmailContentBuilder;
         _parentPortalOptions = parentPortalOptions.Value;
         _logger = logger;
     }
@@ -64,11 +64,23 @@ public sealed class GuardianEmailNotificationService : IGuardianEmailNotificatio
         CancellationToken cancellationToken)
     {
         var templateKey = EmailTemplateKeyResolver.ResolveForOrderType(orderTypeId);
-        var orderDetail = await _mealOrderRepository.GetOrderDetailByOrderIdAsync(
+
+        if (await _emailNotificationRepository.ExistsForOrderAsync(templateKey, orderId, cancellationToken))
+        {
+            _logger.LogInformation(
+                "Skipping email {TemplateKey}: notification already queued or sent for order {OrderId}.",
+                templateKey,
+                orderId);
+            return;
+        }
+
+        var orderItems = await _orderEmailContentBuilder.BuildOrderSuccessContentAsync(
             guardianId,
+            studentId,
+            orderTypeId,
             orderId,
+            total,
             cancellationToken);
-        var orderItems = OrderEmailHelper.BuildOrderItemsHtml(orderDetail?.LineItems);
 
         await QueueAsync(
             templateKey,
@@ -358,6 +370,16 @@ public sealed class GuardianEmailNotificationService : IGuardianEmailNotificatio
             return;
         }
 
+        var template = await _emailNotificationRepository.GetTemplateByKeyAsync(templateKey, cancellationToken);
+        if (template is null || !template.IsActive)
+        {
+            _logger.LogError(
+                "Email template not found or inactive for {TemplateKey}. Order {OrderId} email was not queued.",
+                templateKey,
+                orderId);
+            return;
+        }
+
         var studentName = await ResolveStudentNameAsync(studentId, guardianId, cancellationToken);
         var eventDate = DateTime.Now.ToString("dd-MM-yyyy hh:mm:ss tt", CultureInfo.InvariantCulture);
 
@@ -380,10 +402,31 @@ public sealed class GuardianEmailNotificationService : IGuardianEmailNotificatio
                 },
                 cancellationToken);
         }
+        catch (Exception ex) when (IsTemplateMissingException(ex))
+        {
+            _logger.LogError(
+                ex,
+                "Email template not found or inactive for {TemplateKey}. Order {OrderId} email was not queued.",
+                templateKey,
+                orderId);
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to queue guardian email {TemplateKey} for order {OrderId}.", templateKey, orderId);
         }
+    }
+
+    private static bool IsTemplateMissingException(Exception ex)
+    {
+        for (var current = ex; current is not null; current = current.InnerException)
+        {
+            if (current.Message.Contains("Email template not found or inactive", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private async Task<bool> IsSchoolEmailEnabledAsync(int studentId, CancellationToken cancellationToken)

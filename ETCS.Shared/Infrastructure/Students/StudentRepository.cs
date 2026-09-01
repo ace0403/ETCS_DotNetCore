@@ -611,6 +611,7 @@ public sealed class StudentRepository : IStudentRepository
             row.ClassName?.Trim() ?? string.Empty,
             row.GroupName?.Trim() ?? string.Empty,
             row.Year,
-            row.Email?.Trim() ?? string.Empty);
+            row.Email?.Trim() ?? string.Empty,
+            row.IsNoService ?? 0);
     }
 }

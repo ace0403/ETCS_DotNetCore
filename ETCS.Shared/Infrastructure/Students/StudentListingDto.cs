@@ -17,4 +17,5 @@ public sealed record StudentListingDto(
     string? ClassName,
     string? GroupName,
     string? Year,
-    string? Email);
+    string? Email, 
+    int? IsNoService);

@@ -17,7 +17,7 @@ public sealed class ParentPortalNavigationViewComponent : ViewComponent
     {
         if (!HttpContext.User.TryGetGuardianId(out var guardianId))
         {
-            return View(ParentPortalNavigationAccess.None);
+            return View("~/Views/Shared/_Sidebar.cshtml", ParentPortalNavigationAccess.None);
         }
 
         var access = await _navigationService.GetAccessAsync(guardianId, HttpContext.RequestAborted);

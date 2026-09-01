@@ -18,6 +18,8 @@ public interface IEmailNotificationRepository
 
     Task<IReadOnlyList<EmailNotificationLogDto>> GetLogAsync(int top, CancellationToken cancellationToken);
 
+    Task<bool> ExistsForOrderAsync(string templateKey, string orderId, CancellationToken cancellationToken);
+
     Task<SmtpSettingsDto?> GetSmtpSettingsAsync(CancellationToken cancellationToken);
 
     Task SaveSmtpSettingsAsync(SmtpSettingsSaveRequest request, CancellationToken cancellationToken);

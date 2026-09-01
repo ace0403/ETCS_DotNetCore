@@ -188,6 +188,7 @@ public sealed class MealOrderMealDbReportRepository : IMealOrderMealDbReportRepo
         public DateTime? DeliveryDate { get; init; }
         public string? Day { get; init; }
         public string? Items { get; init; }
+        public decimal? Amount { get; init; }
 
         public MealOrderReportRowDto ToDto(MealOrderStudentRow? student) =>
             new()
@@ -198,6 +199,7 @@ public sealed class MealOrderMealDbReportRepository : IMealOrderMealDbReportRepo
                 StudDiv = student?.StudDiv?.Trim() ?? string.Empty,
                 StudFullName = student?.StudFullName?.Trim() ?? string.Empty,
                 PaymentStatus = PaymentStatus?.Trim() ?? string.Empty,
+                Amount = Amount ?? 0,
                 MealSession = MealSession?.Trim() ?? string.Empty,
                 Category = Category?.Trim() ?? string.Empty,
                 Choice = Choice?.Trim() ?? string.Empty,

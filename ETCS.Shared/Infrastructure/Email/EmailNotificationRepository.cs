@@ -14,6 +14,7 @@ public sealed class EmailNotificationRepository : IEmailNotificationRepository
     private const string GetTemplateByKeySp = "spGetEmailTemplateByKey";
     private const string GetPendingSp = "spGetPendingEmailNotifications";
     private const string GetLogSp = "spGetEmailNotificationLog";
+    private const string ExistsForOrderSp = "spEmailNotificationExistsForOrder";
     private const string UpsertTemplateSp = "spUpsertEmailTemplate";
     private const string GetSmtpSettingsSp = "spGetSmtpSettings";
     private const string UpsertSmtpSettingsSp = "spUpsertSmtpSettings";
@@ -136,6 +137,26 @@ public sealed class EmailNotificationRepository : IEmailNotificationRepository
                 cancellationToken: cancellationToken));
 
         return rows.ToList();
+    }
+
+    public async Task<bool> ExistsForOrderAsync(string templateKey, string orderId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(templateKey) || string.IsNullOrWhiteSpace(orderId))
+        {
+            return false;
+        }
+
+        using var connection = _mealDbConnectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+
+        return await dbConnection.ExecuteScalarAsync<bool>(
+            new CommandDefinition(
+                ExistsForOrderSp,
+                new { TemplateKey = templateKey.Trim(), OrderId = orderId.Trim() },
+                commandType: System.Data.CommandType.StoredProcedure,
+                commandTimeout: DefaultCommandTimeoutSeconds,
+                cancellationToken: cancellationToken));
     }
 
     public async Task<SmtpSettingsDto?> GetSmtpSettingsAsync(CancellationToken cancellationToken)

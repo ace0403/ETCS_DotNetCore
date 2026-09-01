@@ -1,6 +1,9 @@
+using System.Globalization;
 using ETCS.API.Infrastructure.Auth;
 using ETCS.API.Infrastructure.Students;
 using ETCS.Shared.Application.Email;
+using ETCS.Shared.Application.Students;
+using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
 using ETCS.Shared.Infrastructure.Admin.Master.Students;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Media;
@@ -21,6 +24,7 @@ public sealed class StudentsController : ControllerBase
     private readonly IReplaceCardRequestRepository _replaceCardRequestRepository;
     private readonly IGuardianChildEnrollmentService _childEnrollmentService;
     private readonly IGuardianEmailNotificationService _emailNotificationService;
+    private readonly IStudentOrderTypeAccessService _orderTypeAccess;
     private readonly MealImageUrlBuilder _imageUrlBuilder;
 
     public StudentsController(
@@ -28,12 +32,14 @@ public sealed class StudentsController : ControllerBase
         IReplaceCardRequestRepository replaceCardRequestRepository,
         IGuardianChildEnrollmentService childEnrollmentService,
         IGuardianEmailNotificationService emailNotificationService,
+        IStudentOrderTypeAccessService orderTypeAccess,
         MealImageUrlBuilder imageUrlBuilder)
     {
         _studentRepository = studentRepository;
         _replaceCardRequestRepository = replaceCardRequestRepository;
         _childEnrollmentService = childEnrollmentService;
         _emailNotificationService = emailNotificationService;
+        _orderTypeAccess = orderTypeAccess;
         _imageUrlBuilder = imageUrlBuilder;
     }
 
@@ -60,16 +66,42 @@ public sealed class StudentsController : ControllerBase
 
     /// <summary>
     /// Balance for each child linked to the logged-in guardian (JWT).
+    /// When <paramref name="orderTypeId"/> is provided, only children allowed for that order type are returned.
     /// </summary>
     [HttpGet("balances")]
-    public async Task<IActionResult> GetMyChildrenBalances(CancellationToken cancellationToken)
+    public async Task<IActionResult> GetMyChildrenBalances(
+        [FromQuery] int? orderTypeId,
+        CancellationToken cancellationToken)
     {
         if (!User.TryGetGuardianId(out var guardianId))
         {
             return Unauthorized(new { message = "Guardian claim is missing in token." });
         }
 
+        if (orderTypeId is > 0 && !StudentOrderTypeOptionIds.Selectable.Contains(orderTypeId.Value))
+        {
+            return BadRequest(new { message = "Invalid orderTypeId." });
+        }
+
         var students = await _studentRepository.GetStudentsByGuardianAsync(guardianId, null, cancellationToken);
+        if (orderTypeId is > 0)
+        {
+            var allowedIds = (await _orderTypeAccess.FilterAllowedAsync(
+                students.Select(s => Convert.ToInt32(s.UserId, CultureInfo.InvariantCulture)),
+                orderTypeId.Value,
+                cancellationToken)).ToHashSet();
+
+            students = students
+                .Where(s => allowedIds.Contains(Convert.ToInt32(s.UserId, CultureInfo.InvariantCulture)))
+                .ToList();
+        }
+        else
+        {
+            students = students
+                .Where(s => s.IsNoService != 1)
+                .ToList();
+        }
+
         var children = await ChildBalanceItemFactory.CreateAsync(
             students,
             _studentRepository,

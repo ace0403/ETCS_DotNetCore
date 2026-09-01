@@ -14,6 +14,7 @@ public static class EmailServiceCollectionExtensions
     public static IServiceCollection AddGuardianEmailServices(this IServiceCollection services)
     {
         services.AddEmailNotificationInfrastructure();
+        services.AddScoped<IOrderEmailContentBuilder, OrderEmailContentBuilder>();
         services.AddScoped<IGuardianEmailNotificationService, GuardianEmailNotificationService>();
         return services;
     }

@@ -58,6 +58,14 @@ function getMealOrderReportFilters() {
     };
 }
 
+function formatAmount(value) {
+    var amount = parseFloat(value);
+    if (isNaN(amount)) {
+        return '';
+    }
+    return amount.toFixed(2);
+}
+
 function validateMealOrderReportFilters(filters) {
     if (!filters.StartDate || !filters.EndDate) {
         toastMsg('Start date and end date are required.', false);
@@ -143,12 +151,12 @@ function initMealOrderReportTable() {
             { targets: 0, width: '56px', className: 'text-center' },
             { targets: 1, width: '100px' },
             { targets: 2, width: '120px' },
-            { targets: [3, 4, 11], width: '70px' },
+            { targets: [3, 4, 12], width: '70px' },
             { targets: 5, width: '160px', className: 'canteen-branch-cell' },
             { targets: 6, width: '110px' },
-            { targets: [7, 8, 9], width: '100px' },
-            { targets: 10, width: '100px' },
-            { targets: 12, width: '220px', className: 'canteen-branch-cell' }
+            { targets: [7, 8, 9,10], width: '100px' },
+            { targets: 11, width: '100px' },
+            { targets: 13, width: '220px', className: 'canteen-branch-cell' }
         ],
         columns: [
             {
@@ -165,6 +173,7 @@ function initMealOrderReportTable() {
             { data: 'StudStd' },
             { data: 'StudDiv' },            
             { data: 'PaymentStatus' },
+            { data: 'Amount', className: 'text-end', render: function (d) { return formatAmount(d); } },
             { data: 'MealSession', render: function (d) { return renderEllipsisCell(d, 20); } },
             { data: 'Category', render: function (d) { return renderEllipsisCell(d, 20); } },
             { data: 'Choice', render: function (d) { return renderEllipsisCell(d, 16); } },

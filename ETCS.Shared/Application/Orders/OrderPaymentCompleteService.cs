@@ -73,6 +73,12 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
 
         if (paymentState.IsPaid && paymentState.AccessLogId.HasValue)
         {
+            await TryQueueOrderSuccessEmailAsync(
+                request,
+                paymentState,
+                request.TransactionId,
+                cancellationToken);
+
             return new OrderCompleteResponse
             {
                 IsSuccess = true,
@@ -190,15 +196,10 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
             },
             dbToken);
 
-        await _emailNotificationService.QueueOrderSuccessAsync(
-            request.StudentId,
-            request.GuardianId,
-            guardianDetail.Email,
-            guardianDetail.GuardianName,
-            paymentState.OrderTypeId,
-            request.OrderId,
-            paymentDetails,
-            paymentState.Total,
+        await TryQueueOrderSuccessEmailAsync(
+            request,
+            paymentState,
+            gatewayTransactionId,
             dbToken);
 
         var schoolId = await _studentRepository.GetStudentSchoolIdAsync(request.StudentId, dbToken);
@@ -286,6 +287,12 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
             paymentState.OrderTypeId,
             dbToken);
 
+        await TryQueueOrderSuccessEmailAsync(
+            request,
+            paymentState,
+            gatewayTransactionId,
+            dbToken);
+
         return new OrderCompleteResponse
         {
             IsSuccess = true,
@@ -333,5 +340,39 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
 
         await _mealOrderRepository.AttachAccessLogIdAsync(orderId, accessLogId, cancellationToken);
         return accessLogId;
+    }
+
+    private async Task TryQueueOrderSuccessEmailAsync(
+        OrderCompleteRequest request,
+        MealOrderPaymentState paymentState,
+        string? gatewayTransactionId,
+        CancellationToken cancellationToken)
+    {
+        var guardianDetail = await _studentRepository.GetGuardianBasicDetailByStudentIdAsync(
+            request.StudentId.ToString(CultureInfo.InvariantCulture),
+            cancellationToken);
+        if (guardianDetail is null || string.IsNullOrWhiteSpace(guardianDetail.Email))
+        {
+            return;
+        }
+
+        var transactionId = (gatewayTransactionId ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(transactionId))
+        {
+            transactionId = await _mealOrderRepository.GetGatewayTransactionIdByOrderIdAsync(
+                request.OrderId,
+                cancellationToken) ?? request.TransactionId ?? string.Empty;
+        }
+
+        await _emailNotificationService.QueueOrderSuccessAsync(
+            request.StudentId,
+            request.GuardianId,
+            guardianDetail.Email,
+            guardianDetail.GuardianName,
+            paymentState.OrderTypeId,
+            request.OrderId,
+            transactionId,
+            paymentState.Total,
+            cancellationToken);
     }
 }
