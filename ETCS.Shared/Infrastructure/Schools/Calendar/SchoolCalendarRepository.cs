@@ -6,6 +6,7 @@ using ETCS.Shared.Infrastructure.Admin.Models;
 using ETCS.Shared.Infrastructure.Data;
 
 using static ETCS.Shared.Infrastructure.Admin.DataTablePagingHelper;
+using static ETCS.Shared.Infrastructure.Admin.SchoolScopeFilterHelper;
 
 namespace ETCS.Shared.Infrastructure.Schools.Calendar;
 
@@ -224,7 +225,6 @@ public sealed class SchoolCalendarRepository : ISchoolCalendarRepository
     }
 
     public async Task<DataTableResponse<SchoolCalendarExceptionDto>> GetExceptionsPagedAsync(
-        int? schoolId,
         DataTableRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -232,13 +232,8 @@ public sealed class SchoolCalendarRepository : ISchoolCalendarRepository
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
 
-        var baseFilterSql = "1 = 1";
-        object? extraParameters = null;
-        if (schoolId is > 0)
-        {
-            baseFilterSql += " AND e.SchoolId = @SchoolId";
-            extraParameters = new { SchoolId = schoolId.Value };
-        }
+        var (schoolFilterSql, extraParameters) = BuildSchoolIdFilter(request, "e.SchoolId");
+        var baseFilterSql = schoolFilterSql is null ? "1 = 1" : $"1 = 1 AND {schoolFilterSql}";
 
         const string selectSql = """
             SELECT

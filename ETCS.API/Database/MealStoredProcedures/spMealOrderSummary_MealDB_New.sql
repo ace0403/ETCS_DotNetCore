@@ -1,30 +1,21 @@
 /*
-Deploy on MealDB database.
+Deploy on MealDB. Meal order summary.
 
-Meal order summary from [Order] and [OrderItem] for admin reporting.
-Student details (card no., grade, name) are enriched in application code from ibonus.
-
-Pagination:
-  @Start   = zero-based row offset (DataTables start)
-  @Length  = page size; 0 or NULL returns all rows (export)
-
-Filters:
-  @SchoolId       = SchoolInfo.SchoolID; empty = all
-  @MealSessionId  = Enums session id; 0 = all
-  @MealTypeId     = Enums type id; 0 = all
-
-Outputs:
-  @TotalCount = total rows for current filters
+School scope:
+  @SchoolCodesCsv / @SchoolIdsCsv = comma-separated filters for scoped multi-school users.
+  Empty CSV + empty single-school param = all schools (unrestricted admin only).
 */
 SET ANSI_NULLS ON;
 GO
 SET QUOTED_IDENTIFIER ON;
 GO
 
+--EXEC [spMealOrderSummary_MealDB_New] '2026-08-26','2026-08-28','','','',0,20,0
 CREATE OR ALTER PROCEDURE [dbo].[spMealOrderSummary_MealDB_New]
     @startdate AS DATETIME,
     @enddate AS DATETIME,
     @SchoolId AS VARCHAR(10) = '',
+    @SchoolIdsCsv AS VARCHAR(MAX) = '',
     @MealSessionId AS INT = 0,
     @MealTypeId AS INT = 0,
     @Start AS INT = 0,
@@ -38,6 +29,7 @@ BEGIN
     IF (@Start < 0) SET @Start = 0;
 
     SET @SchoolId = LTRIM(RTRIM(ISNULL(@SchoolId, '')));
+    SET @SchoolIdsCsv = LTRIM(RTRIM(ISNULL(@SchoolIdsCsv, '')));
     DECLARE @SchoolIdInt INT = NULL;
     IF (@SchoolId <> '' AND @SchoolId <> 'All')
         SET @SchoolIdInt = TRY_CAST(@SchoolId AS INT);
@@ -46,7 +38,7 @@ BEGIN
     SET @MealTypeId = ISNULL(@MealTypeId, 0);
 
     DECLARE @RangeStart DATETIME = CAST(CAST(@startdate AS DATE) AS DATETIME);
-    DECLARE @RangeEndExclusive DATETIME = DATEADD(DAY, 1, CAST(CAST(@enddate AS DATE) AS DATETIME));
+    DECLARE @RangeEndExclusive DATETIME = CAST(CAST(@enddate AS DATE) AS DATETIME);
 
     IF OBJECT_ID('tempdb..#TMP') IS NOT NULL
         DROP TABLE #TMP;
@@ -94,7 +86,7 @@ BEGIN
         oi.MealDate,
         LTRIM(RTRIM(ISNULL(DATENAME(weekday, oi.MealDate), ''))),
         LTRIM(RTRIM(ISNULL(COALESCE(pkg_items.ItemsName, mi.ItemName), ''))),
-        o.OrderDate,
+        oi.MealDate,
         o.Id,
         oi.Id
     FROM [Order] o
@@ -113,22 +105,23 @@ BEGIN
         WHERE mpi.MealPackageId = oi.PackageId
     ) pkg_items
     WHERE o.OrderTypeId IN (24, 42)
-      AND oi.MealDate >= @RangeStart
-      AND oi.MealDate < @RangeEndExclusive
-      AND (@SchoolIdInt IS NULL
+      AND ISNULL(o.IsPaid, 0) = 1
+      AND CAST(oi.MealDate AS DATE) between @RangeStart and @RangeEndExclusive
+      AND (
+            (@SchoolIdsCsv <> '' AND (
+                (mp.Id IS NOT NULL AND mp.SchoolId IN (SELECT TRY_CAST(sc.value AS INT) FROM dbo.fnSplitCsv(@SchoolIdsCsv) sc WHERE TRY_CAST(sc.value AS INT) IS NOT NULL))
+                OR (oi.ItemId IS NOT NULL AND (
+                    EXISTS (SELECT 1 FROM MealItemSchools mis WHERE mis.MealItemId = mi.Id AND mis.SchoolId IN (SELECT TRY_CAST(sc.value AS INT) FROM dbo.fnSplitCsv(@SchoolIdsCsv) sc WHERE TRY_CAST(sc.value AS INT) IS NOT NULL))
+                    OR (NOT EXISTS (SELECT 1 FROM MealItemSchools mis2 WHERE mis2.MealItemId = mi.Id) AND mi.SchoolId IN (SELECT TRY_CAST(sc.value AS INT) FROM dbo.fnSplitCsv(@SchoolIdsCsv) sc WHERE TRY_CAST(sc.value AS INT) IS NOT NULL))
+                ))
+            ))
+            OR (@SchoolIdsCsv = '' AND (@SchoolIdInt IS NULL
            OR (mp.Id IS NOT NULL AND mp.SchoolId = @SchoolIdInt)
            OR (oi.ItemId IS NOT NULL AND (
-               EXISTS (
-                   SELECT 1
-                   FROM MealItemSchools mis
-                   WHERE mis.MealItemId = mi.Id
-                     AND mis.SchoolId = @SchoolIdInt
-               )
-               OR (
-                   NOT EXISTS (SELECT 1 FROM MealItemSchools mis2 WHERE mis2.MealItemId = mi.Id)
-                   AND mi.SchoolId = @SchoolIdInt
-               )
-           )))
+               EXISTS (SELECT 1 FROM MealItemSchools mis WHERE mis.MealItemId = mi.Id AND mis.SchoolId = @SchoolIdInt)
+               OR (NOT EXISTS (SELECT 1 FROM MealItemSchools mis2 WHERE mis2.MealItemId = mi.Id) AND mi.SchoolId = @SchoolIdInt)
+           ))))
+          )
       AND (@MealSessionId <= 0
            OR COALESCE(mp.MealSessionId, mi.MealSessionId) = @MealSessionId)
       AND (@MealTypeId <= 0
@@ -136,7 +129,7 @@ BEGIN
     OPTION (RECOMPILE);
 
     CREATE CLUSTERED INDEX CX_MealOrderSummary_MealDB
-        ON #TMP (SortOrderDate ASC, SortOrderId ASC, SortOrderItemId ASC);
+        ON #TMP (SortOrderDate DESC, OrderDate DESC);
 
     SELECT @TotalCount = COUNT(*)
     FROM #TMP;
@@ -154,7 +147,7 @@ BEGIN
             [Day],
             Items
         FROM #TMP
-        ORDER BY SortOrderDate ASC, SortOrderId ASC, SortOrderItemId ASC;
+        ORDER BY SortOrderDate DESC, OrderDate DESC;
     END
     ELSE
     BEGIN
@@ -169,7 +162,7 @@ BEGIN
             [Day],
             Items
         FROM #TMP
-        ORDER BY SortOrderDate ASC, SortOrderId ASC, SortOrderItemId ASC
+        ORDER BY SortOrderDate DESC, OrderDate DESC
         OFFSET @Start ROWS FETCH NEXT @Length ROWS ONLY;
     END
 

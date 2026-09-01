@@ -31,6 +31,12 @@ public sealed class AdminLoginRepository : IAdminLoginRepository
           AND ISNULL(la.Enabled, 0) = 1;
         """;
 
+    private const string RoleNamesSql = """
+        SELECT RoleID AS RoleId, LTRIM(RTRIM(ISNULL(RoleName, ''))) AS RoleName
+        FROM RoleInfo
+        WHERE RoleID IN @RoleIds;
+        """;
+
     private const string UpdatePasswordSql = """
         UPDATE LoginAccount
         SET Password = @PasswordHash
@@ -43,59 +49,26 @@ public sealed class AdminLoginRepository : IAdminLoginRepository
 
     private readonly IDbConnectionFactory _connectionFactory;
     private readonly IAdminPermissionRepository _permissionRepository;
+    private readonly IStaffLoginAssignmentRepository _assignmentRepository;
 
     public AdminLoginRepository(
         IDbConnectionFactory connectionFactory,
-        IAdminPermissionRepository permissionRepository)
+        IAdminPermissionRepository permissionRepository,
+        IStaffLoginAssignmentRepository assignmentRepository)
     {
         _connectionFactory = connectionFactory;
         _permissionRepository = permissionRepository;
+        _assignmentRepository = assignmentRepository;
     }
 
-    public async Task<LoginAccountDto?> GetByLoginNameAsync(string loginName, CancellationToken cancellationToken = default)
-    {
-        var normalized = loginName.Trim();
-        using var connection = _connectionFactory.CreateConnection();
-        var dbConnection = (DbConnection)connection;
-        await dbConnection.OpenAsync(cancellationToken);
+    public Task<LoginAccountDto?> GetByLoginNameAsync(string loginName, CancellationToken cancellationToken = default)
+        => GetByLoginNameInternalAsync(loginName, activeRoleId: null, cancellationToken);
 
-        var row = await dbConnection.QuerySingleOrDefaultAsync<LoginAccountRow>(
-            new CommandDefinition(
-                LoginAccountSql,
-                new { LoginName = normalized },
-                commandType: CommandType.Text,
-                cancellationToken: cancellationToken));
-
-        if (row is null)
-        {
-            return null;
-        }
-
-        var permissionResult = await _permissionRepository.LoadForRoleAsync(row.RoleId, cancellationToken);
-        var isSuperAdmin = permissionResult.IsSuperAdmin
-            || string.Equals(row.RoleName, "Admin", StringComparison.OrdinalIgnoreCase);
-
-        var assignedSchoolIds = BuildAssignedSchoolIds(row.SchoolId);
-        var isSchoolScoped = !isSuperAdmin && assignedSchoolIds.Count > 0;
-
-        return new LoginAccountDto
-        {
-            Id = row.Id,
-            Username = row.Username,
-            FirstName = row.FirstName,
-            LastName = row.LastName,
-            Email = row.Email,
-            StoredPasswordHash = row.StoredPasswordHash ?? string.Empty,
-            RoleId = row.RoleId,
-            RoleName = row.RoleName,
-            SchoolId = row.SchoolId,
-            IsActive = row.IsActive,
-            IsSuperAdmin = isSuperAdmin,
-            IsSchoolScoped = isSchoolScoped,
-            AssignedSchoolIds = assignedSchoolIds,
-            Permissions = permissionResult.PermissionKeys
-        };
-    }
+    public Task<LoginAccountDto?> GetByLoginNameForRoleAsync(
+        string loginName,
+        int roleId,
+        CancellationToken cancellationToken = default)
+        => GetByLoginNameInternalAsync(loginName, activeRoleId: roleId, cancellationToken);
 
     public async Task<AdminOperationResult> ChangePasswordAsync(
         int accountId,
@@ -141,12 +114,147 @@ public sealed class AdminLoginRepository : IAdminLoginRepository
             : AdminOperationResult.Fail("Password was not updated.");
     }
 
+    private async Task<LoginAccountDto?> GetByLoginNameInternalAsync(
+        string loginName,
+        int? activeRoleId,
+        CancellationToken cancellationToken)
+    {
+        var normalized = loginName.Trim();
+        using var connection = _connectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+
+        var row = await dbConnection.QuerySingleOrDefaultAsync<LoginAccountRow>(
+            new CommandDefinition(
+                LoginAccountSql,
+                new { LoginName = normalized },
+                commandType: CommandType.Text,
+                cancellationToken: cancellationToken));
+
+        if (row is null)
+        {
+            return null;
+        }
+
+        var assignedSchoolIds = await LoadAssignedSchoolIdsAsync(row, cancellationToken);
+        var availableRoles = await LoadAvailableRolesAsync(dbConnection, row, cancellationToken);
+        var resolvedActiveRoleId = ResolveActiveRoleId(activeRoleId, availableRoles, row.RoleId);
+        var activeRole = availableRoles.FirstOrDefault(role => role.RoleId == resolvedActiveRoleId);
+
+        IReadOnlyList<string> permissions = [];
+        var isSuperAdmin = false;
+        if (resolvedActiveRoleId > 0)
+        {
+            var permissionResult = await _permissionRepository.LoadForRoleAsync(resolvedActiveRoleId, cancellationToken);
+            permissions = permissionResult.PermissionKeys;
+            isSuperAdmin = permissionResult.IsSuperAdmin
+                || string.Equals(activeRole?.RoleName, "Admin", StringComparison.OrdinalIgnoreCase);
+        }
+
+        var isSchoolScoped = !isSuperAdmin && assignedSchoolIds.Count > 0;
+        var legacySchoolId = assignedSchoolIds.Count > 0 ? assignedSchoolIds[0] : row.SchoolId;
+
+        return new LoginAccountDto
+        {
+            Id = row.Id,
+            Username = row.Username,
+            FirstName = row.FirstName,
+            LastName = row.LastName,
+            Email = row.Email,
+            StoredPasswordHash = row.StoredPasswordHash ?? string.Empty,
+            RoleId = resolvedActiveRoleId > 0 ? resolvedActiveRoleId : row.RoleId,
+            RoleName = activeRole?.RoleName ?? row.RoleName,
+            ActiveRoleId = resolvedActiveRoleId,
+            SchoolId = legacySchoolId,
+            IsActive = row.IsActive,
+            IsSuperAdmin = isSuperAdmin,
+            IsSchoolScoped = isSchoolScoped,
+            AssignedSchoolIds = assignedSchoolIds,
+            AvailableRoles = availableRoles,
+            Permissions = permissions
+        };
+    }
+
+    private async Task<IReadOnlyList<int>> LoadAssignedSchoolIdsAsync(
+        LoginAccountRow row,
+        CancellationToken cancellationToken)
+    {
+        var schoolIds = await _assignmentRepository.GetSchoolIdsAsync(row.Id, cancellationToken);
+        if (schoolIds.Count > 0)
+        {
+            return schoolIds;
+        }
+
+        return row.SchoolId > 0 ? [row.SchoolId] : [];
+    }
+
+    private async Task<IReadOnlyList<LoginAccountRoleOptionDto>> LoadAvailableRolesAsync(
+        DbConnection dbConnection,
+        LoginAccountRow row,
+        CancellationToken cancellationToken)
+    {
+        var roleIds = await _assignmentRepository.GetRoleIdsAsync(row.Id, cancellationToken);
+        if (roleIds.Count == 0 && row.RoleId > 0)
+        {
+            roleIds = [row.RoleId];
+        }
+
+        if (roleIds.Count == 0)
+        {
+            return [];
+        }
+
+        var roleRows = await dbConnection.QueryAsync<(int RoleId, string RoleName)>(
+            new CommandDefinition(
+                RoleNamesSql,
+                new { RoleIds = roleIds },
+                cancellationToken: cancellationToken));
+
+        var roleNames = roleRows.ToDictionary(role => role.RoleId, role => role.RoleName);
+        var defaultRoleId = await _assignmentRepository.GetDefaultRoleIdAsync(row.Id, cancellationToken) ?? row.RoleId;
+
+        return roleIds
+            .Select(roleId => new LoginAccountRoleOptionDto
+            {
+                RoleId = roleId,
+                RoleName = roleNames.TryGetValue(roleId, out var roleName) && !string.IsNullOrWhiteSpace(roleName)
+                    ? roleName
+                    : $"Role {roleId}",
+                IsDefault = roleId == defaultRoleId
+            })
+            .OrderByDescending(role => role.IsDefault)
+            .ThenBy(role => role.RoleName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static int ResolveActiveRoleId(
+        int? requestedRoleId,
+        IReadOnlyList<LoginAccountRoleOptionDto> availableRoles,
+        int legacyRoleId)
+    {
+        if (requestedRoleId is > 0)
+        {
+            return availableRoles.Any(role => role.RoleId == requestedRoleId.Value)
+                ? requestedRoleId.Value
+                : 0;
+        }
+
+        if (availableRoles.Count == 1)
+        {
+            return availableRoles[0].RoleId;
+        }
+
+        if (availableRoles.Count > 1)
+        {
+            return 0;
+        }
+
+        return legacyRoleId;
+    }
+
     private static bool PasswordMatches(string stored, string md5Hash, string plainPassword) =>
         string.Equals(stored.Trim(), md5Hash, StringComparison.OrdinalIgnoreCase)
         || string.Equals(stored.Trim(), plainPassword, StringComparison.Ordinal);
-
-    private static IReadOnlyList<int> BuildAssignedSchoolIds(int schoolId) =>
-        schoolId > 0 ? [schoolId] : [];
 
     private sealed class LoginAccountRow
     {

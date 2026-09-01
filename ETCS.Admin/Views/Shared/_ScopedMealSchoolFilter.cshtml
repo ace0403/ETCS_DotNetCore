@@ -1,0 +1,31 @@
+@using ETCS.Admin.Infrastructure.Auth
+@using ETCS.Shared.Infrastructure.Admin.Reports.MealOrders
+@{
+    var schools = ViewBag.Schools switch
+    {
+        IReadOnlyList<MealOrderSchoolLookupDto> mealSchools => mealSchools,
+        _ => Array.Empty<MealOrderSchoolLookupDto>()
+    };
+
+    var isScoped = User.IsSchoolScoped() && !User.IsAdminRole();
+    var selectId = ViewData["ScopedSchoolFilterId"] as string ?? "ddlSchool";
+    var label = ViewData["ScopedSchoolFilterLabel"] as string ?? "School";
+}
+
+<div class="col-12 col-md-6 col-lg-4">
+    <label for="@selectId" class="form-label">@label</label>
+    <select id="@selectId" class="form-select">
+        @if (!isScoped)
+        {
+            <option value="">All Schools</option>
+        }
+        else
+        {
+            <option value="">All my schools</option>
+        }
+        @foreach (var school in schools)
+        {
+            <option value="@school.Id" title="@school.Name">@school.Name</option>
+        }
+    </select>
+</div>

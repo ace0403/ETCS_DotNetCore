@@ -2,6 +2,7 @@ using ETCS.Admin.Infrastructure.Auth;
 using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
 using ETCS.Shared.Infrastructure.Admin.Models;
 using ETCS.Shared.Infrastructure.Admin.Master.Schools;
+using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,17 +18,20 @@ public class SchoolController : Controller
     private readonly IAdminSchoolScopeService _schoolScope;
     private readonly AdminOptions _adminOptions;
     private readonly IMealEnumAdminRepository _mealEnumRepository;
+    private readonly IStudentRepository _studentRepository;
 
     public SchoolController(
         ISchoolAdminRepository repository,
         IAdminSchoolScopeService schoolScope,
         IOptions<AdminOptions> adminOptions,
-        IMealEnumAdminRepository mealEnumRepository)
+        IMealEnumAdminRepository mealEnumRepository,
+        IStudentRepository studentRepository)
     {
         _repository = repository;
         _schoolScope = schoolScope;
         _adminOptions = adminOptions.Value;
         _mealEnumRepository = mealEnumRepository;
+        _studentRepository = studentRepository;
     }
 
     public IActionResult Index() => View(new SchoolSaveRequest());
@@ -48,6 +52,8 @@ public class SchoolController : Controller
         var model = id > 0
             ? await _repository.GetAsync(id, cancellationToken) ?? new SchoolSaveRequest()
             : new SchoolSaveRequest();
+        var grades = await _studentRepository.GetAllGradesAsync(cancellationToken);
+        ViewBag.Grades = FilterGradesForSchool(grades, model);
 
         if (id > 0)
         {
@@ -140,5 +146,22 @@ public class SchoolController : Controller
         }
 
         return fileName;
+    }
+
+    private static IReadOnlyList<GradeListItemDto> FilterGradesForSchool(
+        IReadOnlyList<GradeListItemDto> grades,
+        SchoolSaveRequest model)
+    {
+        int? schoolCode = null;
+        if (!string.IsNullOrWhiteSpace(model.Code)
+            && int.TryParse(model.Code.Trim(), out var parsedSchoolCode))
+        {
+            schoolCode = parsedSchoolCode;
+        }
+
+        return grades
+            .Where(grade => grade.SchoolCode is null || schoolCode is null || grade.SchoolCode == schoolCode)
+            .OrderBy(grade => grade.Grade, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 }

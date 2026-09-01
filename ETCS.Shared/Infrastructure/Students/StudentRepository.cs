@@ -20,6 +20,20 @@ public sealed class StudentRepository : IStudentRepository
         WHERE sl.UserId = @StudentId;
         """;
 
+    private const string StudentStudStdSql = """
+        SELECT TOP (1)
+            LTRIM(RTRIM(ISNULL(sl.StudStd, ''))) AS StudStd
+        FROM StudentLogin sl
+        WHERE sl.UserId = @StudentId;
+        """;
+
+    private const string SchoolCodeByIdSql = """
+        SELECT TOP (1)
+            LTRIM(RTRIM(ISNULL(s.Schoolcode, ''))) AS SchoolCode
+        FROM SchoolInfo s
+        WHERE s.SchoolId = @SchoolId;
+        """;
+
     private const string StudentMinimumTopupSql = """
         SELECT CAST(ISNULL(s.MinimumTopup, 0) AS decimal(18,2))
         FROM StudentLogin sl
@@ -164,6 +178,55 @@ public sealed class StudentRepository : IStudentRepository
                 cancellationToken: cancellationToken));
 
         return schoolId is > 0 ? schoolId : null;
+    }
+
+    public async Task<int?> ResolveStudentGradeIdAsync(int studentId, CancellationToken cancellationToken = default)
+    {
+        if (studentId <= 0)
+        {
+            return null;
+        }
+
+        using var connection = _connectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+
+        var studStd = await dbConnection.QueryFirstOrDefaultAsync<string>(
+            new CommandDefinition(
+                StudentStudStdSql,
+                new { StudentId = studentId },
+                commandType: CommandType.Text,
+                cancellationToken: cancellationToken));
+
+        if (string.IsNullOrWhiteSpace(studStd))
+        {
+            return null;
+        }
+
+        var schoolId = await GetStudentSchoolIdAsync(studentId, cancellationToken);
+        int? schoolCode = null;
+        if (schoolId is > 0)
+        {
+            var schoolCodeText = await dbConnection.QueryFirstOrDefaultAsync<string>(
+                new CommandDefinition(
+                    SchoolCodeByIdSql,
+                    new { SchoolId = schoolId.Value },
+                    cancellationToken: cancellationToken));
+
+            if (!string.IsNullOrWhiteSpace(schoolCodeText)
+                && int.TryParse(schoolCodeText.Trim(), out var parsedSchoolCode))
+            {
+                schoolCode = parsedSchoolCode;
+            }
+        }
+
+        var grades = await GetAllGradesAsync(cancellationToken);
+        var normalizedStudStd = studStd.Trim();
+        var match = grades.FirstOrDefault(grade =>
+            string.Equals(grade.Grade.Trim(), normalizedStudStd, StringComparison.OrdinalIgnoreCase)
+            && (grade.SchoolCode is null || schoolCode is null || grade.SchoolCode == schoolCode));
+
+        return match?.Id is > 0 ? match.Id : null;
     }
 
     public async Task<decimal?> GetStudentMinimumTopupAsync(int studentId, CancellationToken cancellationToken = default)

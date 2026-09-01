@@ -74,8 +74,7 @@ public class SchoolCalendarController : Controller
     public async Task<JsonResult> GetExceptionList([FromForm] DataTableRequest request, CancellationToken cancellationToken)
     {
         _schoolScope.ApplyListScope(request);
-        var schoolId = request.SchoolId is > 0 ? request.SchoolId : null;
-        var response = await _repository.GetExceptionsPagedAsync(schoolId, request, cancellationToken);
+        var response = await _repository.GetExceptionsPagedAsync(request, cancellationToken);
 
         var schools = await _studentAdminRepository.SchoolLookupsAsync(cancellationToken);
         var schoolNames = _schoolScope.FilterSchools(schools, s => s.Id).ToDictionary(s => s.Id, s => s.Name);

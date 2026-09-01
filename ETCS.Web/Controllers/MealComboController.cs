@@ -26,7 +26,7 @@ public class MealComboController : Controller
     private readonly IMealRepository _mealRepository;
     private readonly IOrderInitiateService _orderInitiateService;
     private readonly IStudentOrderTypeAccessService _orderTypeAccess;
-    private readonly MealOrderBookingWindow _bookingWindow;
+    private readonly ETCS.Web.Infrastructure.Orders.MealOrderBookingWindow _bookingWindow;
     private readonly ISchoolCalendarService _schoolCalendar;
 
     public MealComboController(
@@ -35,7 +35,7 @@ public class MealComboController : Controller
         IMealRepository mealRepository,
         IOrderInitiateService orderInitiateService,
         IStudentOrderTypeAccessService orderTypeAccess,
-        MealOrderBookingWindow bookingWindow,
+        ETCS.Web.Infrastructure.Orders.MealOrderBookingWindow bookingWindow,
         ISchoolCalendarService schoolCalendar)
     {
         _studentRepository = studentRepository;

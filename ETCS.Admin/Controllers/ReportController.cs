@@ -102,7 +102,6 @@ public class ReportController : Controller
     {
         var schools = await _mealOrderPaymentMealDbReportRepository.GetSchoolsAsync(cancellationToken);
         ViewBag.Schools = _schoolScope.FilterMealOrderSchools(schools, s => s.Id);
-        ViewBag.MealSessions = await _mealEnumAdminRepository.GetMealSessionsAsync(cancellationToken);
         SetNewMealOrderPaymentReportViewData();
         return View();
     }
@@ -147,7 +146,8 @@ public class ReportController : Controller
             });
         }
 
-        if (!await ValidateCodeSchoolScopeAsync(request.SchoolCode, cancellationToken))
+        var scope = await ResolveCodeSchoolScopeAsync(request.SchoolCode, cancellationToken);
+        if (!scope.Success)
         {
             return Json(new
             {
@@ -156,9 +156,12 @@ public class ReportController : Controller
                 RecordsFiltered = 0,
                 Data = Array.Empty<CanteenTransactionReportRowDto>(),
                 Success = false,
-                Message = "You do not have access to this school."
+                Message = scope.Message
             });
         }
+
+        request.SchoolCode = string.IsNullOrEmpty(scope.SchoolCode) ? null : scope.SchoolCode;
+        request.SchoolCodesCsv = scope.SchoolCodesCsv;
 
         var result = await _canteenTransactionReportRepository.GetTransactionsPagedAsync(request, cancellationToken);
         return Json(new
@@ -202,6 +205,23 @@ public class ReportController : Controller
             });
         }
 
+        var scope = await ResolveCodeSchoolScopeAsync(request.SchoolCode, cancellationToken);
+        if (!scope.Success)
+        {
+            return Json(new
+            {
+                request.Draw,
+                RecordsTotal = 0,
+                RecordsFiltered = 0,
+                Data = Array.Empty<AdminTransactionReportRowDto>(),
+                Success = false,
+                Message = scope.Message
+            });
+        }
+
+        request.SchoolCode = string.IsNullOrEmpty(scope.SchoolCode) ? null : scope.SchoolCode;
+        request.SchoolCodesCsv = scope.SchoolCodesCsv;
+
         var result = await _adminTransactionReportRepository.GetTransactionsPagedAsync(request, cancellationToken);
         return Json(new
         {
@@ -244,6 +264,23 @@ public class ReportController : Controller
             });
         }
 
+        var scope = await ResolveCodeSchoolScopeAsync(request.SchoolCode, cancellationToken);
+        if (!scope.Success)
+        {
+            return Json(new
+            {
+                request.Draw,
+                RecordsTotal = 0,
+                RecordsFiltered = 0,
+                Data = Array.Empty<TerminalSalesSummaryReportRowDto>(),
+                Success = false,
+                Message = scope.Message
+            });
+        }
+
+        request.SchoolCode = string.IsNullOrEmpty(scope.SchoolCode) ? null : scope.SchoolCode;
+        request.SchoolCodesCsv = scope.SchoolCodesCsv;
+
         var result = await _terminalSalesSummaryReportRepository.GetSummaryPagedAsync(request, cancellationToken);
         return Json(new
         {
@@ -273,6 +310,23 @@ public class ReportController : Controller
             });
         }
 
+        var scope = ResolveIdSchoolScope(request.SchoolId);
+        if (!scope.Success)
+        {
+            return Json(new
+            {
+                request.Draw,
+                RecordsTotal = 0,
+                RecordsFiltered = 0,
+                Data = Array.Empty<MealOrderReportRowDto>(),
+                Success = false,
+                Message = scope.Message
+            });
+        }
+
+        request.SchoolId = string.IsNullOrEmpty(scope.SchoolId) ? null : scope.SchoolId;
+        request.SchoolIdsCsv = scope.SchoolIdsCsv;
+
         var result = await _mealOrderReportRepository.GetOrdersPagedAsync(request, cancellationToken);
         return Json(new
         {
@@ -301,6 +355,23 @@ public class ReportController : Controller
                 Message = "Start date and end date are required."
             });
         }
+
+        var scope = ResolveIdSchoolScope(request.SchoolId);
+        if (!scope.Success)
+        {
+            return Json(new
+            {
+                request.Draw,
+                RecordsTotal = 0,
+                RecordsFiltered = 0,
+                Data = Array.Empty<MealOrderReportRowDto>(),
+                Success = false,
+                Message = scope.Message
+            });
+        }
+
+        request.SchoolId = string.IsNullOrEmpty(scope.SchoolId) ? null : scope.SchoolId;
+        request.SchoolIdsCsv = scope.SchoolIdsCsv;
 
         var result = await _mealOrderMealDbReportRepository.GetOrdersPagedAsync(request, cancellationToken);
         return Json(new
@@ -332,6 +403,23 @@ public class ReportController : Controller
         }
 
         var adminRequest = MealOrderPaymentAdminTransactionMapper.ToAdminListRequest(request);
+        var codeScope = await ResolveAdminSchoolParamsFromIdQueryAsync(request.SchoolId, cancellationToken);
+        if (!codeScope.Success)
+        {
+            return Json(new
+            {
+                request.Draw,
+                RecordsTotal = 0,
+                RecordsFiltered = 0,
+                Data = Array.Empty<MealOrderPaymentReportRowDto>(),
+                Success = false,
+                Message = codeScope.Message
+            });
+        }
+
+        adminRequest.SchoolCode = string.IsNullOrEmpty(codeScope.SchoolCode) ? null : codeScope.SchoolCode;
+        adminRequest.SchoolCodesCsv = codeScope.SchoolCodesCsv;
+
         var result = await _adminTransactionReportRepository.GetTransactionsPagedAsync(
             adminRequest,
             cancellationToken);
@@ -364,6 +452,23 @@ public class ReportController : Controller
             });
         }
 
+        var scope = ResolveIdSchoolScope(request.SchoolId);
+        if (!scope.Success)
+        {
+            return Json(new
+            {
+                request.Draw,
+                RecordsTotal = 0,
+                RecordsFiltered = 0,
+                Data = Array.Empty<MealOrderPaymentReportRowDto>(),
+                Success = false,
+                Message = scope.Message
+            });
+        }
+
+        request.SchoolId = string.IsNullOrEmpty(scope.SchoolId) ? null : scope.SchoolId;
+        request.SchoolIdsCsv = scope.SchoolIdsCsv;
+
         var result = await _mealOrderPaymentMealDbReportRepository.GetOrdersPagedAsync(request, cancellationToken);
         return Json(new
         {
@@ -378,7 +483,15 @@ public class ReportController : Controller
     [HttpGet]
     public async Task<JsonResult> GetCanteenBranches(string? schoolCode, CancellationToken cancellationToken)
     {
-        var branches = await _canteenTransactionReportRepository.GetBranchesAsync(schoolCode, cancellationToken);
+        var scope = await ResolveCodeSchoolScopeAsync(schoolCode, cancellationToken);
+        if (!scope.Success)
+        {
+            return Json(Array.Empty<TerminalLookupDto>());
+        }
+
+        var branches = await _canteenTransactionReportRepository.GetBranchesAsync(
+            string.IsNullOrEmpty(scope.SchoolCode) ? null : scope.SchoolCode,
+            cancellationToken);
         return Json(branches);
     }
 
@@ -393,6 +506,16 @@ public class ReportController : Controller
             TempData["ReportError"] = "Start date should be less than End date.";
             return RedirectToAction(nameof(CanteenTransactions));
         }
+
+        var scope = await ResolveCodeSchoolScopeAsync(filter.SchoolCode, cancellationToken);
+        if (!scope.Success)
+        {
+            TempData["ReportError"] = scope.Message;
+            return RedirectToAction(nameof(CanteenTransactions));
+        }
+
+        filter.SchoolCode = string.IsNullOrEmpty(scope.SchoolCode) ? null : scope.SchoolCode;
+        filter.SchoolCodesCsv = scope.SchoolCodesCsv;
 
         var rows = await _canteenTransactionReportRepository.GetTransactionsAsync(filter, cancellationToken);
         if (rows.Count == 0)
@@ -420,6 +543,16 @@ public class ReportController : Controller
             return RedirectToAction(nameof(AdminTransaction));
         }
 
+        var scope = await ResolveCodeSchoolScopeAsync(filter.SchoolCode, cancellationToken);
+        if (!scope.Success)
+        {
+            TempData["ReportError"] = scope.Message;
+            return RedirectToAction(nameof(AdminTransaction));
+        }
+
+        filter.SchoolCode = string.IsNullOrEmpty(scope.SchoolCode) ? null : scope.SchoolCode;
+        filter.SchoolCodesCsv = scope.SchoolCodesCsv;
+
         var rows = await _adminTransactionReportRepository.GetTransactionsAsync(filter, cancellationToken);
         if (rows.Count == 0)
         {
@@ -446,6 +579,16 @@ public class ReportController : Controller
             return RedirectToAction(nameof(TerminalSalesSummary));
         }
 
+        var scope = await ResolveCodeSchoolScopeAsync(filter.SchoolCode, cancellationToken);
+        if (!scope.Success)
+        {
+            TempData["ReportError"] = scope.Message;
+            return RedirectToAction(nameof(TerminalSalesSummary));
+        }
+
+        filter.SchoolCode = string.IsNullOrEmpty(scope.SchoolCode) ? null : scope.SchoolCode;
+        filter.SchoolCodesCsv = scope.SchoolCodesCsv;
+
         var rows = await _terminalSalesSummaryReportRepository.GetSummaryAsync(filter, cancellationToken);
         if (rows.Count == 0)
         {
@@ -466,6 +609,16 @@ public class ReportController : Controller
         [FromForm] MealOrderReportFilter filter,
         CancellationToken cancellationToken)
     {
+        var scope = ResolveIdSchoolScope(filter.SchoolId);
+        if (!scope.Success)
+        {
+            TempData["ReportError"] = scope.Message;
+            return RedirectToAction(nameof(MealOrders));
+        }
+
+        filter.SchoolId = string.IsNullOrEmpty(scope.SchoolId) ? null : scope.SchoolId;
+        filter.SchoolIdsCsv = scope.SchoolIdsCsv;
+
         var rows = await _mealOrderReportRepository.GetOrdersAsync(filter, cancellationToken);
         if (rows.Count == 0)
         {
@@ -473,7 +626,7 @@ public class ReportController : Controller
             return RedirectToAction(nameof(MealOrders));
         }
 
-        var fileBytes = MealOrderExcelExporter.Export(rows);
+        var fileBytes = MealOrderExcelExporter.ExportOld(rows);
         return File(
             fileBytes,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -486,6 +639,16 @@ public class ReportController : Controller
         [FromForm] MealOrderReportFilter filter,
         CancellationToken cancellationToken)
     {
+        var scope = ResolveIdSchoolScope(filter.SchoolId);
+        if (!scope.Success)
+        {
+            TempData["ReportError"] = scope.Message;
+            return RedirectToAction(nameof(MealOrdersMealDb));
+        }
+
+        filter.SchoolId = string.IsNullOrEmpty(scope.SchoolId) ? null : scope.SchoolId;
+        filter.SchoolIdsCsv = scope.SchoolIdsCsv;
+
         var rows = await _mealOrderMealDbReportRepository.GetOrdersAsync(filter, cancellationToken);
         if (rows.Count == 0)
         {
@@ -493,7 +656,7 @@ public class ReportController : Controller
             return RedirectToAction(nameof(MealOrdersMealDb));
         }
 
-        var fileBytes = MealOrderExcelExporter.Export(rows);
+        var fileBytes = MealOrderExcelExporter.ExportNew(rows);
         return File(
             fileBytes,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -506,7 +669,17 @@ public class ReportController : Controller
         [FromForm] MealOrderPaymentReportFilter filter,
         CancellationToken cancellationToken)
     {
+        var codeScope = await ResolveAdminSchoolParamsFromIdQueryAsync(filter.SchoolId, cancellationToken);
+        if (!codeScope.Success)
+        {
+            TempData["ReportError"] = codeScope.Message;
+            return RedirectToAction(nameof(MealOrderPayments));
+        }
+
         var adminFilter = MealOrderPaymentAdminTransactionMapper.ToAdminFilter(filter);
+        adminFilter.SchoolCode = string.IsNullOrEmpty(codeScope.SchoolCode) ? null : codeScope.SchoolCode;
+        adminFilter.SchoolCodesCsv = codeScope.SchoolCodesCsv;
+
         var transactionRows = await _adminTransactionReportRepository.GetTransactionsAsync(
             adminFilter,
             cancellationToken);
@@ -531,6 +704,16 @@ public class ReportController : Controller
         [FromForm] MealOrderPaymentReportFilter filter,
         CancellationToken cancellationToken)
     {
+        var scope = ResolveIdSchoolScope(filter.SchoolId);
+        if (!scope.Success)
+        {
+            TempData["ReportError"] = scope.Message;
+            return RedirectToAction(nameof(MealOrderPaymentsMealDb));
+        }
+
+        filter.SchoolId = string.IsNullOrEmpty(scope.SchoolId) ? null : scope.SchoolId;
+        filter.SchoolIdsCsv = scope.SchoolIdsCsv;
+
         var rows = await _mealOrderPaymentMealDbReportRepository.GetOrdersAsync(filter, cancellationToken);
         if (rows.Count == 0)
         {
@@ -567,29 +750,54 @@ public class ReportController : Controller
         return await _schoolScope.FilterSchoolCodesAsync(schools, cancellationToken);
     }
 
-    private async Task<bool> ValidateCodeSchoolScopeAsync(string? schoolCode, CancellationToken cancellationToken)
+    private async Task<(bool Success, string? Message, string SchoolCode, string SchoolCodesCsv)> ResolveCodeSchoolScopeAsync(
+        string? schoolCode,
+        CancellationToken cancellationToken)
     {
         try
         {
-            await _schoolScope.EnsureReportSchoolCodeInScopeAsync(schoolCode, cancellationToken);
-            return true;
+            var codes = await _schoolScope.ResolveSchoolCodesForQueryAsync(schoolCode, cancellationToken);
+            return (
+                true,
+                null,
+                codes.Count == 1 ? codes[0] : string.Empty,
+                string.Join(",", codes));
         }
         catch (UnauthorizedAccessException)
         {
-            return false;
+            return (false, "You do not have access to this school.", string.Empty, string.Empty);
         }
     }
 
-    private bool ValidateIdSchoolScope(string? schoolId)
+    private async Task<(bool Success, string? Message, string SchoolCode, string SchoolCodesCsv)> ResolveAdminSchoolParamsFromIdQueryAsync(
+        string? schoolId,
+        CancellationToken cancellationToken)
     {
         try
         {
-            _schoolScope.EnsureReportSchoolIdInScope(schoolId);
-            return true;
+            var result = await _schoolScope.ResolveAdminSchoolParamsFromIdQueryAsync(schoolId, cancellationToken);
+            return (true, null, result.SchoolCode, result.SchoolCodesCsv);
         }
         catch (UnauthorizedAccessException)
         {
-            return false;
+            return (false, "You do not have access to this school.", string.Empty, string.Empty);
+        }
+    }
+
+    private (bool Success, string? Message, string SchoolId, string SchoolIdsCsv) ResolveIdSchoolScope(string? schoolId)
+    {
+        try
+        {
+            var ids = _schoolScope.ResolveSchoolIdsForQuery(schoolId);
+            return (
+                true,
+                null,
+                ids.Count == 1 ? ids[0].ToString() : string.Empty,
+                string.Join(",", ids));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return (false, "You do not have access to this school.", string.Empty, string.Empty);
         }
     }
 }

@@ -94,7 +94,25 @@ public sealed class MealItemAdminRepository : IMealItemAdminRepository
 
         var baseFilterSql = BaseFilterSql;
         var parameters = new DynamicParameters();
-        if (request.SchoolId is > 0)
+        if (request.ScopedSchoolIds is { Count: > 0 })
+        {
+            baseFilterSql += """
+                 AND (
+                     EXISTS (
+                         SELECT 1
+                         FROM MealItemSchools mis
+                         WHERE mis.MealItemId = mi.Id
+                           AND mis.SchoolId IN @ScopedSchoolIds
+                     )
+                     OR (
+                         NOT EXISTS (SELECT 1 FROM MealItemSchools mis2 WHERE mis2.MealItemId = mi.Id)
+                         AND mi.SchoolId IN @ScopedSchoolIds
+                     )
+                 )
+                """;
+            parameters.Add("ScopedSchoolIds", request.ScopedSchoolIds);
+        }
+        else if (request.SchoolId is > 0)
         {
             baseFilterSql += """
                  AND (

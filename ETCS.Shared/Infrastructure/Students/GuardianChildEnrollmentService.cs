@@ -1,9 +1,11 @@
-using System.Data.Common;
-using System.Globalization;
 using Dapper;
+using DocumentFormat.OpenXml.Spreadsheet;
 using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
 using ETCS.Shared.Infrastructure.Admin.Master.Students;
+using ETCS.Shared.Infrastructure.Admin.Models;
 using ETCS.Shared.Infrastructure.Data;
+using System.Data.Common;
+using System.Globalization;
 
 namespace ETCS.Shared.Infrastructure.Students;
 
@@ -119,8 +121,17 @@ public sealed class GuardianChildEnrollmentService : IGuardianChildEnrollmentSer
             return GuardianChildOperationResult.Fail(validated.Message);
         }
 
+        using var connection = _connectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+
         var context = validated.Context;
         var upsert = BuildUpsertRequest(guardianId, context, includePassword: true);
+
+        #region Student Code Duplication Check
+        if (await StudentCardNumber.IsTakenAsync(dbConnection, upsert.StudCode, excludeUserId: null, cancellationToken))
+            return GuardianChildOperationResult.Fail(StudentCardNumber.DuplicateMessage);
+        #endregion
 
         try
         {
@@ -314,25 +325,6 @@ public sealed class GuardianChildEnrollmentService : IGuardianChildEnrollmentSer
             return (false, "Parent was not found.", null);
         }
 
-        // On edit, keeping the same card must never fail uniqueness (legacy DBs can have
-        // duplicate CustomerId/StudCode rows that make UserId <> checks unreliable).
-        var cardUnchanged = existingUserId.HasValue &&
-            !string.IsNullOrWhiteSpace(existingCardNo) &&
-            string.Equals(cardNo, existingCardNo.Trim(), StringComparison.OrdinalIgnoreCase);
-
-        if (!cardUnchanged
-            && await StudentCardNumber.IsTakenAsync(dbConnection, cardNo, existingUserId, cancellationToken))
-        {
-            return (false, StudentCardNumber.DuplicateMessage, null);
-        }
-
-        var grades = await _studentRepository.GetAllGradesAsync(cancellationToken);
-        var grade = grades.FirstOrDefault(g => g.Id == request.GradeId);
-        if (grade is null)
-        {
-            return (false, "Selected class / grade was not found.", null);
-        }
-
         var school = await dbConnection.QuerySingleOrDefaultAsync<SchoolRow>(
             new CommandDefinition(
                 """
@@ -350,9 +342,34 @@ public sealed class GuardianChildEnrollmentService : IGuardianChildEnrollmentSer
             return (false, "Selected school was not found.", null);
         }
 
+        #region School Code Validation
+        var cardError = request.UserId > 0
+            ? StudentCardNumber.ValidateForEdit(request.StudentCardNo, out var studCode)
+            : StudentCardNumber.ResolveForCreate(request.StudentCardNo, school.SchoolCode, out studCode);
+        if (cardError is not null)
+            return (false, cardError, null);
+        #endregion
+
+        var cardUnchanged = existingUserId.HasValue &&
+            !string.IsNullOrWhiteSpace(existingCardNo) &&
+            string.Equals(studCode, existingCardNo.Trim(), StringComparison.OrdinalIgnoreCase);
+
+        if (!cardUnchanged
+            && await StudentCardNumber.IsTakenAsync(dbConnection, studCode, existingUserId, cancellationToken))
+        {
+            return (false, StudentCardNumber.DuplicateMessage, null);
+        }
+
+        var grades = await _studentRepository.GetAllGradesAsync(cancellationToken);
+        var grade = grades.FirstOrDefault(g => g.Id == request.GradeId);
+        if (grade is null)
+        {
+            return (false, "Selected class / grade was not found.", null);
+        }
+
         var gender = string.IsNullOrWhiteSpace(request.Gender) ? "Male" : request.Gender.Trim();
         return (true, string.Empty, new UpsertContext(
-            cardNo,
+            studCode,
             request.FirstName.Trim(),
             request.LastName?.Trim() ?? string.Empty,
             request.Division.Trim(),

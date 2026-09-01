@@ -120,6 +120,7 @@ public sealed class CanteenTransactionReportRepository : ICanteenTransactionRepo
             StartDate = request.StartDate!.Value.Date,
             EndDate = request.EndDate!.Value.Date,
             SchoolCode = request.SchoolCode,
+            SchoolCodesCsv = request.SchoolCodesCsv,
             Branch = request.Branch,
             TransactionType = request.TransactionType,
             StudentCardNo = request.StudentCardNo
@@ -142,6 +143,7 @@ public sealed class CanteenTransactionReportRepository : ICanteenTransactionRepo
         parameters.Add("transaciontype", filter.TransactionType?.Trim() ?? string.Empty);
         parameters.Add("customerid", filter.StudentCardNo?.Trim() ?? string.Empty);
         parameters.Add("SchoolId", filter.SchoolCode?.Trim() ?? string.Empty);
+        parameters.Add("SchoolCodesCsv", filter.SchoolCodesCsv?.Trim() ?? string.Empty);
         parameters.Add("branch", filter.Branch?.Trim() ?? string.Empty);
         parameters.Add("Start", start);
         parameters.Add("Length", length);

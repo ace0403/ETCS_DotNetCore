@@ -8,6 +8,7 @@ using ETCS.Shared.Infrastructure.Data;
 using ETCS.Shared.Infrastructure.Students;
 
 using static ETCS.Shared.Infrastructure.Admin.DataTablePagingHelper;
+using static ETCS.Shared.Infrastructure.Admin.SchoolScopeFilterHelper;
 
 namespace ETCS.Shared.Infrastructure.Admin.Master.Students;
 
@@ -110,19 +111,18 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
 
-        string? baseFilterSql = request.SchoolId is > 0 ? "sl.StudSchoolId = @SchoolId" : null;
-        object? extraParameters = request.SchoolId is > 0 ? new { SchoolId = request.SchoolId.Value } : null;
+        var (schoolFilterSql, schoolFilterParams) = BuildSchoolIdFilter(request, "sl.StudSchoolId");
 
         return await QueryPagedAsync<StudentAdminListItemDto>(
             dbConnection,
             SelectSql,
             FromSql,
-            baseFilterSql,
+            schoolFilterSql,
             SearchFilterSql,
             SortColumns,
             "sl.UserId",
             request,
-            extraParameters,
+            schoolFilterParams,
             cancellationToken: cancellationToken,
             defaultSortDirection: "DESC");
     }
@@ -262,101 +262,127 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
             var oldCustomerId = linkedStudent.CustomerId;
             var blackList = request.IsActive ? 0 : 1;
 
-            const string updateSql = """
-                UPDATE StudentLogin
-                SET StudCode = @StudCode,
-                    StudUserName = @StudCode,
-                    CustomerId = @StudCode,
-                    StudFirstName = @FirstName,
-                    StudLastName = @LastName,
-                    StudSchoolId = @SchoolId,
-                    GrdID = NULLIF(@GuardianId, 0),
-                    StudGender = @Gender,
-                    StudStd = @StudStd,
-                    StudDiv = @Division,
-                    StudDateOfBirth = @DateOfBirth,
-                    DailyLimit = @DailySpendLimit,
-                    WeeklyLimit = @WeeklySpendLimit,
-                    IsUnsubscribeLowBalNoti = @IsUnsubscribeLowBalNoti,
-                    BlackList = @BlackList
-                WHERE UserId = @UserId;
-                """;
-            var rows = await dbConnection.ExecuteAsync(
-                new CommandDefinition(
-                    updateSql,
-                    new
-                    {
-                        request.UserId,
-                        StudCode = studCode,
-                        request.FirstName,
-                        LastName = request.LastName ?? string.Empty,
-                        request.SchoolId,
-                        request.GuardianId,
-                        Gender = request.Gender.Trim(),
-                        StudStd = grade.Grade,
-                        request.Division,
-                        request.DateOfBirth,
-                        DailySpendLimit = request.DailySpendLimit ?? 0m,
-                        WeeklySpendLimit = request.WeeklySpendLimit ?? 0m,
-                        IsUnsubscribeLowBalNoti = !request.LowBalanceEmailNotification,
-                        BlackList = blackList
-                    },
-                    cancellationToken: cancellationToken));
-
-            if (rows <= 0)
-                return AdminOperationResult.Fail("Student was not updated.");
-
-            if (request.GuardianId > 0)
+            await using var transaction = await dbConnection.BeginTransactionAsync(cancellationToken);
+            try
             {
-                var newCustomerId = await dbConnection.ExecuteScalarAsync<string>(
+                const string updateSql = """
+                    UPDATE StudentLogin
+                    SET StudCode = @StudCode,
+                        StudUserName = @StudCode,
+                        CustomerId = @StudCode,
+                        StudFirstName = @FirstName,
+                        StudLastName = @LastName,
+                        StudSchoolId = @SchoolId,
+                        GrdID = NULLIF(@GuardianId, 0),
+                        StudGender = @Gender,
+                        StudStd = @StudStd,
+                        StudDiv = @Division,
+                        StudDateOfBirth = @DateOfBirth,
+                        DailyLimit = @DailySpendLimit,
+                        WeeklyLimit = @WeeklySpendLimit,
+                        IsUnsubscribeLowBalNoti = @IsUnsubscribeLowBalNoti,
+                        BlackList = @BlackList
+                    WHERE UserId = @UserId;
+                    """;
+                var rows = await dbConnection.ExecuteAsync(
                     new CommandDefinition(
-                        "SELECT TOP (1) CustomerId FROM StudentLogin WHERE UserId = @UserId;",
-                        new { request.UserId },
+                        updateSql,
+                        new
+                        {
+                            request.UserId,
+                            StudCode = studCode,
+                            request.FirstName,
+                            LastName = request.LastName ?? string.Empty,
+                            request.SchoolId,
+                            request.GuardianId,
+                            Gender = request.Gender.Trim(),
+                            StudStd = grade.Grade,
+                            request.Division,
+                            request.DateOfBirth,
+                            DailySpendLimit = request.DailySpendLimit ?? 0m,
+                            WeeklySpendLimit = request.WeeklySpendLimit ?? 0m,
+                            IsUnsubscribeLowBalNoti = !request.LowBalanceEmailNotification,
+                            BlackList = blackList
+                        },
+                        transaction: transaction,
                         cancellationToken: cancellationToken));
 
-                if (!string.IsNullOrWhiteSpace(newCustomerId))
+                if (rows <= 0)
                 {
-                    await dbConnection.ExecuteAsync(
+                    await transaction.RollbackAsync(cancellationToken);
+                    return AdminOperationResult.Fail("Student was not updated.");
+                }
+
+                await StudentIdMemberCustomerIdSync.UpdateCustomerIdAsync(
+                    dbConnection,
+                    oldCustomerId,
+                    studCode,
+                    cancellationToken,
+                    transaction);
+
+                if (request.GuardianId > 0)
+                {
+                    var newCustomerId = await dbConnection.ExecuteScalarAsync<string>(
                         new CommandDefinition(
-                            """
-                            UPDATE GuardianMaster
-                            SET StudentCardNo = @NewCustomerId
-                            WHERE GrdID = @GuardianId
-                              AND StudentCardNo = @OldCustomerId;
-                            """,
-                            new
-                            {
-                                request.GuardianId,
-                                OldCustomerId = oldCustomerId,
-                                NewCustomerId = newCustomerId
-                            },
+                            "SELECT TOP (1) CustomerId FROM StudentLogin WHERE UserId = @UserId;",
+                            new { request.UserId },
+                            transaction: transaction,
                             cancellationToken: cancellationToken));
 
-                    var mappingExists = await dbConnection.ExecuteScalarAsync<int?>(
-                        new CommandDefinition(
-                            """
-                            SELECT TOP (1) CAST(gm.ID AS int)
-                            FROM GuardianMaster gm
-                            INNER JOIN StudentLogin sl ON sl.CustomerId = gm.StudentCardNo
-                            WHERE gm.GrdID = @GuardianId
-                              AND sl.UserId = @UserId;
-                            """,
-                            new { request.GuardianId, request.UserId },
-                            cancellationToken: cancellationToken));
-                    if (!mappingExists.HasValue)
+                    if (!string.IsNullOrWhiteSpace(newCustomerId))
                     {
                         await dbConnection.ExecuteAsync(
                             new CommandDefinition(
                                 """
-                                INSERT INTO GuardianMaster (GrdID, StudentCardNo)
-                                SELECT @GuardianId, sl.CustomerId
-                                FROM StudentLogin sl
-                                WHERE sl.UserId = @UserId;
+                                UPDATE GuardianMaster
+                                SET StudentCardNo = @NewCustomerId
+                                WHERE GrdID = @GuardianId
+                                  AND StudentCardNo = @OldCustomerId;
+                                """,
+                                new
+                                {
+                                    request.GuardianId,
+                                    OldCustomerId = oldCustomerId,
+                                    NewCustomerId = newCustomerId
+                                },
+                                transaction: transaction,
+                                cancellationToken: cancellationToken));
+
+                        var mappingExists = await dbConnection.ExecuteScalarAsync<int?>(
+                            new CommandDefinition(
+                                """
+                                SELECT TOP (1) CAST(gm.ID AS int)
+                                FROM GuardianMaster gm
+                                INNER JOIN StudentLogin sl ON sl.CustomerId = gm.StudentCardNo
+                                WHERE gm.GrdID = @GuardianId
+                                  AND sl.UserId = @UserId;
                                 """,
                                 new { request.GuardianId, request.UserId },
+                                transaction: transaction,
                                 cancellationToken: cancellationToken));
+                        if (!mappingExists.HasValue)
+                        {
+                            await dbConnection.ExecuteAsync(
+                                new CommandDefinition(
+                                    """
+                                    INSERT INTO GuardianMaster (GrdID, StudentCardNo)
+                                    SELECT @GuardianId, sl.CustomerId
+                                    FROM StudentLogin sl
+                                    WHERE sl.UserId = @UserId;
+                                    """,
+                                    new { request.GuardianId, request.UserId },
+                                    transaction: transaction,
+                                    cancellationToken: cancellationToken));
+                        }
                     }
                 }
+
+                await transaction.CommitAsync(cancellationToken);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
             }
 
             await _allergyRepository.SaveAllergiesAsync(request.UserId, request.AllergyItemIds ?? [], cancellationToken);

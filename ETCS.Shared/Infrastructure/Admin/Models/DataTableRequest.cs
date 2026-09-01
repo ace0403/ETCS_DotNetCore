@@ -8,6 +8,7 @@ public sealed class DataTableRequest
     public int Start { get; set; }
     public int Length { get; set; } = DefaultPageSize;
     public int? SchoolId { get; set; }
+    public List<int>? ScopedSchoolIds { get; set; }
     public int? OrderTypeId { get; set; }
     public DataTableSearchParam? Search { get; set; }
     public List<DataTableOrderParam>? Order { get; set; }

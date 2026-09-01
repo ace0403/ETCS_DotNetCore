@@ -18,6 +18,8 @@ public interface IStudentRepository
 
     Task<int?> GetStudentSchoolIdAsync(int studentId, CancellationToken cancellationToken = default);
 
+    Task<int?> ResolveStudentGradeIdAsync(int studentId, CancellationToken cancellationToken = default);
+
     Task<bool?> GetSchoolEmailAlertsEnabledAsync(int schoolId, CancellationToken cancellationToken = default);
 
     Task<decimal?> GetStudentMinimumTopupAsync(int studentId, CancellationToken cancellationToken = default);

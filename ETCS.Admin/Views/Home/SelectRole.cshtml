@@ -1,0 +1,174 @@
+@model ETCS.Shared.Infrastructure.Admin.Models.Requests.AdminSelectRoleRequest
+@functions {
+    private static string GetRoleIcon(string roleName)
+    {
+        if (roleName.Contains("admin", StringComparison.OrdinalIgnoreCase)
+            && !roleName.Contains("school", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ti-shield-lock";
+        }
+
+        if (roleName.Contains("school", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ti-school";
+        }
+
+        if (roleName.Contains("account", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ti-calculator";
+        }
+
+        if (roleName.Contains("terminal", StringComparison.OrdinalIgnoreCase)
+            || roleName.Contains("pos", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ti-device-desktop";
+        }
+
+        return "ti-user-circle";
+    }
+
+    private static string GetRoleDescription(string roleName)
+    {
+        if (roleName.Contains("admin", StringComparison.OrdinalIgnoreCase)
+            && !roleName.Contains("school", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Full system access and configuration.";
+        }
+
+        if (roleName.Contains("school", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Manage students, meals, and school operations.";
+        }
+
+        if (roleName.Contains("account", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Finance, transactions, and reporting tools.";
+        }
+
+        if (roleName.Contains("terminal", StringComparison.OrdinalIgnoreCase)
+            || roleName.Contains("pos", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Point-of-sale and counter operations.";
+        }
+
+        return "Access modules assigned to this role.";
+    }
+}
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Select Role - ETCS Admin</title>
+    <link rel="icon" href="~/favicon.ico" type="image/svg+xml" />
+    <link rel="stylesheet" href="~/fonts/inter/inter.css" />
+    <link rel="stylesheet" href="~/fonts/tabler-icons.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/custom/dev-style.css" />
+    <link rel="stylesheet" href="~/css/custom/portal-theme.css" asp-append-version="true" />
+</head>
+<body class="login-page">
+    <div class="login-shell">
+        <section class="login-hero" aria-label="ETCS Admin Portal highlights">
+            <div class="login-hero-bg" aria-hidden="true"></div>
+            <div class="login-features" role="list">
+                <article class="login-feature-card" role="listitem">
+                    <span class="login-feature-icon" aria-hidden="true">
+                        <i class="ti ti-shield-lock"></i>
+                    </span>
+                    <div class="login-feature-body">
+                        <h3 class="login-feature-title">Focused access</h3>
+                        <p class="login-feature-text">Menus and permissions follow the role you select.</p>
+                    </div>
+                </article>
+                <article class="login-feature-card" role="listitem">
+                    <span class="login-feature-icon" aria-hidden="true">
+                        <i class="ti ti-switch-horizontal"></i>
+                    </span>
+                    <div class="login-feature-body">
+                        <h3 class="login-feature-title">One account</h3>
+                        <p class="login-feature-text">Switch roles by signing out and back in if needed.</p>
+                    </div>
+                </article>
+                <article class="login-feature-card" role="listitem">
+                    <span class="login-feature-icon" aria-hidden="true">
+                        <i class="ti ti-lock"></i>
+                    </span>
+                    <div class="login-feature-body">
+                        <h3 class="login-feature-title">Secure session</h3>
+                        <p class="login-feature-text">Your session stays active for up to 8 hours.</p>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section class="login-panel">
+            <div class="login-card role-select-card">
+                <div class="login-card-header text-center">
+                    <img src="~/images/logo.png" alt="ETCS" class="login-card-logo" />
+                    <h2 class="login-card-title">Select your role</h2>
+                    <p class="login-card-subtitle mb-0">Signed in as <strong>@Model.Username</strong></p>
+                </div>
+
+                <form asp-action="SelectRole" method="post" class="role-select-form mt-4">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="Username" />
+
+                    <div class="role-select-list" role="radiogroup" aria-label="Available roles">
+                        @{
+                            var defaultRoleId = Model.Roles.FirstOrDefault(role => role.IsDefault)?.RoleId
+                                ?? Model.Roles.FirstOrDefault()?.RoleId
+                                ?? 0;
+                        }
+                        @foreach (var role in Model.Roles)
+                        {
+                            var isSelected = role.RoleId == defaultRoleId;
+                            <label class="role-select-option@(isSelected ? " is-selected" : string.Empty)" for="role_@role.RoleId">
+                                <input class="role-select-input"
+                                       type="radio"
+                                       name="RoleId"
+                                       id="role_@role.RoleId"
+                                       value="@role.RoleId"
+                                       checked="@isSelected" />
+                                <span class="role-select-icon" aria-hidden="true">
+                                    <i class="ti @GetRoleIcon(role.RoleName)"></i>
+                                </span>
+                                <span class="role-select-body">
+                                    <span class="role-select-name">@role.RoleName</span>
+                                    <span class="role-select-description">@GetRoleDescription(role.RoleName)</span>
+                                </span>
+                                <span class="role-select-check" aria-hidden="true">
+                                    <i class="ti ti-check"></i>
+                                </span>
+                            </label>
+                        }
+                    </div>
+
+                    <span asp-validation-for="RoleId" class="text-danger small d-block mt-2"></span>
+
+                    <button type="submit" class="btn btn-primary login-submit w-100 mt-4">
+                        <span>Continue to dashboard</span>
+                        <i class="ti ti-arrow-right ms-1"></i>
+                    </button>
+                </form>
+
+                <p class="login-footer text-center mb-0 mt-3">&copy; @DateTime.Now.Year ETCS. All rights reserved.</p>
+            </div>
+        </section>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js"></script>
+    <script>
+        $(function () {
+            $('.role-select-option').on('click', function () {
+                $('.role-select-option').removeClass('is-selected');
+                $(this).addClass('is-selected');
+                $(this).find('.role-select-input').prop('checked', true);
+            });
+        });
+    </script>
+</body>
+</html>

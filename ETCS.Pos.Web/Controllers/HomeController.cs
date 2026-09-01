@@ -52,9 +52,23 @@ public sealed class HomeController : Controller
             return RedirectToAction(nameof(Index), new { msg = "login-failed" });
         }
 
-        if (!string.Equals(account.RoleName, PosClaimTypes.RequiredRoleName, StringComparison.OrdinalIgnoreCase))
+        var posRole = account.AvailableRoles.FirstOrDefault(role =>
+            string.Equals(role.RoleName, PosClaimTypes.RequiredRoleName, StringComparison.OrdinalIgnoreCase));
+        if (posRole is null)
         {
             return RedirectToAction(nameof(Index), new { msg = "unauthorized-role" });
+        }
+
+        if (account.ActiveRoleId != posRole.RoleId)
+        {
+            account = await _loginRepository.GetByLoginNameForRoleAsync(
+                model.Username,
+                posRole.RoleId,
+                cancellationToken);
+            if (account is null)
+            {
+                return RedirectToAction(nameof(Index), new { msg = "unauthorized-role" });
+            }
         }
 
         var principal = PosClaimsFactory.CreatePrincipal(account);

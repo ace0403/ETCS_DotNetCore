@@ -47,6 +47,8 @@ public sealed class SchoolSaveRequest
     [Display(Name = "Order Types")]
     public List<int>? OrderTypeIds { get; set; }
 
+    public List<SchoolGradeOrderTypeConfigDto> GradeOrderTypeConfigs { get; set; } = [];
+
     public string? LogoFileName { get; set; }
     public string? PdfPath { get; set; }
 }

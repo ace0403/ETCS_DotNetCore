@@ -16,6 +16,42 @@ function initSchoolMultiSelect(id) {
 
 function initSchoolMultiSelects() {
     initSchoolMultiSelect('OrderTypeIds');
+    $('#gradeOrderTypeTable .grade-order-types').each(function () {
+        initSchoolMultiSelect(this.id);
+    });
+}
+
+function bindGradeOrderTypeToggles() {
+    $('#gradeOrderTypeTable').off('change.gradeNoService').on('change.gradeNoService', '.grade-no-service', function () {
+        var $row = $(this).closest('tr');
+        var $select = $row.find('.grade-order-types');
+        if (this.checked) {
+            $select.prop('disabled', true).val([]).trigger('change');
+        } else {
+            $select.prop('disabled', false);
+        }
+    });
+}
+
+function appendGradeOrderTypeConfigs(formData, $form) {
+    var configIndex = 0;
+    $('#gradeOrderTypeTable .grade-order-type-row').each(function () {
+        var $row = $(this);
+        var gradeId = parseInt($row.data('grade-id'), 10);
+        var isNoService = $row.find('.grade-no-service').is(':checked');
+        var orderTypeIds = isNoService ? [] : ($row.find('.grade-order-types').val() || []);
+
+        if (!isNoService && orderTypeIds.length === 0) {
+            return;
+        }
+
+        formData.append('GradeOrderTypeConfigs[' + configIndex + '].GradeId', gradeId);
+        formData.append('GradeOrderTypeConfigs[' + configIndex + '].IsNoService', isNoService ? 'true' : 'false');
+        orderTypeIds.forEach(function (orderTypeId) {
+            formData.append('GradeOrderTypeConfigs[' + configIndex + '].OrderTypeIds', orderTypeId);
+        });
+        configIndex++;
+    });
 }
 
 function loadData(id) {
@@ -23,6 +59,7 @@ function loadData(id) {
         $('#div_add').html(html);
         $('#addDataModal').modal('show');
         initSchoolMultiSelects();
+        bindGradeOrderTypeToggles();
         bindSave();
     });
 }
@@ -30,6 +67,11 @@ function loadData(id) {
 function bindSave() {
     bindAdminFormSave('#frmSchool', function ($form) {
         var formData = new FormData($form[0]);
+        formData.delete('GradeOrderTypeConfigs');
+        $form.find('[name^="GradeOrderTypeConfigs"]').each(function () {
+            formData.delete(this.name);
+        });
+        appendGradeOrderTypeConfigs(formData, $form);
         $.ajax({
             url: SiteUrl + 'school/save',
             type: 'POST',
@@ -54,4 +96,7 @@ function deleteData(id) {
     });
 }
 
-$(function () { bindSave(); });
+$(function () {
+    bindGradeOrderTypeToggles();
+    bindSave();
+});

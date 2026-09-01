@@ -7,6 +7,7 @@ public sealed class TerminalSalesSummaryReportFilter
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public string? SchoolCode { get; set; }
+    public string? SchoolCodesCsv { get; set; }
     public string? TerminalCode { get; set; }
     public string? TransactionType { get; set; }
 }
@@ -19,6 +20,7 @@ public sealed class TerminalSalesSummaryReportListRequest
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public string? SchoolCode { get; set; }
+    public string? SchoolCodesCsv { get; set; }
     public string? TerminalCode { get; set; }
     public string? TransactionType { get; set; }
 

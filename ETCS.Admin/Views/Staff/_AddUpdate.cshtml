@@ -5,6 +5,10 @@
     var countries = ViewBag.Countries as IReadOnlyList<ETCS.Shared.Infrastructure.Admin.Master.Staff.StaffCountryLookupDto> ?? Array.Empty<ETCS.Shared.Infrastructure.Admin.Master.Staff.StaffCountryLookupDto>();
     var schools = ViewBag.Schools as IReadOnlyList<ETCS.Shared.Infrastructure.Admin.Master.Staff.StaffSchoolLookupDto> ?? Array.Empty<ETCS.Shared.Infrastructure.Admin.Master.Staff.StaffSchoolLookupDto>();
     var dobValue = Model.DateOfBirth.HasValue ? Model.DateOfBirth.Value.ToString("yyyy-MM-dd") : "";
+    var selectedSchoolIds = Model.SchoolIds ?? [];
+    var selectedRoleId = Model.RoleId > 0
+        ? Model.RoleId
+        : (Model.DefaultRoleId ?? Model.RoleIds.FirstOrDefault());
 }
 <form id="frmStaff">
     <div class="modal-header">
@@ -14,7 +18,7 @@
     <div class="modal-body">
         <input type="hidden" asp-for="Id" />
         <input type="hidden" asp-for="IsNew" />
-        <input type="hidden" id="hdnSelectedSchoolId" value="@Model.SchoolId" />
+        <input type="hidden" id="hdnSelectedSchoolIds" value="@string.Join(",", selectedSchoolIds)" />
         <div class="row g-3">
             <div class="col-12 col-md-6">
                 <label asp-for="LoginName" class="form-label"></label>
@@ -62,24 +66,37 @@
                 </select>
                 <span asp-validation-for="CountryId" class="text-danger"></span>
             </div>
-            <div class="col-12 col-md-6">
-                <label asp-for="SchoolId" class="form-label"></label>
-                <select asp-for="SchoolId" id="ddlStaffSchool" class="form-select">
-                    <option value="">- Select -</option>
+            <div class="col-12 col-md-6 multiselect-custom">
+                <label asp-for="SchoolIds" class="form-label"></label>
+                <select asp-for="SchoolIds" id="ddlStaffSchool" class="form-select ignore-validation" multiple data-val="false">
                     @foreach (var school in schools)
                     {
-                        <option value="@school.Id">@school.Name</option>
+                        if (selectedSchoolIds.Contains(school.Id))
+                        {
+                            <option value="@school.Id" selected="selected">@school.Name</option>
+                        }
+                        else
+                        {
+                            <option value="@school.Id">@school.Name</option>
+                        }
                     }
                 </select>
-                <span asp-validation-for="SchoolId" class="text-danger"></span>
+                <span asp-validation-for="SchoolIds" class="text-danger"></span>
             </div>
             <div class="col-12 col-md-6">
                 <label asp-for="RoleId" class="form-label"></label>
-                <select asp-for="RoleId" class="form-select">
+                <select asp-for="RoleId" id="ddlStaffRole" class="form-select">
                     <option value="">- Select -</option>
                     @foreach (var role in roles)
                     {
-                        <option value="@role.Id">@role.Name</option>
+                        if (selectedRoleId == role.Id)
+                        {
+                            <option value="@role.Id" selected="selected">@role.Name</option>
+                        }
+                        else
+                        {
+                            <option value="@role.Id">@role.Name</option>
+                        }
                     }
                 </select>
                 <span asp-validation-for="RoleId" class="text-danger"></span>

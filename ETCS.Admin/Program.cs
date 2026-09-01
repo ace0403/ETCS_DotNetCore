@@ -46,6 +46,7 @@ builder.Services.AddSingleton<IDbConnectionFactory, SqlConnectionFactory>();
 builder.Services.AddSingleton<IMealDbConnectionFactory, SqlMealConnectionFactory>();
 
 builder.Services.AddScoped<IAdminLoginRepository, AdminLoginRepository>();
+builder.Services.AddScoped<IStaffLoginAssignmentRepository, StaffLoginAssignmentRepository>();
 builder.Services.AddScoped<IAdminPermissionRepository, AdminPermissionRepository>();
 builder.Services.AddScoped<IRoleAdminRepository, RoleAdminRepository>();
 builder.Services.AddHttpContextAccessor();
@@ -57,6 +58,7 @@ builder.Services.AddScoped<IStudentRepository, StudentRepository>();
 builder.Services.AddScoped<IStudentAllergyAdminRepository, StudentAllergyAdminRepository>();
 builder.Services.AddScoped<IStudentOrderTypeAdminRepository, StudentOrderTypeAdminRepository>();
 builder.Services.AddScoped<ISchoolOrderTypeAdminRepository, SchoolOrderTypeAdminRepository>();
+builder.Services.AddScoped<ISchoolGradeOrderTypeAdminRepository, SchoolGradeOrderTypeAdminRepository>();
 builder.Services.AddScoped<IMealItemOrderTypeAdminRepository, MealItemOrderTypeAdminRepository>();
 builder.Services.AddScoped<IMealItemSchoolAdminRepository, MealItemSchoolAdminRepository>();
 builder.Services.AddScoped<IGuardianAdminRepository, GuardianAdminRepository>();
@@ -94,6 +96,13 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
     });
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(10);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
 builder.Services.AddAuthorization();
 builder.Services.AddControllersWithViews(options =>
     {
@@ -136,6 +145,7 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.UseRouting();
+app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 

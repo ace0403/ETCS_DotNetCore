@@ -8,5 +8,6 @@ public static class AdminClaimTypes
     public const string SchoolScoped = "etcs:school_scoped";
     public const string SchoolId = "etcs:school_id";
     public const string SchoolIds = "etcs:school_ids";
+    public const string ActiveRoleId = "etcs:active_role_id";
     public const string AdminAuthTypeValue = "Admin";
 }

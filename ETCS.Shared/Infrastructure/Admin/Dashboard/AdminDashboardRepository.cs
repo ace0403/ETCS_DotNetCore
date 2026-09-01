@@ -29,7 +29,8 @@ public sealed class AdminDashboardRepository : IAdminDashboardRepository
                 {
                     StartDate = filter.StartDate.Date,
                     EndDate = filter.EndDate.Date,
-                    SchoolCode = filter.SchoolCode?.Trim() ?? string.Empty
+                    SchoolCode = filter.SchoolCode?.Trim() ?? string.Empty,
+                    SchoolCodesCsv = filter.SchoolCodesCsv?.Trim() ?? string.Empty
                 },
                 commandType: CommandType.StoredProcedure,
                 cancellationToken: cancellationToken));

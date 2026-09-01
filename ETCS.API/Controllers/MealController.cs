@@ -1,11 +1,13 @@
-using System.Diagnostics;
+using Asp.Versioning;
+using Azure.Core;
 using ETCS.API.Infrastructure.Caching;
 using ETCS.Shared.Infrastructure.Meals;
+using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Students;
-using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
+using System.Diagnostics;
 
 namespace ETCS.API.Controllers;
 
@@ -20,17 +22,20 @@ public sealed class MealController : ControllerBase
     private readonly IStudentRepository _studentRepository;
     private readonly IMemoryCache _cache;
     private readonly ILogger<MealController> _logger;
+    private readonly MealOrderBookingWindow _bookingWindow;
 
     public MealController(
         IMealRepository mealRepository,
         IStudentRepository studentRepository,
         IMemoryCache cache,
+        MealOrderBookingWindow bookingWindow,
         ILogger<MealController> logger)
     {
         _mealRepository = mealRepository;
         _studentRepository = studentRepository;
         _cache = cache;
         _logger = logger;
+        _bookingWindow = bookingWindow;
     }
 
     /// <summary>
@@ -59,6 +64,11 @@ public sealed class MealController : ControllerBase
         if (schoolId is null or <= 0)
         {
             return BadRequest(new { message = "Unable to resolve school for this student." });
+        }
+
+        if (!_bookingWindow.IsBookable(mealDate))
+        {
+            return BadRequest(new { message = "No items available for this date. The 3:00 PM cutoff has passed." });
         }
 
         var cacheKey = CachedMealRepository.BuildItemsCacheKey(studentId, schoolId.Value, mealDate, mealSessionId, mealTypeId);
@@ -119,6 +129,11 @@ public sealed class MealController : ControllerBase
         if (mealDate == default)
         {
             return BadRequest(new { message = "MealDate is required." });
+        }
+
+        if (!_bookingWindow.IsBookable(mealDate))
+        {
+            return BadRequest(new { message = "No items available for this date. The 3:00 PM cutoff has passed." });
         }
 
         var schoolId = await _studentRepository.GetStudentSchoolIdAsync(studentId, cancellationToken);

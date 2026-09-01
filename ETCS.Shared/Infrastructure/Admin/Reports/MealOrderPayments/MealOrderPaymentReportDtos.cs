@@ -10,9 +10,13 @@ public sealed class MealOrderPaymentReportFilter
 
     public string? SchoolId { get; set; }
 
+    public string? SchoolIdsCsv { get; set; }
+
     public int? MealSessionId { get; set; }
 
     public int? MealTypeId { get; set; }
+
+    public string? TransactionId { get; set; }
 }
 
 public sealed class MealOrderPaymentReportListRequest
@@ -29,9 +33,13 @@ public sealed class MealOrderPaymentReportListRequest
 
     public string? SchoolId { get; set; }
 
+    public string? SchoolIdsCsv { get; set; }
+
     public int? MealSessionId { get; set; }
 
     public int? MealTypeId { get; set; }
+
+    public string? TransactionId { get; set; }
 
     public int PageSize => Length <= 0 ? DataTableRequest.DefaultPageSize : Length;
 }
@@ -63,7 +71,7 @@ public sealed class MealOrderPaymentReportRowDto
     public string Items { get; init; } = string.Empty;
     public string SchoolName { get; init; } = string.Empty;
     public string Package { get; init; } = "PACKAGE UNKNOWN";
-    public string TransactionType { get; init; } = string.Empty;
+    public string TransactionType { get; init; } = "Meal Plan";
 }
 
 public sealed class MealOrderPaymentReportPagedResult

@@ -1,10 +1,8 @@
-@using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums
 @using ETCS.Shared.Infrastructure.Admin.Reports.MealOrderPayments
 @{
     ViewData["Title"] = "Meal Order Payment Report (NEW)";
     Layout = "~/Views/Shared/_Layout.cshtml";
     var schools = ViewBag.Schools as IReadOnlyList<MealOrderPaymentSchoolLookupDto> ?? Array.Empty<MealOrderPaymentSchoolLookupDto>();
-    var mealSessions = ViewBag.MealSessions as IReadOnlyList<MealEnumLookupDto> ?? Array.Empty<MealEnumLookupDto>();
     var startDate = ViewBag.MealOrderPaymentStartDate as string ?? DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd");
     var endDate = ViewBag.MealOrderPaymentEndDate as string ?? DateTime.Today.ToString("yyyy-MM-dd");
     var minDate = ViewBag.MealOrderPaymentMinDate as string;
@@ -27,31 +25,10 @@
                 <label for="txtEndDate" class="form-label">End date</label>
                 <input type="date" id="txtEndDate" class="form-control" value="@endDate" min="@minDate" />
             </div>
+            <partial name="_ScopedMealSchoolFilter" />
             <div class="col-12 col-md-6 col-lg-4">
-                <label for="ddlSchool" class="form-label">School</label>
-                <select id="ddlSchool" class="form-select canteen-branch-select" title="All Schools">
-                    <option value="">All Schools</option>
-                    @foreach (var school in schools)
-                    {
-                        <option value="@school.Id" title="@school.Name">@school.Name</option>
-                    }
-                </select>
-            </div>
-            <div class="col-12 col-md-6 col-lg-4">
-                <label for="ddlMealSession" class="form-label">Meal session</label>
-                <select id="ddlMealSession" class="form-select">
-                    <option value="">All Sessions</option>
-                    @foreach (var session in mealSessions)
-                    {
-                        <option value="@session.Id">@session.Name</option>
-                    }
-                </select>
-            </div>
-            <div class="col-12 col-md-6 col-lg-4">
-                <label for="ddlMealType" class="form-label">Meal type</label>
-                <select id="ddlMealType" class="form-select" disabled>
-                    <option value="">All Meal Types</option>
-                </select>
+                <label for="txtTransactionId" class="form-label">Transaction Id</label>
+                <input type="text" id="txtTransactionId" class="form-control" placeholder="Transaction Id" maxlength="100" />
             </div>
             <div class="col-12">
                 <button type="button" class="btn btn-primary" id="btnViewReport">
@@ -69,8 +46,7 @@
     <input type="hidden" name="StartDate" id="exportStartDate" />
     <input type="hidden" name="EndDate" id="exportEndDate" />
     <input type="hidden" name="SchoolId" id="exportSchoolId" />
-    <input type="hidden" name="MealSessionId" id="exportMealSessionId" />
-    <input type="hidden" name="MealTypeId" id="exportMealTypeId" />
+    <input type="hidden" name="TransactionId" id="exportTransactionId" />
 </form>
 
 <div id="mealOrderReportLoader" class="canteen-report-screen-loader d-none" aria-live="polite" aria-busy="true">
@@ -91,17 +67,15 @@
                     <thead>
                         <tr>
                             <th>S No</th>
-                            <th>Order Date</th>
+                            <th>Transaction Date</th>
                             <th>Student Card No.</th>
                             <th>Student Name</th>
                             <th>Grade</th>
-                            <th>Payment Status</th>
-                            <th>Meal Session</th>
                             <th>Transaction Id</th>
+                            <th>Transaction Type</th>
+                            <th>Package</th>
                             <th>Amount</th>
-                            <th>Meal Date</th>
-                            <th>Day</th>
-                            <th>Items</th>
+                            <th>School Name</th>
                         </tr>
                     </thead>
                 </table>

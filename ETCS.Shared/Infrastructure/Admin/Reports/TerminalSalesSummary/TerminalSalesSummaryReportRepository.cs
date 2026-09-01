@@ -159,6 +159,7 @@ public sealed class TerminalSalesSummaryReportRepository : ITerminalSalesSummary
             EndDate = request.EndDate!.Value.Date,
 
             SchoolCode = request.SchoolCode,
+            SchoolCodesCsv = request.SchoolCodesCsv,
 
             TerminalCode = request.TerminalCode,
 
@@ -201,6 +202,7 @@ public sealed class TerminalSalesSummaryReportRepository : ITerminalSalesSummary
         parameters.Add("TransectionType", NormalizeTransactionType(filter.TransactionType));
 
         parameters.Add("SchoolCode", filter.SchoolCode?.Trim() ?? string.Empty);
+        parameters.Add("SchoolCodesCsv", filter.SchoolCodesCsv?.Trim() ?? string.Empty);
 
         parameters.Add("TerminalCode", filter.TerminalCode?.Trim() ?? string.Empty);
 

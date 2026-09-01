@@ -48,13 +48,10 @@ public class DashboardController : Controller
             return Json(new { Success = false, Message = "Start date should be less than End date." });
         }
 
-        try
+        var scope = await ResolveCodeSchoolScopeAsync(schoolCode, cancellationToken);
+        if (!scope.Success)
         {
-            await _schoolScope.EnsureReportSchoolCodeInScopeAsync(schoolCode, cancellationToken);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return Json(new { Success = false, Message = "You do not have access to this school." });
+            return Json(new { Success = false, Message = scope.Message });
         }
 
         var overview = await _dashboardRepository.GetOverviewAsync(
@@ -62,7 +59,8 @@ public class DashboardController : Controller
             {
                 StartDate = startDate.Value.Date,
                 EndDate = endDate.Value.Date,
-                SchoolCode = schoolCode
+                SchoolCode = scope.SchoolCode,
+                SchoolCodesCsv = scope.SchoolCodesCsv
             },
             cancellationToken);
 
@@ -75,5 +73,24 @@ public class DashboardController : Controller
             overview.TopTerminals,
             overview.RecentTransactions
         });
+    }
+
+    private async Task<(bool Success, string? Message, string SchoolCode, string SchoolCodesCsv)> ResolveCodeSchoolScopeAsync(
+        string? schoolCode,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var codes = await _schoolScope.ResolveSchoolCodesForQueryAsync(schoolCode, cancellationToken);
+            return (
+                true,
+                null,
+                codes.Count == 1 ? codes[0] : string.Empty,
+                string.Join(",", codes));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return (false, "You do not have access to this school.", string.Empty, string.Empty);
+        }
     }
 }

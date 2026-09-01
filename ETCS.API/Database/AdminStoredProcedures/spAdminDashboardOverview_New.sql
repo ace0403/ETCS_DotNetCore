@@ -1,19 +1,9 @@
 /*
-Deploy on ibonus database.
+Deploy on ibonus. Admin dashboard overview.
 
-Admin operations dashboard overview.
-Does NOT call legacy procedures.
-
-Parameters:
-  @StartDate, @EndDate = inclusive date range (terminal time)
-  @SchoolCode           = Schoolcode filter; empty = all schools
-
-Result sets:
-  1 Summary (current + prior period totals for trend)
-  2 DailySeries
-  3 TypeBreakdown
-  4 TopTerminals
-  5 RecentTransactions
+School scope:
+  @SchoolCodesCsv / @SchoolIdsCsv = comma-separated filters for scoped multi-school users.
+  Empty CSV + empty single-school param = all schools (unrestricted admin only).
 */
 SET ANSI_NULLS ON;
 GO
@@ -23,12 +13,14 @@ GO
 CREATE OR ALTER PROCEDURE [dbo].[spAdminDashboardOverview_New]
     @StartDate AS DATETIME,
     @EndDate AS DATETIME,
-    @SchoolCode AS VARCHAR(10) = ''
+    @SchoolCode AS VARCHAR(10) = '',
+    @SchoolCodesCsv AS VARCHAR(MAX) = ''
 AS
 BEGIN
     SET NOCOUNT ON;
 
     SET @SchoolCode = LTRIM(RTRIM(ISNULL(@SchoolCode, '')));
+    SET @SchoolCodesCsv = LTRIM(RTRIM(ISNULL(@SchoolCodesCsv, '')));
 
     DECLARE @RangeStart DATETIME = CAST(CAST(@StartDate AS DATE) AS DATETIME);
     DECLARE @RangeEndExclusive DATETIME = DATEADD(DAY, 1, CAST(CAST(@EndDate AS DATE) AS DATETIME));
@@ -102,7 +94,13 @@ BEGIN
         LEFT JOIN StudentLogin sl ON sl.CustomerID = a.CustomerID
     WHERE a.LogDateTimeTerminal >= @RangeStart
       AND a.LogDateTimeTerminal < @RangeEndExclusive
-      AND (@SchoolCode = '' OR a.BranchCode = TRY_CAST(@SchoolCode AS SMALLINT))
+      AND (
+            (@SchoolCodesCsv <> '' AND EXISTS (
+                SELECT 1 FROM dbo.fnSplitCsv(@SchoolCodesCsv) sc
+                WHERE a.BranchCode = TRY_CAST(sc.value AS SMALLINT)
+            ))
+            OR (@SchoolCodesCsv = '' AND (@SchoolCode = '' OR a.BranchCode = TRY_CAST(@SchoolCode AS SMALLINT)))
+          )
       AND (
             a.TransactionType IN (21002, 21004, 21006, 21007, 10001, 9001)
             OR (a.TransactionType = 1004 AND a.CustomerID IN ('204', '205', '206', '207', '208'))
@@ -138,7 +136,13 @@ BEGIN
     FROM AccessLog a
     WHERE a.LogDateTimeTerminal >= @PriorStart
       AND a.LogDateTimeTerminal < @PriorEndExclusive
-      AND (@SchoolCode = '' OR a.BranchCode = TRY_CAST(@SchoolCode AS SMALLINT))
+      AND (
+            (@SchoolCodesCsv <> '' AND EXISTS (
+                SELECT 1 FROM dbo.fnSplitCsv(@SchoolCodesCsv) sc
+                WHERE a.BranchCode = TRY_CAST(sc.value AS SMALLINT)
+            ))
+            OR (@SchoolCodesCsv = '' AND (@SchoolCode = '' OR a.BranchCode = TRY_CAST(@SchoolCode AS SMALLINT)))
+          )
       AND (
             a.TransactionType IN (21002, 21004, 21006, 21007, 10001, 9001)
             OR (a.TransactionType = 1004 AND a.CustomerID IN ('204', '205', '206', '207', '208'))

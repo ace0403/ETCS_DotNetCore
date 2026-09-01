@@ -1,21 +1,16 @@
 /*
-Deploy on ibonus database.
+Deploy on ibonus. Admin transaction report.
 
-Standalone clone of dbo.spRptAdmineTransaction with pagination.
-Does NOT call the legacy procedure.
-
-Pagination:
-  @Start   = zero-based row offset (DataTables start)
-  @Length  = page size; 0 or NULL returns all rows (export)
-
-Outputs:
-  @TotalCount = total rows for current filters
+School scope:
+  @SchoolCodesCsv / @SchoolIdsCsv = comma-separated filters for scoped multi-school users.
+  Empty CSV + empty single-school param = all schools (unrestricted admin only).
 */
 SET ANSI_NULLS ON;
 GO
 SET QUOTED_IDENTIFIER ON;
 GO
 
+--EXEC spCanteentranSummary_New '2026-08-26','2026-08-27','','','','',0,500,0
 CREATE OR ALTER PROCEDURE [dbo].[spRptAdmineTransaction_New]
     @StartDate AS DATETIME,
     @EndDate AS DATETIME,
@@ -23,6 +18,7 @@ CREATE OR ALTER PROCEDURE [dbo].[spRptAdmineTransaction_New]
     @customerid AS NVARCHAR(75),
     @TerminalCode AS VARCHAR(50),
     @SchoolId AS VARCHAR(10),
+    @SchoolCodesCsv AS VARCHAR(MAX) = '',
     @TransactionId AS NVARCHAR(100) = '',
     @Start AS INT = 0,
     @Length AS INT = 0,
@@ -37,6 +33,7 @@ BEGIN
     SET @customerid = LTRIM(RTRIM(ISNULL(@customerid, '')));
     SET @TerminalCode = LTRIM(RTRIM(ISNULL(@TerminalCode, '')));
     SET @SchoolId = LTRIM(RTRIM(ISNULL(@SchoolId, '')));
+    SET @SchoolCodesCsv = LTRIM(RTRIM(ISNULL(@SchoolCodesCsv, '')));
     SET @TransactionType = LTRIM(RTRIM(ISNULL(@TransactionType, '')));
     SET @TransactionId = LTRIM(RTRIM(ISNULL(@TransactionId, '')));
 
@@ -70,7 +67,8 @@ BEGIN
             CASE
                 WHEN a.TransactionType = 21004 THEN 'Topup'
                 WHEN a.TransactionType = 10001 THEN 'Online Topup'
-                WHEN a.TransactionType = 21002 THEN 'PURCHASE Student-card'
+                WHEN a.TransactionType = 2004 THEN 'Purchase Credit-Card'
+                WHEN a.TransactionType = 21002 THEN 'Purchase Student-card'
                 WHEN a.TransactionType = 21007 THEN 'Undo Topup'
                 WHEN a.TransactionType = 21006 THEN 'Undo Purchase'
                 WHEN a.TransactionType = 9001 THEN 'Meal Plan'
@@ -86,12 +84,18 @@ BEGIN
                   AND t.branchcode = a.branchcode
             ) term
             LEFT JOIN StudentLogin sl ON sl.CustomerID = a.CustomerID
-        WHERE a.TransactionType IN (21002, 21004, 21006, 21007, 10001, 9001)
+        WHERE a.TransactionType IN (21002, 21004, 21006, 21007, 10001, 9001, 2004, 1004)
           AND a.CustomerID = @customerid
           AND a.LogDateTimeServer >= @RangeStart
           AND a.LogDateTimeServer < @RangeEndExclusive
           AND (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(a.TransactionID, ''))) = @TransactionId)
-          AND (@SchoolId = '' OR a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT))
+          AND (
+                (@SchoolCodesCsv <> '' AND EXISTS (
+                    SELECT 1 FROM dbo.fnSplitCsv(@SchoolCodesCsv) sc
+                    WHERE a.BranchCode = TRY_CAST(sc.value AS SMALLINT)
+                ))
+                OR (@SchoolCodesCsv = '' AND (@SchoolId = '' OR a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT)))
+              )
           AND (
                 @TerminalCode = ''
                 OR LOWER(@TerminalCode) = 'all'
@@ -111,7 +115,8 @@ BEGIN
             CASE
                 WHEN a.TransactionType = 21004 THEN 'Topup'
                 WHEN a.TransactionType = 10001 THEN 'Online Topup'
-                WHEN a.TransactionType = 21002 THEN 'PURCHASE Student-card'
+                WHEN a.TransactionType = 2004 THEN 'Purchase Credit-Card'
+                WHEN a.TransactionType = 21002 THEN 'Purchase Student-card'
                 WHEN a.TransactionType = 21007 THEN 'Undo Topup'
                 WHEN a.TransactionType = 21006 THEN 'Undo Purchase'
                 WHEN a.TransactionType = 9001 THEN 'Meal Plan'
@@ -132,7 +137,13 @@ BEGIN
           AND a.LogDateTimeServer >= @RangeStart
           AND a.LogDateTimeServer < @RangeEndExclusive
           AND (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(a.TransactionID, ''))) = @TransactionId)
-          AND (@SchoolId = '' OR a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT))
+          AND (
+                (@SchoolCodesCsv <> '' AND EXISTS (
+                    SELECT 1 FROM dbo.fnSplitCsv(@SchoolCodesCsv) sc
+                    WHERE a.BranchCode = TRY_CAST(sc.value AS SMALLINT)
+                ))
+                OR (@SchoolCodesCsv = '' AND (@SchoolId = '' OR a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT)))
+              )
         OPTION (RECOMPILE);
     END
     ELSE IF (@TransactionType = '1004')
@@ -144,7 +155,7 @@ BEGIN
             ISNULL(a.Amount, 0),
             '--',
             '--',
-            'PURCHASE Cash',
+            'Purchase Cash',
             CONVERT(DECIMAL(10, 2), ISNULL(a.Amount, 0) * 0.05),
             ISNULL(term.Description, ''),
             a.TransactionID
@@ -160,7 +171,13 @@ BEGIN
           AND a.LogDateTimeTerminal >= @RangeStart
           AND a.LogDateTimeTerminal < @RangeEndExclusive
           AND (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(a.TransactionID, ''))) = @TransactionId)
-          AND (@SchoolId = '' OR a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT))
+          AND (
+                (@SchoolCodesCsv <> '' AND EXISTS (
+                    SELECT 1 FROM dbo.fnSplitCsv(@SchoolCodesCsv) sc
+                    WHERE a.BranchCode = TRY_CAST(sc.value AS SMALLINT)
+                ))
+                OR (@SchoolCodesCsv = '' AND (@SchoolId = '' OR a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT)))
+              )
         OPTION (RECOMPILE);
     END
     ELSE IF (@TransactionType = '1007')
@@ -172,7 +189,7 @@ BEGIN
             ISNULL(a.Amount, 0),
             '--',
             '--',
-            'Undo PURCHASE Cash',
+            'Undo Purchase Cash',
             0,
             ISNULL(term.Description, ''),
             a.TransactionID
@@ -199,7 +216,7 @@ BEGIN
             ISNULL(a.Amount, 0),
             '--',
             '--',
-            'PURCHASE Credit Card ',
+            'Purchase Credit Card ',
             CONVERT(DECIMAL(10, 2), ISNULL(a.Amount, 0) * 0.05),
             ISNULL(term.Description, ''),
             a.TransactionID
@@ -215,7 +232,13 @@ BEGIN
           AND a.LogDateTimeTerminal >= @RangeStart
           AND a.LogDateTimeTerminal < @RangeEndExclusive
           AND (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(a.TransactionID, ''))) = @TransactionId)
-          AND (@SchoolId = '' OR a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT))
+          AND (
+                (@SchoolCodesCsv <> '' AND EXISTS (
+                    SELECT 1 FROM dbo.fnSplitCsv(@SchoolCodesCsv) sc
+                    WHERE a.BranchCode = TRY_CAST(sc.value AS SMALLINT)
+                ))
+                OR (@SchoolCodesCsv = '' AND (@SchoolId = '' OR a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT)))
+              )
         OPTION (RECOMPILE);
     END
     ELSE IF (@TransactionType <> 'ALL')
@@ -230,7 +253,8 @@ BEGIN
             CASE
                 WHEN a.TransactionType = 21004 THEN 'Topup'
                 WHEN a.TransactionType = 10001 THEN 'Online Topup'
-                WHEN a.TransactionType = 21002 THEN 'PURCHASE Student-card'
+                WHEN a.TransactionType = 2004 THEN 'Purchase Credit-Card'
+                WHEN a.TransactionType = 21002 THEN 'Purchase Student-card'
                 WHEN a.TransactionType = 21007 THEN 'Undo Topup'
                 WHEN a.TransactionType = 21006 THEN 'Undo Purchase'
                 WHEN a.TransactionType = 9001 THEN 'Meal Plan'
@@ -251,7 +275,13 @@ BEGIN
           AND a.LogDateTimeServer >= @RangeStart
           AND a.LogDateTimeServer < @RangeEndExclusive
           AND (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(a.TransactionID, ''))) = @TransactionId)
-          AND (@SchoolId = '' OR a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT))
+          AND (
+                (@SchoolCodesCsv <> '' AND EXISTS (
+                    SELECT 1 FROM dbo.fnSplitCsv(@SchoolCodesCsv) sc
+                    WHERE a.BranchCode = TRY_CAST(sc.value AS SMALLINT)
+                ))
+                OR (@SchoolCodesCsv = '' AND (@SchoolId = '' OR a.BranchCode = TRY_CAST(@SchoolId AS SMALLINT)))
+              )
         OPTION (RECOMPILE);
     END
     ELSE IF (@SchoolId = '')
@@ -266,10 +296,12 @@ BEGIN
             CASE
                 WHEN a.TransactionType = 21004 THEN 'Topup'
                 WHEN a.TransactionType = 10001 THEN 'Online Topup'
-                WHEN a.TransactionType = 21002 THEN 'PURCHASE Student-card'
+                WHEN a.TransactionType = 2004 THEN 'Purchase Credit-Card'
+                WHEN a.TransactionType = 21002 THEN 'Purchase Student-card'
                 WHEN a.TransactionType = 21007 THEN 'Undo Topup'
                 WHEN a.TransactionType = 21006 THEN 'Undo Purchase'
                 WHEN a.TransactionType = 9001 THEN 'Meal Plan'
+                WHEN a.TransactionType = 1004 THEN 'Purchase Cash'
             END,
             CASE WHEN a.TransactionType = 21002 THEN CONVERT(DECIMAL(10, 2), ISNULL(a.Amount, 0) * 0.05) ELSE 0 END,
             ISNULL(term.Description, ''),
@@ -282,10 +314,17 @@ BEGIN
                   AND t.branchcode = a.branchcode
             ) term
             LEFT JOIN StudentLogin sl ON sl.CustomerID = a.CustomerID
-        WHERE a.TransactionType IN (21002, 21004, 21006, 21007, 10001, 9001)
+        WHERE a.TransactionType IN (21002, 21004, 21006, 21007, 10001, 9001, 2004,1004)
           AND a.LogDateTimeServer >= @RangeStart
           AND a.LogDateTimeServer < @RangeEndExclusive
           AND (@TransactionId = '' OR LTRIM(RTRIM(ISNULL(a.TransactionID, ''))) = @TransactionId)
+                  AND (
+                (@SchoolCodesCsv <> '' AND EXISTS (
+                    SELECT 1 FROM dbo.fnSplitCsv(@SchoolCodesCsv) sc
+                    WHERE a.BranchCode = TRY_CAST(sc.value AS SMALLINT)
+                ))
+                OR (@SchoolCodesCsv = '')
+              )
         OPTION (RECOMPILE);
     END
     ELSE
@@ -300,7 +339,8 @@ BEGIN
             CASE
                 WHEN a.TransactionType = 21004 THEN 'Topup'
                 WHEN a.TransactionType = 10001 THEN 'Online Topup'
-                WHEN a.TransactionType = 21002 THEN 'PURCHASE Student-card'
+                WHEN a.TransactionType = 2004 THEN 'Purchase Credit-Card'
+                WHEN a.TransactionType = 21002 THEN 'Purchase Student-card'
                 WHEN a.TransactionType = 21007 THEN 'Undo Topup'
                 WHEN a.TransactionType = 21006 THEN 'Undo Purchase'
                 WHEN a.TransactionType = 9001 THEN 'Meal Plan'
@@ -332,7 +372,7 @@ BEGIN
             ISNULL(a.Amount, 0),
             '--',
             '--',
-            'PURCHASE Cash',
+            'Purchase Cash',
             CONVERT(DECIMAL(10, 2), ISNULL(a.Amount, 0) * 0.05),
             ISNULL(term.Description, ''),
             a.TransactionID
@@ -359,7 +399,7 @@ BEGIN
             ISNULL(a.Amount, 0),
             '--',
             '--',
-            'PURCHASE Credit Card ',
+            'Purchase Credit Card ',
             CONVERT(DECIMAL(10, 2), ISNULL(a.Amount, 0) * 0.05),
             ISNULL(term.Description, ''),
             a.TransactionID
@@ -386,7 +426,7 @@ BEGIN
             ISNULL(a.Amount, 0),
             '--',
             '--',
-            'Undo PURCHASE Cash',
+            'Undo Purchase Cash',
             0,
             ISNULL(term.Description, ''),
             a.TransactionID

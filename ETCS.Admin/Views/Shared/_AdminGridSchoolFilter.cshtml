@@ -24,6 +24,10 @@
         {
             <option value="">All Schools</option>
         }
+        else
+        {
+            <option value="" selected="@(schools.Count != 1)">All my schools</option>
+        }
         @foreach (var school in schools)
         {
             <option value="@school.Id" selected="@(selectedSchoolId == school.Id)">@school.Name</option>

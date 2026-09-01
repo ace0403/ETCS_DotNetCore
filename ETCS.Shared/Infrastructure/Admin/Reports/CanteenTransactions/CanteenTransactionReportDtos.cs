@@ -7,6 +7,7 @@ public sealed class CanteenTransactionReportFilter
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public string? SchoolCode { get; set; }
+    public string? SchoolCodesCsv { get; set; }
     public string? Branch { get; set; }
     public string? TransactionType { get; set; }
     public string? StudentCardNo { get; set; }
@@ -20,6 +21,7 @@ public sealed class CanteenTransactionReportListRequest
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public string? SchoolCode { get; set; }
+    public string? SchoolCodesCsv { get; set; }
     public string? Branch { get; set; }
     public string? TransactionType { get; set; }
     public string? StudentCardNo { get; set; }

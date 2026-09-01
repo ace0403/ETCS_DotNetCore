@@ -47,7 +47,12 @@ public sealed class MealComboAdminRepository : IMealComboAdminRepository
 
         var baseFilterSql = BaseFilterSql;
         object? extraParameters = null;
-        if (request.SchoolId is > 0)
+        if (request.ScopedSchoolIds is { Count: > 0 })
+        {
+            baseFilterSql += " AND p.SchoolId IN @ScopedSchoolIds";
+            extraParameters = new { ScopedSchoolIds = request.ScopedSchoolIds };
+        }
+        else if (request.SchoolId is > 0)
         {
             baseFilterSql += " AND p.SchoolId = @SchoolId";
             extraParameters = new { SchoolId = request.SchoolId.Value };

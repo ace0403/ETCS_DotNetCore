@@ -27,11 +27,13 @@
     </div>
 </div>
 <div class="modal fade" id="addDataModal" tabindex="-1" data-bs-backdrop="static">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content" id="div_add"></div>
     </div>
 </div>
 @section Scripts {
+    <link href="~/css/bootstrap-multiselect.css" rel="stylesheet" />
+    <script src="~/js/bootstrap-multiselect.js"></script>
     <script>window.adminModuleKey = 'Staff';</script>
     <script src="~/js/custom/staff.js"></script>
 }

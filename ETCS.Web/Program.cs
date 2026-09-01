@@ -92,6 +92,7 @@ builder.Services.AddScoped<IStudentAllergyAdminRepository, StudentAllergyAdminRe
 
 builder.Services.AddScoped<IStudentOrderTypeAdminRepository, StudentOrderTypeAdminRepository>();
 builder.Services.AddScoped<ISchoolOrderTypeAdminRepository, SchoolOrderTypeAdminRepository>();
+builder.Services.AddScoped<ISchoolGradeOrderTypeAdminRepository, SchoolGradeOrderTypeAdminRepository>();
 
 builder.Services.AddScoped<IGuardianAdminRepository, GuardianAdminRepository>();
 
@@ -119,7 +120,7 @@ builder.Services.AddTopupFlowServices();
 builder.Services.AddGuardianEmailServices();
 builder.Services.AddGuardianInAppNotificationServices();
 builder.Services.AddScoped<OrderPaymentSummaryBuilder>();
-builder.Services.AddSingleton<MealOrderBookingWindow>();
+builder.Services.AddSingleton<ETCS.Web.Infrastructure.Orders.MealOrderBookingWindow>();
 
 builder.Services.AddSingleton<IPaymentBackgroundQueue, NoOpPaymentBackgroundQueue>();
 

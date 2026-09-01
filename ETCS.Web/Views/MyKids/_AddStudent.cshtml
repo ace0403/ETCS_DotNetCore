@@ -25,10 +25,10 @@
                 <span asp-validation-for="SchoolId" class="text-danger"></span>
             </div>
             <div class="col-md-6">
-                <label asp-for="StudentCardNo" class="form-label"></label>
+                <label asp-for="StudentCardNo" class="form-label">Student Id No. <sub class="bottom-0 text-danger"><i>(Only numeric allowed)</i></sub></label>
                 <div class="input-group">
                     <span class="input-group-text js-student-card-prefix">—</span>
-                    <input asp-for="StudentCardNo" id="txtStudentCardNo" class="form-control form-control-radius-grp js-student-card-input js-student-card-suffix" maxlength="50" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Student Card No" disabled />
+                    <input asp-for="StudentCardNo" id="txtStudentCardNo" class="form-control form-control-radius-grp js-student-card-input js-student-card-suffix" maxlength="50" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Student Id No" disabled />
                 </div>
                 <span asp-validation-for="StudentCardNo" class="text-danger"></span>
             </div>

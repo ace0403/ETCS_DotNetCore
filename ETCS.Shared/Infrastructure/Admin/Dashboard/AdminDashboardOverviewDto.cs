@@ -90,4 +90,5 @@ public sealed class AdminDashboardFilter
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public string? SchoolCode { get; set; }
+    public string? SchoolCodesCsv { get; set; }
 }

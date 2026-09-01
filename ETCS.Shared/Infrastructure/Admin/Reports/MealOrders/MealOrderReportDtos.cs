@@ -7,6 +7,7 @@ public sealed class MealOrderReportFilter
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public string? SchoolId { get; set; }
+    public string? SchoolIdsCsv { get; set; }
     public int? MealSessionId { get; set; }
     public int? MealTypeId { get; set; }
 }
@@ -19,6 +20,7 @@ public sealed class MealOrderReportListRequest
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public string? SchoolId { get; set; }
+    public string? SchoolIdsCsv { get; set; }
     public int? MealSessionId { get; set; }
     public int? MealTypeId { get; set; }
 

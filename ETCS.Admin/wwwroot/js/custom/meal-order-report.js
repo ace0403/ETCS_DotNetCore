@@ -155,7 +155,7 @@ function initMealOrderReportTable() {
                     return meta.settings._iDisplayStart + meta.row + 1;
                 }
             },
-            { data: 'OrderDate' },
+            { data: 'DeliveryDate' },
             { data: 'StudCode', render: function (d) { return renderEllipsisCell(d, 18); } },
             { data: 'StudFullName', render: function (d) { return renderEllipsisCell(d, 36); } },
             { data: 'StudStd' },
@@ -163,9 +163,9 @@ function initMealOrderReportTable() {
             { data: 'PaymentStatus' },
             { data: 'Category', render: function (d) { return renderEllipsisCell(d, 20); } },
             { data: 'Choice', render: function (d) { return renderEllipsisCell(d, 16); } },
-            { data: 'DeliveryDate' },
             { data: 'Day' },
-            { data: 'Items', render: function (d) { return renderEllipsisCell(d, 48); } }
+            { data: 'Items', render: function (d) { return renderEllipsisCell(d, 48); } },
+            { data: 'OrderDate' }
         ]
     });
 

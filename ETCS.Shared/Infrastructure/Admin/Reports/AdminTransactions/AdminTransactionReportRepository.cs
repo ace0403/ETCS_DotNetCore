@@ -79,6 +79,7 @@ public sealed class AdminTransactionReportRepository : IAdminTransactionReportRe
             StartDate = request.StartDate!.Value.Date,
             EndDate = request.EndDate!.Value.Date,
             SchoolCode = request.SchoolCode,
+            SchoolCodesCsv = request.SchoolCodesCsv,
             TerminalCode = request.TerminalCode,
             TransactionType = request.TransactionType,
             StudentCardNo = request.StudentCardNo,
@@ -103,6 +104,7 @@ public sealed class AdminTransactionReportRepository : IAdminTransactionReportRe
         parameters.Add("customerid", filter.StudentCardNo?.Trim() ?? string.Empty);
         parameters.Add("TerminalCode", filter.TerminalCode?.Trim() ?? string.Empty);
         parameters.Add("SchoolId", filter.SchoolCode?.Trim() ?? string.Empty);
+        parameters.Add("SchoolCodesCsv", filter.SchoolCodesCsv?.Trim() ?? string.Empty);
         parameters.Add("TransactionId", filter.TransactionId?.Trim() ?? string.Empty);
         parameters.Add("Start", start);
         parameters.Add("Length", length);

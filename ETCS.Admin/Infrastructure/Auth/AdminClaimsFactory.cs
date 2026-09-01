@@ -47,6 +47,11 @@ public static class AdminClaimsFactory
             claims.Add(new Claim(AdminClaimTypes.SchoolIds, string.Join(",", account.AssignedSchoolIds)));
         }
 
+        if (account.ActiveRoleId > 0)
+        {
+            claims.Add(new Claim(AdminClaimTypes.ActiveRoleId, account.ActiveRoleId.ToString()));
+        }
+
         foreach (var permission in account.Permissions)
         {
             claims.Add(new Claim(AdminClaimTypes.Permission, permission));

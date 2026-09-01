@@ -1,15 +1,9 @@
 /*
-Deploy on ibonus database.
+Deploy on ibonus. Terminal sales summary.
 
-Standalone clone of dbo.spEventTransSummary1 with pagination.
-Does NOT call the legacy procedure.
-
-Pagination:
-  @Start   = zero-based row offset (DataTables start)
-  @Length  = page size; 0 or NULL returns all rows (export)
-
-Outputs:
-  @TotalCount = total rows for current filters
+School scope:
+  @SchoolCodesCsv / @SchoolIdsCsv = comma-separated filters for scoped multi-school users.
+  Empty CSV + empty single-school param = all schools (unrestricted admin only).
 */
 SET ANSI_NULLS ON;
 GO
@@ -22,6 +16,7 @@ CREATE OR ALTER PROCEDURE [dbo].[spEventTransSummary1_New]
     @EventId AS NVARCHAR(75) = '',
     @TransectionType AS NVARCHAR(75) = 'ALL',
     @SchoolCode AS NVARCHAR(75) = '',
+    @SchoolCodesCsv AS VARCHAR(MAX) = '',
     @TerminalCode AS NVARCHAR(75) = '',
     @Start AS INT = 0,
     @Length AS INT = 0,
@@ -36,6 +31,7 @@ BEGIN
     SET @EventId = LTRIM(RTRIM(ISNULL(@EventId, '')));
     SET @TransectionType = LTRIM(RTRIM(ISNULL(@TransectionType, '')));
     SET @SchoolCode = LTRIM(RTRIM(ISNULL(@SchoolCode, '')));
+    SET @SchoolCodesCsv = LTRIM(RTRIM(ISNULL(@SchoolCodesCsv, '')));
     SET @TerminalCode = LTRIM(RTRIM(ISNULL(@TerminalCode, '')));
 
     IF (@TransectionType = '')
@@ -90,13 +86,18 @@ BEGIN
         SUM(CASE WHEN a.TransactionType IN (1007) AND a.CustomerID IN ('204', '205', '206', '207') THEN ISNULL(a.Amount, 0) ELSE 0 END),
         CAST(a.LogDateTimeTerminal AS DATE)
     FROM AccessLog a
-        INNER JOIN IDTerminals t
-            ON t.TerminalCode = a.TerminalCode
-           AND a.BranchCode = t.BranchCode
+    INNER JOIN IDTerminals t ON t.TerminalCode = a.TerminalCode AND a.BranchCode = t.BranchCode
     WHERE a.LogDateTimeTerminal >= @RangeStart
       AND a.LogDateTimeTerminal < @RangeEndExclusive
       AND (@EventId = '')
-      AND (@SchoolCode = '' OR t.BranchCode = TRY_CAST(@SchoolCode AS SMALLINT))
+      AND (
+            (@SchoolCodesCsv <> '' AND EXISTS (
+                SELECT 1 FROM dbo.fnSplitCsv(@SchoolCodesCsv) sc
+                WHERE LTRIM(RTRIM(sc.value)) <> ''
+                  AND t.BranchCode = TRY_CAST(LTRIM(RTRIM(sc.value)) AS SMALLINT)
+            ))
+            OR (@SchoolCodesCsv = '' AND (@SchoolCode = '' OR t.BranchCode = TRY_CAST(@SchoolCode AS SMALLINT)))
+          )
       AND (@TerminalCode = '' OR t.TerminalCode = @TerminalCode)
       AND (
             @TransectionType = 'ALL'

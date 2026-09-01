@@ -24,6 +24,7 @@ using ETCS.Shared.Infrastructure.Enums;
 using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
 using ETCS.Shared.Infrastructure.Legal;
 using ETCS.Shared.Infrastructure.Meals;
+using ETCS.Shared.Infrastructure.Meals.Menu;
 using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Infrastructure.Schools.Calendar;
@@ -69,6 +70,12 @@ builder.Services.AddScoped<IMealEnumAdminRepository, MealEnumAdminRepository>();
 builder.Services.AddScoped<ILegalContentRepository, LegalContentRepository>();
 builder.Services.AddScoped<MealRepository>();
 builder.Services.AddScoped<IMealRepository, CachedMealRepository>();
+builder.Services.AddScoped<MealOrderBookingWindow>(sp =>
+{
+    var cutoff = sp.GetRequiredService<IOptions<OrderFlowOptions>>().Value.MealOrderCutoffHour;
+    return new MealOrderBookingWindow(cutoff);
+});
+builder.Services.AddScoped<IMealMenuComposer, MealMenuComposer>();
 builder.Services.AddScoped<IMealOrderRepository, MealOrderRepository>();
 builder.Services.AddScoped<IMainOrderRepository, MainOrderRepository>();
 builder.Services.AddScoped<ISchoolCalendarRepository, SchoolCalendarRepository>();
@@ -85,6 +92,7 @@ builder.Services.AddScoped<IStudentRepository, CachedStudentRepository>();
 builder.Services.AddScoped<IStudentAllergyAdminRepository, StudentAllergyAdminRepository>();
 builder.Services.AddScoped<IStudentOrderTypeAdminRepository, StudentOrderTypeAdminRepository>();
 builder.Services.AddScoped<ISchoolOrderTypeAdminRepository, SchoolOrderTypeAdminRepository>();
+builder.Services.AddScoped<ISchoolGradeOrderTypeAdminRepository, SchoolGradeOrderTypeAdminRepository>();
 builder.Services.AddScoped<IGuardianChildEnrollmentService, GuardianChildEnrollmentService>();
 builder.Services.AddScoped<IReplaceCardRequestRepository, ReplaceCardRequestRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();

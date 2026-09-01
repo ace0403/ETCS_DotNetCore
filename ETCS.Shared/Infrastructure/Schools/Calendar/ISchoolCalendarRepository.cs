@@ -20,7 +20,6 @@ public interface ISchoolCalendarRepository
         CancellationToken cancellationToken = default);
 
     Task<DataTableResponse<SchoolCalendarExceptionDto>> GetExceptionsPagedAsync(
-        int? schoolId,
         DataTableRequest request,
         CancellationToken cancellationToken = default);
 

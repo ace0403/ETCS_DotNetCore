@@ -8,6 +8,8 @@ namespace ETCS.Shared.Infrastructure.Admin.Reports.MealOrderPayments;
 
 public sealed class MealOrderPaymentMealDbReportRepository : IMealOrderPaymentMealDbReportRepository
 {
+    private const string PackageName = "PACKAGE UNKNOWN";
+
     private const string SchoolsSql = """
         SELECT
             CAST(SchoolID AS VARCHAR(10)) AS Id,
@@ -23,8 +25,10 @@ public sealed class MealOrderPaymentMealDbReportRepository : IMealOrderPaymentMe
             LTRIM(RTRIM(ISNULL(NULLIF(LTRIM(RTRIM(sl.CustomerId)), ''), sl.StudCode))) AS StudCode,
             LTRIM(RTRIM(ISNULL(sl.StudStd, ''))) AS StudStd,
             LTRIM(RTRIM(ISNULL(sl.StudDiv, ''))) AS StudDiv,
-            LTRIM(RTRIM(ISNULL(sl.StudFirstName, ''))) + ' ' + LTRIM(RTRIM(ISNULL(sl.StudLastName, ''))) AS StudFullName
+            LTRIM(RTRIM(ISNULL(sl.StudFirstName, ''))) + ' ' + LTRIM(RTRIM(ISNULL(sl.StudLastName, ''))) AS StudFullName,
+            LTRIM(RTRIM(ISNULL(si.SchoolName, ''))) AS SchoolName
         FROM StudentLogin sl
+        LEFT JOIN SchoolInfo si ON si.SchoolID = sl.StudSchoolId
         WHERE sl.UserId IN @StudentIds;
         """;
 
@@ -149,8 +153,10 @@ public sealed class MealOrderPaymentMealDbReportRepository : IMealOrderPaymentMe
             StartDate = request.StartDate!.Value.Date,
             EndDate = request.EndDate!.Value.Date,
             SchoolId = request.SchoolId,
+            SchoolIdsCsv = request.SchoolIdsCsv,
             MealSessionId = request.MealSessionId,
-            MealTypeId = request.MealTypeId
+            MealTypeId = request.MealTypeId,
+            TransactionId = request.TransactionId
         };
 
     private static MealOrderPaymentReportPagedResult EmptyPagedResult(int draw) =>
@@ -168,8 +174,8 @@ public sealed class MealOrderPaymentMealDbReportRepository : IMealOrderPaymentMe
         parameters.Add("startdate", filter.StartDate.Date);
         parameters.Add("enddate", filter.EndDate.Date);
         parameters.Add("SchoolId", filter.SchoolId?.Trim() ?? string.Empty);
-        parameters.Add("MealSessionId", filter.MealSessionId.GetValueOrDefault());
-        parameters.Add("MealTypeId", filter.MealTypeId.GetValueOrDefault());
+        parameters.Add("SchoolIdsCsv", filter.SchoolIdsCsv?.Trim() ?? string.Empty);
+        parameters.Add("TransactionId", filter.TransactionId?.Trim() ?? string.Empty);
         parameters.Add("Start", start);
         parameters.Add("Length", length);
         return parameters;
@@ -193,15 +199,11 @@ public sealed class MealOrderPaymentMealDbReportRepository : IMealOrderPaymentMe
                 OrderDate = FormatDate(OrderDate),
                 StudCode = student?.StudCode?.Trim() ?? string.Empty,
                 StudStd = student?.StudStd?.Trim() ?? string.Empty,
-                StudDiv = student?.StudDiv?.Trim() ?? string.Empty,
                 StudFullName = student?.StudFullName?.Trim() ?? string.Empty,
-                PaymentStatus = PaymentStatus?.Trim() ?? string.Empty,
-                MealSession = MealSession?.Trim() ?? string.Empty,
                 TransactionId = TransactionId?.Trim() ?? string.Empty,
                 Amount = Amount,
-                DeliveryDate = FormatDate(DeliveryDate),
-                Day = Day?.Trim() ?? string.Empty,
-                Items = Items?.Trim() ?? string.Empty
+                Package = PackageName,
+                SchoolName = student?.SchoolName?.Trim() ?? string.Empty
             };
 
         private static string FormatDate(DateTime? value) =>
@@ -217,5 +219,6 @@ public sealed class MealOrderPaymentMealDbReportRepository : IMealOrderPaymentMe
         public string? StudStd { get; init; }
         public string? StudDiv { get; init; }
         public string? StudFullName { get; init; }
+        public string? SchoolName { get; init; }
     }
 }

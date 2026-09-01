@@ -24,16 +24,7 @@
                 <label for="txtEndDate" class="form-label">End date</label>
                 <input type="date" id="txtEndDate" class="form-control" value="@endDate" />
             </div>
-            <div class="col-12 col-md-6 col-lg-4">
-                <label for="ddlSchool" class="form-label">School</label>
-                <select id="ddlSchool" class="form-select">
-                    <option value="">All Schools</option>
-                    @foreach (var school in schools)
-                    {
-                        <option value="@school.Code" title="@school.Name">@school.Name</option>
-                    }
-                </select>
-            </div>
+            <partial name="_ScopedSchoolFilter" />
             <div class="col-12 col-md-6 col-lg-4">
                 <label for="ddlTerminal" class="form-label">Terminal</label>
                 <select id="ddlTerminal" class="form-select canteen-branch-select" title="All Terminals">

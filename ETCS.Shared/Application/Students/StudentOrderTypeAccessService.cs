@@ -9,15 +9,18 @@ public sealed class StudentOrderTypeAccessService : IStudentOrderTypeAccessServi
 {
     private readonly IStudentOrderTypeAdminRepository _orderTypeRepository;
     private readonly ISchoolOrderTypeAdminRepository _schoolOrderTypeRepository;
+    private readonly ISchoolGradeOrderTypeAdminRepository _gradeOrderTypeRepository;
     private readonly IStudentRepository _studentRepository;
 
     public StudentOrderTypeAccessService(
         IStudentOrderTypeAdminRepository orderTypeRepository,
         ISchoolOrderTypeAdminRepository schoolOrderTypeRepository,
+        ISchoolGradeOrderTypeAdminRepository gradeOrderTypeRepository,
         IStudentRepository studentRepository)
     {
         _orderTypeRepository = orderTypeRepository;
         _schoolOrderTypeRepository = schoolOrderTypeRepository;
+        _gradeOrderTypeRepository = gradeOrderTypeRepository;
         _studentRepository = studentRepository;
     }
 
@@ -35,9 +38,28 @@ public sealed class StudentOrderTypeAccessService : IStudentOrderTypeAccessServi
         if (schoolId is > 0)
         {
             var schoolAllowedIds = await _schoolOrderTypeRepository.GetOrderTypeIdsAsync(schoolId.Value, cancellationToken);
-            if (schoolAllowedIds.Count > 0 && !schoolAllowedIds.Contains(orderTypeId))
+            if (schoolAllowedIds.Count == 0 || !schoolAllowedIds.Contains(orderTypeId))
             {
                 return false;
+            }
+
+            var gradeId = await _studentRepository.ResolveStudentGradeIdAsync((int)studentId, cancellationToken);
+            if (gradeId is > 0)
+            {
+                var gradeAccess = await _gradeOrderTypeRepository.GetAccessAsync(
+                    schoolId.Value,
+                    gradeId.Value,
+                    cancellationToken);
+
+                if (gradeAccess.IsConfigured)
+                {
+                    if (gradeAccess.IsNoService
+                        || gradeAccess.OrderTypeIds.Count == 0
+                        || !gradeAccess.OrderTypeIds.Contains(orderTypeId))
+                    {
+                        return false;
+                    }
+                }
             }
         }
 
@@ -70,8 +92,8 @@ public sealed class StudentOrderTypeAccessService : IStudentOrderTypeAccessServi
     public string GetDeniedMessage(int orderTypeId) => orderTypeId switch
     {
         (int)TransactionTypeEnum.A_La_Carte => "This student is not allowed to place A La Carte orders.",
-        (int)TransactionTypeEnum.MealOrder => "This student is not allowed to place meal plan orders.",
-        (int)TransactionTypeEnum.Topup => "This student is not allowed to top up.",
-        _ => "This student is not allowed to use this order type."
+        (int)TransactionTypeEnum.MealOrder => "This student's grade is not allowed to place meal plan orders at this school.",
+        (int)TransactionTypeEnum.Topup => "This student's grade is not allowed to top up at this school.",
+        _ => "This student's grade is not allowed to use this service at your school."
     };
 }

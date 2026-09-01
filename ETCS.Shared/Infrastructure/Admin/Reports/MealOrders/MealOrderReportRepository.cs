@@ -99,7 +99,8 @@ public sealed class MealOrderReportRepository : IMealOrderReportRepository
         {
             StartDate = request.StartDate!.Value.Date,
             EndDate = request.EndDate!.Value.Date,
-            SchoolId = request.SchoolId
+            SchoolId = request.SchoolId,
+            SchoolIdsCsv = request.SchoolIdsCsv
         };
 
     private static MealOrderReportPagedResult EmptyPagedResult(int draw) =>
@@ -117,6 +118,7 @@ public sealed class MealOrderReportRepository : IMealOrderReportRepository
         parameters.Add("startdate", filter.StartDate.Date);
         parameters.Add("enddate", filter.EndDate.Date);
         parameters.Add("SchoolId", filter.SchoolId?.Trim() ?? string.Empty);
+        parameters.Add("SchoolIdsCsv", filter.SchoolIdsCsv?.Trim() ?? string.Empty);
         parameters.Add("Start", start);
         parameters.Add("Length", length);
         return parameters;

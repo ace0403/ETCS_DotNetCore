@@ -11,6 +11,9 @@ namespace ETCS.Admin.Controllers;
 
 public class HomeController : Controller
 {
+    private const string PendingLoginAccountIdKey = "PendingLoginAccountId";
+    private const string PendingLoginUsernameKey = "PendingLoginUsername";
+
     private readonly IAdminLoginRepository _adminLoginRepository;
     private readonly IAdminNavigationService _navigationService;
 
@@ -70,23 +73,53 @@ public class HomeController : Controller
             return RedirectToAction(nameof(Index), new { msg = "login-failed" });
         }
 
-        var principal = AdminClaimsFactory.CreatePrincipal(account);
-        await HttpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            principal,
-            new AuthenticationProperties
-            {
-                IsPersistent = true,
-                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-            });
-
-        var landing = await _navigationService.GetLandingPageAsync(principal, cancellationToken);
-        if (landing is not null)
+        if (account.AvailableRoles.Count > 1)
         {
-            return RedirectToAction(landing.Value.Action, landing.Value.Controller, new { msg = "login-success" });
+            HttpContext.Session.SetInt32(PendingLoginAccountIdKey, account.Id);
+            HttpContext.Session.SetString(PendingLoginUsernameKey, account.Username);
+            return View("SelectRole", new AdminSelectRoleRequest
+            {
+                Username = account.Username,
+                Roles = account.AvailableRoles
+            });
         }
 
-        return RedirectToAction(nameof(AccessDenied));
+        return await SignInAndRedirectAsync(account, cancellationToken);
+    }
+
+    [AllowAnonymous]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SelectRole(AdminSelectRoleRequest model, CancellationToken cancellationToken)
+    {
+        var pendingId = HttpContext.Session.GetInt32(PendingLoginAccountIdKey);
+        var pendingUsername = HttpContext.Session.GetString(PendingLoginUsernameKey);
+        if (pendingId is null or <= 0
+            || string.IsNullOrWhiteSpace(pendingUsername)
+            || !string.Equals(pendingUsername, model.Username, StringComparison.OrdinalIgnoreCase))
+        {
+            return RedirectToAction(nameof(Index), new { msg = "login-failed" });
+        }
+
+        if (!ModelState.IsValid)
+        {
+            model.Roles = (await _adminLoginRepository.GetByLoginNameAsync(pendingUsername, cancellationToken))?.AvailableRoles
+                ?? [];
+            return View("SelectRole", model);
+        }
+
+        var account = await _adminLoginRepository.GetByLoginNameForRoleAsync(
+            pendingUsername,
+            model.RoleId,
+            cancellationToken);
+        if (account is null || account.Id != pendingId || account.ActiveRoleId <= 0)
+        {
+            return RedirectToAction(nameof(Index), new { msg = "login-failed" });
+        }
+
+        HttpContext.Session.Remove(PendingLoginAccountIdKey);
+        HttpContext.Session.Remove(PendingLoginUsernameKey);
+        return await SignInAndRedirectAsync(account, cancellationToken);
     }
 
     [Authorize]
@@ -131,6 +164,40 @@ public class HomeController : Controller
     public IActionResult Error()
     {
         return View(new Models.ErrorViewModel { RequestId = HttpContext.TraceIdentifier });
+    }
+
+    private async Task<IActionResult> SignInAndRedirectAsync(
+        LoginAccountDto account,
+        CancellationToken cancellationToken)
+    {
+        if (account.ActiveRoleId <= 0 && account.AvailableRoles.Count > 1)
+        {
+            HttpContext.Session.SetInt32(PendingLoginAccountIdKey, account.Id);
+            HttpContext.Session.SetString(PendingLoginUsernameKey, account.Username);
+            return View("SelectRole", new AdminSelectRoleRequest
+            {
+                Username = account.Username,
+                Roles = account.AvailableRoles
+            });
+        }
+
+        var principal = AdminClaimsFactory.CreatePrincipal(account);
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            principal,
+            new AuthenticationProperties
+            {
+                IsPersistent = true,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
+            });
+
+        var landing = await _navigationService.GetLandingPageAsync(principal, cancellationToken);
+        if (landing is not null)
+        {
+            return RedirectToAction(landing.Value.Action, landing.Value.Controller, new { msg = "login-success" });
+        }
+
+        return RedirectToAction(nameof(AccessDenied));
     }
 
     private static bool PasswordMatches(string stored, string md5Hash, string plainPassword) =>

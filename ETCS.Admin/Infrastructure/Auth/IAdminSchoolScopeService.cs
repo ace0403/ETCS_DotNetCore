@@ -11,6 +11,18 @@ public interface IAdminSchoolScopeService
 
     Task<IReadOnlyList<string>> GetAllowedSchoolCodesAsync(CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<string>> ResolveSchoolCodesForQueryAsync(
+        string? requestedSchoolCode,
+        CancellationToken cancellationToken = default);
+
+    Task<(string SchoolCode, string SchoolCodesCsv)> ResolveAdminSchoolParamsFromIdQueryAsync(
+        string? requestedSchoolId,
+        CancellationToken cancellationToken = default);
+
+    IReadOnlyList<int> ResolveSchoolIdsForList(int? requestedSchoolId);
+
+    IReadOnlyList<int> ResolveSchoolIdsForQuery(string? requestedSchoolId);
+
     Task<IReadOnlyList<SchoolCodeLookupDto>> FilterSchoolCodesAsync(
         IReadOnlyList<SchoolCodeLookupDto> schools,
         CancellationToken cancellationToken = default);

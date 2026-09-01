@@ -5,31 +5,55 @@ namespace ETCS.Admin.Infrastructure.Reports;
 
 public static class MealOrderExcelExporter
 {
-    private static readonly string[] Headers =
+    private static readonly string[] OldHeaders =
     [
-        "Order Date",
+        "Meal Date",
         "Student Card No.",
+        "Student Name",
         "Grade",
         "Section",
+        "Payment Status",
+        "Meal Type",
+        "Choice",
+        "Day",
+        "Items",
+        "Order Date"
+    ];
+
+    private static readonly string[] NewHeaders =
+    [
+        "Meal Date",
+        "Student Card No.",
         "Student Name",
+        "Grade",
+        "Section",
         "Payment Status",
         "Meal Session",
         "Meal Type",
         "Choice",
-        "Meal Date",
         "Day",
-        "Items"
+        "Items",
+        "Order Date"
     ];
 
-    public static byte[] Export(IReadOnlyList<MealOrderReportRowDto> rows)
+    public static byte[] ExportOld(IReadOnlyList<MealOrderReportRowDto> rows) =>
+        Export(rows, OldHeaders, includeMealSession: false);
+
+    public static byte[] ExportNew(IReadOnlyList<MealOrderReportRowDto> rows) =>
+        Export(rows, NewHeaders, includeMealSession: true);
+
+    private static byte[] Export(
+        IReadOnlyList<MealOrderReportRowDto> rows,
+        string[] headers,
+        bool includeMealSession)
     {
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("MealOrders");
 
-        for (var col = 0; col < Headers.Length; col++)
+        for (var col = 0; col < headers.Length; col++)
         {
             var cell = worksheet.Cell(1, col + 1);
-            cell.Value = Headers[col];
+            cell.Value = headers[col];
             cell.Style.Font.Bold = true;
         }
 
@@ -37,18 +61,23 @@ public static class MealOrderExcelExporter
         {
             var row = rows[i];
             var excelRow = i + 2;
-            worksheet.Cell(excelRow, 1).Value = row.OrderDate;
-            worksheet.Cell(excelRow, 2).Value = row.StudCode;
-            worksheet.Cell(excelRow, 3).Value = row.StudStd;
-            worksheet.Cell(excelRow, 4).Value = row.StudDiv;
-            worksheet.Cell(excelRow, 5).Value = row.StudFullName;
-            worksheet.Cell(excelRow, 6).Value = row.PaymentStatus;
-            worksheet.Cell(excelRow, 7).Value = row.MealSession;
-            worksheet.Cell(excelRow, 8).Value = row.Category;
-            worksheet.Cell(excelRow, 9).Value = row.Choice;
-            worksheet.Cell(excelRow, 10).Value = row.DeliveryDate;
-            worksheet.Cell(excelRow, 11).Value = row.Day;
-            worksheet.Cell(excelRow, 12).Value = row.Items;
+            var col = 1;
+            worksheet.Cell(excelRow, col++).Value = row.DeliveryDate;
+            worksheet.Cell(excelRow, col++).Value = row.StudCode;
+            worksheet.Cell(excelRow, col++).Value = row.StudFullName;
+            worksheet.Cell(excelRow, col++).Value = row.StudStd;
+            worksheet.Cell(excelRow, col++).Value = row.StudDiv;
+            worksheet.Cell(excelRow, col++).Value = row.PaymentStatus;
+            if (includeMealSession)
+            {
+                worksheet.Cell(excelRow, col++).Value = row.MealSession;
+            }
+
+            worksheet.Cell(excelRow, col++).Value = row.Category;
+            worksheet.Cell(excelRow, col++).Value = row.Choice;
+            worksheet.Cell(excelRow, col++).Value = row.Day;
+            worksheet.Cell(excelRow, col++).Value = row.Items;
+            worksheet.Cell(excelRow, col).Value = row.OrderDate;
         }
 
         worksheet.Columns().AdjustToContents();

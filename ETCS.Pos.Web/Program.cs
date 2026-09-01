@@ -17,6 +17,7 @@ builder.Services.ConfigureMediaOptions(builder.Configuration, PosWebOptions.Sect
 builder.Services.AddSingleton<IDbConnectionFactory, SqlConnectionFactory>();
 builder.Services.AddSingleton<IMealDbConnectionFactory, SqlMealConnectionFactory>();
 builder.Services.AddScoped<IAdminLoginRepository, AdminLoginRepository>();
+builder.Services.AddScoped<IStaffLoginAssignmentRepository, StaffLoginAssignmentRepository>();
 builder.Services.AddScoped<IAdminPermissionRepository, AdminPermissionRepository>();
 
 builder.Services.AddScoped<IPosApiProxyService, PosApiProxyService>();

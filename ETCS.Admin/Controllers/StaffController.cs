@@ -1,4 +1,6 @@
 using ETCS.Admin.Infrastructure.Auth;
+using ETCS.Shared.Helpers;
+using ETCS.Shared.Infrastructure.Admin.Auth;
 using ETCS.Shared.Infrastructure.Admin.Models;
 using ETCS.Shared.Infrastructure.Admin.Master.Staff;
 using ETCS.Shared.Infrastructure.Admin.Security;
@@ -62,7 +64,7 @@ public class StaffController : Controller
 
         if (id > 0)
         {
-            _schoolScope.EnsureInScope(model.SchoolId);
+            EnsureAnySchoolInScope(model.SchoolIds);
         }
 
         return PartialView("_AddUpdate", model);
@@ -83,13 +85,21 @@ public class StaffController : Controller
             return Json(new { Success = false, Message = "Required fields are missing." });
         }
 
+        if (model.SchoolIds.Count == 0 || model.RoleId <= 0)
+        {
+            return Json(new { Success = false, Message = "Select at least one school and a role." });
+        }
+
+        model.RoleIds = [model.RoleId];
+        model.DefaultRoleId = model.RoleId;
+
         try
         {
-            _schoolScope.EnsureInScope(model.SchoolId);
+            EnsureSchoolsInScope(model.SchoolIds);
         }
         catch (UnauthorizedAccessException)
         {
-            return Json(new { Success = false, Message = "You do not have access to this school." });
+            return Json(new { Success = false, Message = "You do not have access to one or more selected schools." });
         }
 
         var result = await _repository.SaveAsync(model, cancellationToken);
@@ -103,7 +113,7 @@ public class StaffController : Controller
         {
             try
             {
-                _schoolScope.EnsureInScope(existing.SchoolId);
+                EnsureAnySchoolInScope(existing.SchoolIds);
             }
             catch (UnauthorizedAccessException)
             {
@@ -133,5 +143,37 @@ public class StaffController : Controller
         }
 
         return await _repository.RoleLookupsAsync(cancellationToken);
+    }
+
+    private void EnsureSchoolsInScope(IEnumerable<int> schoolIds)
+    {
+        foreach (var schoolId in schoolIds.Where(id => id > 0).Distinct())
+        {
+            _schoolScope.EnsureInScope(schoolId);
+        }
+    }
+
+    private void EnsureAnySchoolInScope(IEnumerable<int> schoolIds)
+    {
+        var ids = schoolIds.Where(id => id > 0).Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var schoolId in ids)
+        {
+            try
+            {
+                _schoolScope.EnsureInScope(schoolId);
+                return;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Try next assigned school.
+            }
+        }
+
+        throw new UnauthorizedAccessException();
     }
 }

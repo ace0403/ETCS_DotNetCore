@@ -25,16 +25,7 @@
                 <label for="txtEndDate" class="form-label">End date</label>
                 <input type="date" id="txtEndDate" class="form-control" value="@endDate" max="@maxDate" />
             </div>
-            <div class="col-12 col-md-6 col-lg-4">
-                <label for="ddlSchool" class="form-label">School</label>
-                <select id="ddlSchool" class="form-select canteen-branch-select" title="All Schools">
-                    <option value="">All Schools</option>
-                    @foreach (var school in schools)
-                    {
-                        <option value="@school.Id" title="@school.Name">@school.Name</option>
-                    }
-                </select>
-            </div>
+            <partial name="_ScopedMealSchoolFilter" />
             <div class="col-12">
                 <button type="button" class="btn btn-primary" id="btnViewReport">
                     <span class="btn-label">View Report</span>

@@ -14,33 +14,68 @@ var myTable = initAdminDataTable('#grid_table', 'staff/getlist', [
     }
 ], { order: [[2, 'asc']], schoolFilterSelector: '#adminGridSchoolFilter' });
 
-function loadStaffSchools(countryId, selectedSchoolId) {
+function parseIdList(raw) {
+    return (raw || '')
+        .split(',')
+        .map(function (value) { return parseInt(value, 10); })
+        .filter(function (value) { return !isNaN(value) && value > 0; });
+}
+
+function initStaffMultiSelects() {
+    initAdminMultiSelect('ddlStaffSchool');
+}
+
+function loadStaffSchools(countryId, selectedSchoolIds) {
     var $school = $('#ddlStaffSchool');
     if (!countryId) {
-        $school.html('<option value="">- Select -</option>');
+        $school.html('');
+        initStaffMultiSelects();
         return;
     }
     $.get(SiteUrl + 'staff/schoolsbycountry?countryId=' + countryId, function (schools) {
-        var html = '<option value="">- Select -</option>';
+        var html = '';
         (schools || []).forEach(function (s) {
-            html += '<option value="' + s.Id + '">' + $('<div/>').text(s.Name).html() + '</option>';
+            var selected = selectedSchoolIds.indexOf(s.Id) >= 0 ? ' selected' : '';
+            html += '<option value="' + s.Id + '"' + selected + '>' + $('<div/>').text(s.Name).html() + '</option>';
         });
         $school.html(html);
-        if (selectedSchoolId) {
-            $school.val(String(selectedSchoolId));
-        }
+        initStaffMultiSelects();
     });
 }
 
 function bindStaffCountrySchool() {
     var $country = $('#ddlStaffCountry');
-    var selectedSchoolId = $('#hdnSelectedSchoolId').val() || $('#ddlStaffSchool').val();
+    var selectedSchoolIds = parseIdList($('#hdnSelectedSchoolIds').val());
     $country.off('change.staffSchool').on('change.staffSchool', function () {
-        loadStaffSchools($(this).val(), null);
+        loadStaffSchools($(this).val(), []);
     });
     if ($country.val()) {
-        loadStaffSchools($country.val(), selectedSchoolId);
+        loadStaffSchools($country.val(), selectedSchoolIds);
+    } else {
+        initStaffMultiSelects();
     }
+}
+
+function serializeStaffForm($form) {
+    var data = $form.serializeArray().filter(function (item) {
+        return item.name !== 'SchoolIds';
+    });
+    ($('#ddlStaffSchool').val() || []).forEach(function (schoolId) {
+        data.push({ name: 'SchoolIds', value: schoolId });
+    });
+    return $.param(data);
+}
+
+function validateStaffForm() {
+    if (($('#ddlStaffSchool').val() || []).length === 0) {
+        toastMsg('Select at least one school.', false);
+        return false;
+    }
+    if (!$('#ddlStaffRole').val()) {
+        toastMsg('Select a role.', false);
+        return false;
+    }
+    return true;
 }
 
 function loadData(id) {
@@ -49,7 +84,8 @@ function loadData(id) {
         $('#addDataModal').modal('show');
         bindStaffCountrySchool();
         bindAdminFormSave('#frmStaff', function ($form) {
-            $.post(SiteUrl + 'staff/save', $form.serialize(), function (r) {
+            if (!validateStaffForm()) return;
+            $.post(SiteUrl + 'staff/save', serializeStaffForm($form), function (r) {
                 toastMsg(r.Message, r.Success);
                 if (r.Success) {
                     myTable.ajax.reload();

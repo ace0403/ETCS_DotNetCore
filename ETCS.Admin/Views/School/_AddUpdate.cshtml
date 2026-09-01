@@ -1,10 +1,13 @@
 @model ETCS.Shared.Infrastructure.Admin.Master.Schools.SchoolSaveRequest
 @using ETCS.Shared.Infrastructure.Admin.Master.Schools
+@using ETCS.Shared.Infrastructure.Students
 @{
     Layout = null;
     var countries = ViewBag.Countries as IReadOnlyList<SchoolCountryLookupDto> ?? Array.Empty<SchoolCountryLookupDto>();
     var orderTypes = ViewBag.OrderTypes as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> ?? [];
+    var grades = ViewBag.Grades as IReadOnlyList<GradeListItemDto> ?? Array.Empty<GradeListItemDto>();
     var selectedOrderTypeIds = Model.OrderTypeIds ?? [];
+    var gradeConfigs = (Model.GradeOrderTypeConfigs ?? []).ToDictionary(c => c.GradeId);
 }
 <form id="frmSchool" enctype="multipart/form-data">
     <div class="modal-header">
@@ -79,6 +82,62 @@
                 <div class="form-check pt-1 pt-md-3 mt-0 mt-md-4">
                     <input asp-for="HasEmailNotification" class="form-check-input" />
                     <label asp-for="HasEmailNotification" class="form-check-label"></label>
+                </div>
+            </div>
+            <div class="col-12">
+                <label class="form-label">Grade Order Types</label>
+                <p class="text-muted small mb-2">Configure per-grade access. Leave a grade unconfigured to allow all school-permitted order types for that grade.</p>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0" id="gradeOrderTypeTable">
+                        <thead>
+                            <tr>
+                                <th>Grade</th>
+                                <th class="text-center" style="width:120px;">No Service</th>
+                                <th>Order Types</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (var i = 0; i < grades.Count; i++)
+                            {
+                                var grade = grades[i];
+                                gradeConfigs.TryGetValue(grade.Id, out var config);
+                                var isNoService = config?.IsNoService ?? false;
+                                var selectedGradeOrderTypeIds = config?.OrderTypeIds ?? [];
+                                <tr class="grade-order-type-row" data-grade-id="@grade.Id">
+                                    <td>@grade.Grade</td>
+                                    <td class="text-center">
+                                        <input type="checkbox"
+                                               class="form-check-input grade-no-service"
+                                               name="GradeOrderTypeConfigs[@i].IsNoService"
+                                               value="true"
+                                               @(isNoService ? "checked" : null) />
+                                        <input type="hidden" name="GradeOrderTypeConfigs[@i].GradeId" value="@grade.Id" />
+                                    </td>
+                                    <td class="multiselect-custom">
+                                        <select class="form-select ignore-validation grade-order-types"
+                                                name="GradeOrderTypeConfigs[@i].OrderTypeIds"
+                                                id="GradeOrderTypes_@grade.Id"
+                                                multiple
+                                                data-val="false"
+                                                @(isNoService ? "disabled" : null)>
+                                            @foreach (var orderType in orderTypes)
+                                            {
+                                                var orderTypeId = int.Parse(orderType.Value!, System.Globalization.CultureInfo.InvariantCulture);
+                                                if (selectedGradeOrderTypeIds.Contains(orderTypeId))
+                                                {
+                                                    <option value="@orderType.Value" selected="selected">@orderType.Text</option>
+                                                }
+                                                else
+                                                {
+                                                    <option value="@orderType.Value">@orderType.Text</option>
+                                                }
+                                            }
+                                        </select>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

@@ -11,4 +11,6 @@ public sealed class OrderFlowOptions
     public short AccessLogTransactionType { get; set; } = 1;
 
     public string AccessLogDescription { get; set; } = "MEAL ORDER";
+
+    public int MealOrderCutoffHour { get; set; } = 15;
 }

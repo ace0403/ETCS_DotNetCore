@@ -35,10 +35,10 @@ public sealed class StudentAdminSaveRequest
 
 
 
-    [Required(ErrorMessage = "Student card number is required.")]
-    [Display(Name = "Student Card No")]
+    [Required(ErrorMessage = "Student id no is required.")]
+    [Display(Name = "Student Id No")]
     [MaxLength(50)]
-    [RegularExpression(@"^\d+$", ErrorMessage = "Student card number must contain digits only.")]
+    [RegularExpression(@"^\d+$", ErrorMessage = "Student id no must contain digits only.")]
     public string StudCode { get; set; } = string.Empty;
 
 

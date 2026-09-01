@@ -57,13 +57,18 @@ public sealed class StaffSaveRequest
     [Range(1, int.MaxValue, ErrorMessage = "Country is required.")]
     public int CountryId { get; set; }
 
-    [Display(Name = "School")]
-    [Required(ErrorMessage = "School is required.")]
-    [Range(1, int.MaxValue, ErrorMessage = "School is required.")]
+    [Display(Name = "Schools")]
+    public List<int> SchoolIds { get; set; } = [];
+
     public int SchoolId { get; set; }
 
+    [Display(Name = "Roles")]
+    public List<int> RoleIds { get; set; } = [];
+
+    [Display(Name = "Default Role")]
+    public int? DefaultRoleId { get; set; }
+
     [Display(Name = "Role")]
-    [Required(ErrorMessage = "Role is required.")]
     [Range(1, int.MaxValue, ErrorMessage = "Role is required.")]
     public int RoleId { get; set; }
 

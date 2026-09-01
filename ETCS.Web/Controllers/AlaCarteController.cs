@@ -8,7 +8,6 @@ using ETCS.Shared.Application.Orders;
 using ETCS.Shared.Application.Students;
 using ETCS.Web.Infrastructure.AlaCarte;
 using ETCS.Web.Infrastructure.Auth;
-using ETCS.Web.Infrastructure.Orders;
 using ETCS.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -27,7 +26,7 @@ public class AlaCarteController : Controller
     private readonly IOrderInitiateService _orderInitiateService;
     private readonly IOrderPaymentCompleteService _orderPaymentCompleteService;
     private readonly IStudentOrderTypeAccessService _orderTypeAccess;
-    private readonly MealOrderBookingWindow _bookingWindow;
+    private readonly ETCS.Web.Infrastructure.Orders.MealOrderBookingWindow _bookingWindow;
     private readonly ISchoolCalendarService _schoolCalendar;
 
     public AlaCarteController(
@@ -38,7 +37,7 @@ public class AlaCarteController : Controller
         IOrderInitiateService orderInitiateService,
         IOrderPaymentCompleteService orderPaymentCompleteService,
         IStudentOrderTypeAccessService orderTypeAccess,
-        MealOrderBookingWindow bookingWindow,
+        ETCS.Web.Infrastructure.Orders.MealOrderBookingWindow bookingWindow,
         ISchoolCalendarService schoolCalendar)
     {
         _studentRepository = studentRepository;

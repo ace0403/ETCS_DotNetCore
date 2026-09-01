@@ -36,6 +36,9 @@ public sealed class CachedStudentRepository : IStudentRepository
     public Task<int?> GetStudentSchoolIdAsync(int studentId, CancellationToken cancellationToken = default)
         => _inner.GetStudentSchoolIdAsync(studentId, cancellationToken);
 
+    public Task<int?> ResolveStudentGradeIdAsync(int studentId, CancellationToken cancellationToken = default)
+        => _inner.ResolveStudentGradeIdAsync(studentId, cancellationToken);
+
     public Task<bool?> GetSchoolEmailAlertsEnabledAsync(int schoolId, CancellationToken cancellationToken = default)
         => _inner.GetSchoolEmailAlertsEnabledAsync(schoolId, cancellationToken);
 

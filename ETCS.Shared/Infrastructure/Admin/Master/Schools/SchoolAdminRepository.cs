@@ -4,6 +4,7 @@ using ETCS.Shared.Infrastructure.Admin.Models;
 using ETCS.Shared.Infrastructure.Data;
 
 using static ETCS.Shared.Infrastructure.Admin.DataTablePagingHelper;
+using static ETCS.Shared.Infrastructure.Admin.SchoolScopeFilterHelper;
 
 namespace ETCS.Shared.Infrastructure.Admin.Master.Schools;
 
@@ -57,13 +58,16 @@ public sealed class SchoolAdminRepository : ISchoolAdminRepository
 
     private readonly IDbConnectionFactory _connectionFactory;
     private readonly ISchoolOrderTypeAdminRepository _orderTypeRepository;
+    private readonly ISchoolGradeOrderTypeAdminRepository _gradeOrderTypeRepository;
 
     public SchoolAdminRepository(
         IDbConnectionFactory connectionFactory,
-        ISchoolOrderTypeAdminRepository orderTypeRepository)
+        ISchoolOrderTypeAdminRepository orderTypeRepository,
+        ISchoolGradeOrderTypeAdminRepository gradeOrderTypeRepository)
     {
         _connectionFactory = connectionFactory;
         _orderTypeRepository = orderTypeRepository;
+        _gradeOrderTypeRepository = gradeOrderTypeRepository;
     }
 
     public async Task<DataTableResponse<SchoolListItemDto>> GetDataAsync(
@@ -73,16 +77,17 @@ public sealed class SchoolAdminRepository : ISchoolAdminRepository
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
+        var (schoolFilterSql, schoolFilterParams) = BuildSchoolIdFilter(request, "s.SchoolId");
         return await QueryPagedAsync<SchoolListItemDto>(
             dbConnection,
             SelectSql,
             FromSql,
-            request.SchoolId is > 0 ? "s.SchoolId = @SchoolId" : null,
+            schoolFilterSql,
             SearchFilterSql,
             SortColumns,
             "s.SchoolName",
             request,
-            request.SchoolId is > 0 ? new { SchoolId = request.SchoolId.Value } : null,
+            schoolFilterParams,
             cancellationToken: cancellationToken);
     }
 
@@ -97,6 +102,7 @@ public sealed class SchoolAdminRepository : ISchoolAdminRepository
         if (request is null) return null;
 
         request.OrderTypeIds = (await _orderTypeRepository.GetOrderTypeIdsAsync(id, cancellationToken)).ToList();
+        request.GradeOrderTypeConfigs = (await _gradeOrderTypeRepository.GetConfigsAsync(id, cancellationToken)).ToList();
         return request;
     }
 
@@ -143,6 +149,7 @@ public sealed class SchoolAdminRepository : ISchoolAdminRepository
             }
 
             await _orderTypeRepository.SaveOrderTypesAsync(request.Id, request.OrderTypeIds ?? [], cancellationToken);
+            await _gradeOrderTypeRepository.SaveConfigsAsync(request.Id, request.GradeOrderTypeConfigs ?? [], cancellationToken);
             return AdminOperationResult.Ok("School updated successfully.");
         }
 
@@ -161,6 +168,7 @@ public sealed class SchoolAdminRepository : ISchoolAdminRepository
         }
 
         await _orderTypeRepository.SaveOrderTypesAsync(newId, request.OrderTypeIds ?? [], cancellationToken);
+        await _gradeOrderTypeRepository.SaveConfigsAsync(newId, request.GradeOrderTypeConfigs ?? [], cancellationToken);
         return AdminOperationResult.Ok("School added successfully.");
     }
 
@@ -183,6 +191,7 @@ public sealed class SchoolAdminRepository : ISchoolAdminRepository
             }
 
             await _orderTypeRepository.DeleteOrderTypesAsync(id, cancellationToken);
+            await _gradeOrderTypeRepository.DeleteConfigsAsync(id, cancellationToken);
             return AdminOperationResult.Ok("Record deleted successfully.");
         }
         catch

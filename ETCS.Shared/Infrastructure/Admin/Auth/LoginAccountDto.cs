@@ -11,9 +11,11 @@ public sealed class LoginAccountDto
     public int RoleId { get; init; }
     public string RoleName { get; init; } = "Admin";
     public int SchoolId { get; init; }
+    public int ActiveRoleId { get; init; }
     public bool IsActive { get; init; }
     public bool IsSuperAdmin { get; init; }
     public bool IsSchoolScoped { get; init; }
     public IReadOnlyList<int> AssignedSchoolIds { get; init; } = [];
+    public IReadOnlyList<LoginAccountRoleOptionDto> AvailableRoles { get; init; } = [];
     public IReadOnlyList<string> Permissions { get; init; } = [];
 }

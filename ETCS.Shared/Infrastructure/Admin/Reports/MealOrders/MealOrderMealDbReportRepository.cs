@@ -149,6 +149,7 @@ public sealed class MealOrderMealDbReportRepository : IMealOrderMealDbReportRepo
             StartDate = request.StartDate!.Value.Date,
             EndDate = request.EndDate!.Value.Date,
             SchoolId = request.SchoolId,
+            SchoolIdsCsv = request.SchoolIdsCsv,
             MealSessionId = request.MealSessionId,
             MealTypeId = request.MealTypeId
         };
@@ -168,6 +169,7 @@ public sealed class MealOrderMealDbReportRepository : IMealOrderMealDbReportRepo
         parameters.Add("startdate", filter.StartDate.Date);
         parameters.Add("enddate", filter.EndDate.Date);
         parameters.Add("SchoolId", filter.SchoolId?.Trim() ?? string.Empty);
+        parameters.Add("SchoolIdsCsv", filter.SchoolIdsCsv?.Trim() ?? string.Empty);
         parameters.Add("MealSessionId", filter.MealSessionId.GetValueOrDefault());
         parameters.Add("MealTypeId", filter.MealTypeId.GetValueOrDefault());
         parameters.Add("Start", start);

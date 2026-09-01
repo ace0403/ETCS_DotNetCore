@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Dapper;
 using ETCS.Shared.Helpers;
+using ETCS.Shared.Infrastructure.Admin.Auth;
 using ETCS.Shared.Infrastructure.Admin.Models;
 using ETCS.Shared.Infrastructure.Data;
 
@@ -26,10 +27,14 @@ public sealed class StaffAdminRepository : IStaffAdminRepository
     };
 
     private readonly IDbConnectionFactory _connectionFactory;
+    private readonly IStaffLoginAssignmentRepository _assignmentRepository;
 
-    public StaffAdminRepository(IDbConnectionFactory connectionFactory)
+    public StaffAdminRepository(
+        IDbConnectionFactory connectionFactory,
+        IStaffLoginAssignmentRepository assignmentRepository)
     {
         _connectionFactory = connectionFactory;
+        _assignmentRepository = assignmentRepository;
     }
 
     public async Task<DataTableResponse<StaffListItemDto>> GetDataAsync(
@@ -40,8 +45,39 @@ public sealed class StaffAdminRepository : IStaffAdminRepository
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
 
-        string? baseFilterSql = request.SchoolId is > 0 ? "la.SchoolId = @SchoolId" : null;
-        object? extraParameters = request.SchoolId is > 0 ? new { SchoolId = request.SchoolId.Value } : null;
+        string? baseFilterSql = null;
+        object? extraParameters = null;
+        if (request.ScopedSchoolIds is { Count: > 0 })
+        {
+            var loginAccountIds = new List<int>();
+            foreach (var scopedSchoolId in request.ScopedSchoolIds)
+            {
+                var ids = await _assignmentRepository.GetLoginAccountIdsBySchoolAsync(
+                    scopedSchoolId,
+                    cancellationToken);
+                loginAccountIds.AddRange(ids);
+            }
+
+            loginAccountIds = loginAccountIds.Distinct().ToList();
+            baseFilterSql = loginAccountIds.Count > 0
+                ? "(la.Sid IN @LoginAccountIds OR la.SchoolId IN @ScopedSchoolIds)"
+                : "la.SchoolId IN @ScopedSchoolIds";
+            extraParameters = loginAccountIds.Count > 0
+                ? new { ScopedSchoolIds = request.ScopedSchoolIds, LoginAccountIds = loginAccountIds }
+                : new { ScopedSchoolIds = request.ScopedSchoolIds };
+        }
+        else if (request.SchoolId is > 0)
+        {
+            var loginAccountIds = await _assignmentRepository.GetLoginAccountIdsBySchoolAsync(
+                request.SchoolId.Value,
+                cancellationToken);
+            baseFilterSql = loginAccountIds.Count > 0
+                ? "(la.Sid IN @LoginAccountIds OR la.SchoolId = @SchoolId)"
+                : "la.SchoolId = @SchoolId";
+            extraParameters = loginAccountIds.Count > 0
+                ? new { SchoolId = request.SchoolId.Value, LoginAccountIds = loginAccountIds }
+                : new { SchoolId = request.SchoolId.Value };
+        }
 
         return await QueryPagedAsync<StaffListItemDto>(
             dbConnection,
@@ -83,10 +119,25 @@ public sealed class StaffAdminRepository : IStaffAdminRepository
                 """,
                 new { Id = id },
                 cancellationToken: cancellationToken));
-        if (row is not null)
+        if (row is null)
         {
-            row.Password = null;
+            return null;
         }
+
+        row.Password = null;
+        row.SchoolIds = (await _assignmentRepository.GetSchoolIdsAsync(id, cancellationToken)).ToList();
+        if (row.SchoolIds.Count == 0 && row.SchoolId > 0)
+        {
+            row.SchoolIds = [row.SchoolId];
+        }
+
+        row.RoleIds = (await _assignmentRepository.GetRoleIdsAsync(id, cancellationToken)).ToList();
+        if (row.RoleIds.Count == 0 && row.RoleId > 0)
+        {
+            row.RoleIds = [row.RoleId];
+        }
+
+        row.DefaultRoleId = await _assignmentRepository.GetDefaultRoleIdAsync(id, cancellationToken) ?? row.RoleId;
         return row;
     }
 
@@ -160,6 +211,23 @@ public sealed class StaffAdminRepository : IStaffAdminRepository
         if (string.IsNullOrWhiteSpace(request.LoginName))
             return AdminOperationResult.Fail("Login name is required.");
 
+        var schoolIds = request.SchoolIds.Where(id => id > 0).Distinct().ToList();
+        var roleIds = request.RoleIds.Where(id => id > 0).Distinct().ToList();
+        if (roleIds.Count == 0 && request.RoleId > 0)
+        {
+            roleIds = [request.RoleId];
+        }
+        if (schoolIds.Count == 0)
+            return AdminOperationResult.Fail("At least one school is required.");
+        if (roleIds.Count == 0)
+            return AdminOperationResult.Fail("At least one role is required.");
+
+        var primarySchoolId = schoolIds[0];
+        request.SchoolId = primarySchoolId;
+        request.RoleId = request.DefaultRoleId is > 0 && roleIds.Contains(request.DefaultRoleId.Value)
+            ? request.DefaultRoleId.Value
+            : roleIds[0];
+
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
@@ -195,7 +263,7 @@ public sealed class StaffAdminRepository : IStaffAdminRepository
                         request.LastName,
                         request.RoleId,
                         request.CountryId,
-                        request.SchoolId,
+                        SchoolId = primarySchoolId,
                         request.DateOfBirth,
                         request.Email,
                         request.StaffId,
@@ -204,9 +272,14 @@ public sealed class StaffAdminRepository : IStaffAdminRepository
                         PasswordHash = passwordHash
                     },
                     cancellationToken: cancellationToken));
-            return rows > 0
-                ? AdminOperationResult.Ok("Staff updated successfully.")
-                : AdminOperationResult.Fail("Staff was not updated.");
+            if (rows <= 0)
+            {
+                return AdminOperationResult.Fail("Staff was not updated.");
+            }
+
+            await _assignmentRepository.SaveSchoolIdsAsync(request.Id, schoolIds, cancellationToken);
+            await _assignmentRepository.SaveRoleIdsAsync(request.Id, roleIds, request.DefaultRoleId, cancellationToken);
+            return AdminOperationResult.Ok("Staff updated successfully.");
         }
 
         if (string.IsNullOrWhiteSpace(request.Password))
@@ -224,8 +297,10 @@ public sealed class StaffAdminRepository : IStaffAdminRepository
         const string insertSql = """
             INSERT INTO LoginAccount (LoginName, Password, FirstName, LastName, RoleID, CountryId, SchoolId, DOB, Email, Gender, SecurityQue, SecurityAns, Enabled, StaffId, AuthorizationLimit, HasSchoolAddAccess)
             VALUES (@LoginName, @PasswordHash, @FirstName, @LastName, @RoleId, @CountryId, @SchoolId, @DateOfBirth, @Email, '', @SecurityQuestion, @SecurityAnswer, 1, @StaffId, 0, 0);
+
+            SELECT CAST(SCOPE_IDENTITY() AS INT);
             """;
-        var inserted = await dbConnection.ExecuteAsync(
+        var newId = await dbConnection.ExecuteScalarAsync<int>(
             new CommandDefinition(
                 insertSql,
                 new
@@ -244,9 +319,15 @@ public sealed class StaffAdminRepository : IStaffAdminRepository
                     request.SecurityAnswer
                 },
                 cancellationToken: cancellationToken));
-        return inserted > 0
-            ? AdminOperationResult.Ok("Staff added successfully.")
-            : AdminOperationResult.Fail("Staff was not added.");
+        if (newId <= 0)
+        {
+            return AdminOperationResult.Fail("Staff was not added.");
+        }
+
+        request.Id = newId;
+        await _assignmentRepository.SaveSchoolIdsAsync(newId, schoolIds, cancellationToken);
+        await _assignmentRepository.SaveRoleIdsAsync(newId, roleIds, request.DefaultRoleId, cancellationToken);
+        return AdminOperationResult.Ok("Staff added successfully.");
     }
 
     public async Task<AdminOperationResult> DeleteAsync(int id, CancellationToken cancellationToken = default)
@@ -257,6 +338,7 @@ public sealed class StaffAdminRepository : IStaffAdminRepository
         await dbConnection.OpenAsync(cancellationToken);
         try
         {
+            await _assignmentRepository.DeleteAssignmentsAsync(id, cancellationToken);
             var rows = await dbConnection.ExecuteAsync(
                 new CommandDefinition(
                     "DELETE FROM LoginAccount WHERE Sid = @Id;",

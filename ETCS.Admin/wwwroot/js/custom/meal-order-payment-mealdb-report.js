@@ -61,8 +61,7 @@ function getMealOrderReportFilters() {
         StartDate: $('#txtStartDate').val(),
         EndDate: $('#txtEndDate').val(),
         SchoolId: $('#ddlSchool').val() || '',
-        MealSessionId: $('#ddlMealSession').val() || '',
-        MealTypeId: $('#ddlMealType').val() || ''
+        TransactionId: ($('#txtTransactionId').val() || '').trim()
     };
 }
 
@@ -105,8 +104,7 @@ function initMealOrderReportTable() {
         payload.StartDate = filters.StartDate;
         payload.EndDate = filters.EndDate;
         payload.SchoolId = filters.SchoolId;
-        payload.MealSessionId = filters.MealSessionId;
-        payload.MealTypeId = filters.MealTypeId;
+        payload.TransactionId = filters.TransactionId;
     };
 
     ajaxConfig.dataFilter = function (raw) {
@@ -151,13 +149,11 @@ function initMealOrderReportTable() {
             { targets: 0, width: '56px', className: 'text-center' },
             { targets: 1, width: '100px' },
             { targets: 2, width: '120px' },
-            { targets: [3, 4, 10], width: '70px' },
+            { targets: [3, 4, 7], width: '70px' },
             { targets: 5, width: '110px' },
-            { targets: 6, width: '100px' },
-            { targets: 7, width: '160px', className: 'canteen-branch-cell' },
+            { targets: 6, width: '160px', className: 'canteen-branch-cell' },
             { targets: 8, width: '90px', className: 'text-end' },
-            { targets: 9, width: '100px' },
-            { targets: 11, width: '220px', className: 'canteen-branch-cell' }
+            { targets: 9, width: '220px', className: 'canteen-branch-cell' }
         ],
         columns: [
             {
@@ -172,13 +168,11 @@ function initMealOrderReportTable() {
             { data: 'StudCode', render: function (d) { return renderEllipsisCell(d, 18); } },
             { data: 'StudFullName', render: function (d) { return renderEllipsisCell(d, 36); } },
             { data: 'StudStd' },
-            { data: 'PaymentStatus' },
-            { data: 'MealSession', render: function (d) { return renderEllipsisCell(d, 20); } },
             { data: 'TransactionId', render: function (d) { return renderEllipsisCell(d, 24); } },
+            { data: 'TransactionType' },
+            { data: 'Package' },
             { data: 'Amount', className: 'text-end', render: function (d) { return formatAmount(d); } },
-            { data: 'DeliveryDate' },
-            { data: 'Day' },
-            { data: 'Items', render: function (d) { return renderEllipsisCell(d, 48); } }
+            { data: 'SchoolName', render: function (d) { return renderEllipsisCell(d, 48); } }
         ]
     });
 
@@ -200,41 +194,13 @@ function exportMealOrderReport() {
     $('#exportStartDate').val(filters.StartDate);
     $('#exportEndDate').val(filters.EndDate);
     $('#exportSchoolId').val(filters.SchoolId);
-    $('#exportMealSessionId').val(filters.MealSessionId);
-    $('#exportMealTypeId').val(filters.MealTypeId);
+    $('#exportTransactionId').val(filters.TransactionId);
     $('#frmExport').trigger('submit');
-}
-
-function populateMealTypeOptions(types) {
-    var $type = $('#ddlMealType');
-    $type.empty().append('<option value="">All Meal Types</option>');
-    (types || []).forEach(function (item) {
-        $type.append('<option value="' + item.id + '">' + escapeHtml(item.name) + '</option>');
-    });
-}
-
-function loadMealTypesForSession(sessionId) {
-    if (!sessionId) {
-        populateMealTypeOptions([]);
-        $('#ddlMealType').prop('disabled', true);
-        return;
-    }
-
-    $.get('/report/getmealordermealtypes', { sessionId: sessionId }).done(function (response) {
-        populateMealTypeOptions(response.data || []);
-        $('#ddlMealType').prop('disabled', false);
-    }).fail(function () {
-        populateMealTypeOptions([]);
-        $('#ddlMealType').prop('disabled', true);
-    });
 }
 
 $(function () {
     syncSchoolSelectTitle();
     $('#ddlSchool').on('change', syncSchoolSelectTitle);
-    $('#ddlMealSession').on('change', function () {
-        loadMealTypesForSession($(this).val());
-    });
     $('#btnViewReport').on('click', viewMealOrderReport);
     $('#btnExportReport').on('click', exportMealOrderReport);
 });

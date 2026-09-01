@@ -236,6 +236,8 @@ function initAdminDataTable(selector, relativeUrl, columns, options) {
         if (allowed.length === 1) {
             $filter.val(String(allowed[0])).prop('disabled', true);
             table.draw();
+        } else if (allowed.length > 1) {
+            $filter.val('');
         }
     }
 

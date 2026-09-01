@@ -1,9 +1,11 @@
+@using ETCS.Admin.Infrastructure.Auth
 @using ETCS.Shared.Infrastructure.Admin.Reports.CanteenTransactions
 @{
     ViewData["Title"] = "Dashboard";
     ViewData["PageSubtitle"] = "Canteen sales, transactions, and terminal activity";
     Layout = "~/Views/Shared/_Layout.cshtml";
     var schools = ViewBag.Schools as IReadOnlyList<SchoolCodeLookupDto> ?? Array.Empty<SchoolCodeLookupDto>();
+    var isScoped = User.IsSchoolScoped() && !User.IsAdminRole();
     var today = DateTime.Today.ToString("yyyy-MM-dd");
 }
 <div class="dashboard-page">
@@ -21,8 +23,15 @@
                 <input type="date" id="txtDashEndDate" class="form-control form-control-sm py-0" value="@today" />
             </div>
             <div class="dashboard-toolbar-spacer" aria-hidden="true"></div>
-            <select id="ddlDashSchool" class="form-select form-select-sm dashboard-school-select" title="All Schools">
-                <option value="">All Schools</option>
+            <select id="ddlDashSchool" class="form-select form-select-sm dashboard-school-select" title="@(isScoped ? "All my schools" : "All Schools")">
+                @if (!isScoped)
+                {
+                    <option value="">All Schools</option>
+                }
+                else
+                {
+                    <option value="" selected>All my schools</option>
+                }
                 @foreach (var school in schools)
                 {
                     <option value="@school.Code" title="@school.Name">@school.Name</option>

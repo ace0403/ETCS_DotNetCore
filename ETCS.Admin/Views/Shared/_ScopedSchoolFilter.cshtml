@@ -1,0 +1,31 @@
+@using ETCS.Admin.Infrastructure.Auth
+@using ETCS.Shared.Infrastructure.Admin.Reports.CanteenTransactions
+@{
+    var schools = ViewBag.Schools switch
+    {
+        IReadOnlyList<SchoolCodeLookupDto> codeSchools => codeSchools,
+        _ => Array.Empty<SchoolCodeLookupDto>()
+    };
+
+    var isScoped = User.IsSchoolScoped() && !User.IsAdminRole();
+    var selectId = ViewData["ScopedSchoolFilterId"] as string ?? "ddlSchool";
+    var label = ViewData["ScopedSchoolFilterLabel"] as string ?? "School";
+}
+
+<div class="col-12 col-md-6 col-lg-4">
+    <label for="@selectId" class="form-label">@label</label>
+    <select id="@selectId" class="form-select">
+        @if (!isScoped)
+        {
+            <option value="">All Schools</option>
+        }
+        else
+        {
+            <option value="">All my schools</option>
+        }
+        @foreach (var school in schools)
+        {
+            <option value="@school.Code" title="@school.Name">@school.Name</option>
+        }
+    </select>
+</div>
