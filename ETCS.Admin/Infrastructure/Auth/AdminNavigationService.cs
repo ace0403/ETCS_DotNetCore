@@ -9,6 +9,7 @@ public sealed class AdminNavigationService : IAdminNavigationService
     [
         "Dashboard",
         "School",
+        "Grade",
         "Guardian",
         "Student",
         "BlacklistCard",

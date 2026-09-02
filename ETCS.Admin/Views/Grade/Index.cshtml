@@ -1,0 +1,34 @@
+@{
+    ViewData["Title"] = "Manage Grades";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewBag.AdminModuleKey = "Grade";
+}
+<div class="card">
+    <div class="card-body">
+        <div class="admin-grid-toolbar">
+            <partial name="_AdminGridSearch" />
+            <div class="admin-grid-actions">
+                <partial name="_AdminAddButton" />
+            </div>
+        </div>
+        <div class="table-responsive admin-grid-table-scroll">
+        <table id="grid_table" class="table table-striped table-bordered w-100" style="width:100%">
+            <thead>
+                <tr>
+                    <th>Grade</th>
+                    <th class="text-center" style="width:70px"></th>
+                </tr>
+            </thead>
+        </table>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="addDataModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" id="div_add"></div>
+    </div>
+</div>
+@section Scripts {
+    <script>window.adminModuleKey = 'Grade';</script>
+    <script src="~/js/custom/grade.js"></script>
+}

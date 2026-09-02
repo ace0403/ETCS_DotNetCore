@@ -20,6 +20,7 @@
                     </li>
                 }
                 @if (AdminPermissionViewHelper.CanView(User, "School")
+                    || AdminPermissionViewHelper.CanView(User, "Grade")
                     || AdminPermissionViewHelper.CanView(User, "Guardian")
                     || AdminPermissionViewHelper.CanView(User, "Student")
                     || AdminPermissionViewHelper.CanView(User, "BlacklistCard")
@@ -35,6 +36,15 @@
                         <a asp-controller="School" asp-action="Index" class="pc-link">
                             <span class="pc-micon"><i class="ti ti-building"></i></span>
                             <span class="pc-mtext">Manage Schools</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Grade"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="Grade" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-list-numbers"></i></span>
+                            <span class="pc-mtext">Manage Grades</span>
                         </a>
                     </li>
                 }
