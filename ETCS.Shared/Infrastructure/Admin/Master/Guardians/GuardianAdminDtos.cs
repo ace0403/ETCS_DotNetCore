@@ -131,13 +131,12 @@ public class GuardianAddStudentRequest
     [MaxLength(50)]
     public string? LastName { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Class / grade is required.")]
-    [Range(1, int.MaxValue, ErrorMessage = "Class / grade is required.")]
+    [Required(ErrorMessage = "Class/grade is required.")]
+    [Range(1, int.MaxValue, ErrorMessage = "Class/grade is required.")]
     public int GradeId { get; set; }
 
-    [Required(ErrorMessage = "Division is required.")]
     [MaxLength(128)]
-    public string Division { get; set; } = string.Empty;
+    public string? Division { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Gender is required.")]
     public string Gender { get; set; } = "Male";

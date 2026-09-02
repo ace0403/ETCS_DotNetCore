@@ -99,13 +99,11 @@ public sealed class StudentAdminSaveRequest
 
 
 
-    [Required(ErrorMessage = "Division is required.")]
-
-    [Display(Name = "Division")]
+    [Display(Name = "Division/Section")]
 
     [MaxLength(128)]
 
-    public string Division { get; set; } = string.Empty;
+    public string? Division { get; set; } = string.Empty;
 
 
 

@@ -10,7 +10,7 @@ namespace ETCS.Shared.Application.Email;
 
 public sealed class OrderEmailContentBuilder : IOrderEmailContentBuilder
 {
-    private const string SupportEmail = "info@etasteuae.com";
+    private const string SupportEmail = "schoolcanteen@etasteuae.com";
 
     private readonly IMealOrderRepository _mealOrderRepository;
     private readonly IMealRepository _mealRepository;
