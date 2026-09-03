@@ -3,6 +3,11 @@
     ViewData["Title"] = "Manage Students";
     Layout = "~/Views/Shared/_Layout.cshtml";
     ViewBag.AdminModuleKey = "Student";
+    var exportError = TempData["ExportError"] as string;
+}
+@if (!string.IsNullOrWhiteSpace(exportError))
+{
+    <div class="alert alert-warning">@exportError</div>
 }
 <div class="card">
     <div class="card-body">
@@ -10,6 +15,9 @@
             <partial name="_AdminGridSearch" />
             <partial name="_AdminGridSchoolFilter" />
             <div class="admin-grid-actions">
+                <button type="button" class="btn btn-outline-primary" onclick="exportStudents()">
+                    <i class="ti ti-download me-1"></i>Export
+                </button>
                 <partial name="_AdminAddButton" />
             </div>
         </div>
@@ -21,6 +29,7 @@
                         <th>Code</th>
                         <th>Name</th>
                         <th>School</th>
+                        <th>Standard</th>
                         <th>Guardian</th>
                         <th>Balance</th>
                         <th>Created Date</th>
@@ -32,9 +41,18 @@
     </div>
 </div>
 <div class="modal fade" id="addDataModal" tabindex="-1" data-bs-backdrop="static"><div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content" id="div_add"></div></div></div>
+<form id="frmStudentExport" asp-controller="Student" asp-action="Export" method="post" class="d-none">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="Search.Value" id="studentExportSearch" />
+    <input type="hidden" name="SchoolId" id="studentExportSchoolId" />
+</form>
+@section Styles {
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+}
 @section Scripts {
     <link href="~/css/bootstrap-multiselect.css" rel="stylesheet" />
     <script src="~/js/bootstrap-multiselect.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>window.adminModuleKey = 'Student';</script>
     <script src="~/js/custom/student.js"></script>
 }

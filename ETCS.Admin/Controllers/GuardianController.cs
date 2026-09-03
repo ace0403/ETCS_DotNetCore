@@ -1,4 +1,5 @@
 using ETCS.Admin.Infrastructure.Auth;
+using ETCS.Admin.Infrastructure.Master;
 using ETCS.Shared.Infrastructure.Admin.Models;
 using ETCS.Shared.Infrastructure.Admin.Master.Guardians;
 using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
@@ -29,6 +30,24 @@ public class GuardianController : Controller
     {
         var response = await _repository.GetDataAsync(request, cancellationToken);
         return Json(response);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Export([FromForm] DataTableRequest request, CancellationToken cancellationToken)
+    {
+        var rows = await _repository.ListForExportAsync(request, cancellationToken);
+        if (rows.Count == 0)
+        {
+            TempData["ExportError"] = "No data available.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var fileBytes = GuardianMasterExcelExporter.Export(rows);
+        return File(
+            fileBytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            GuardianMasterExcelExporter.BuildFileName());
     }
 
     public async Task<IActionResult> Get(int id, CancellationToken cancellationToken)

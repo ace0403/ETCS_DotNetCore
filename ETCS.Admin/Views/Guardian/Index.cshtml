@@ -3,12 +3,20 @@
     ViewData["Title"] = "Manage Parents";
     Layout = "~/Views/Shared/_Layout.cshtml";
     ViewBag.AdminModuleKey = "Guardian";
+    var exportError = TempData["ExportError"] as string;
+}
+@if (!string.IsNullOrWhiteSpace(exportError))
+{
+    <div class="alert alert-warning">@exportError</div>
 }
 <div class="card">
     <div class="card-body">
         <div class="admin-grid-toolbar">
             <partial name="_AdminGridSearch" />
             <div class="admin-grid-actions">
+                <button type="button" class="btn btn-outline-primary" onclick="exportGuardians()">
+                    <i class="ti ti-download me-1"></i>Export
+                </button>
                 @if (AdminPermissionViewHelper.CanAdd(User, "Guardian"))
                 {
                     <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addDataModal" onclick="loadData(0)">
@@ -39,6 +47,10 @@
 <div class="modal fade" id="childEditModal" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content" id="div_child_edit"></div></div>
 </div>
+<form id="frmGuardianExport" asp-controller="Guardian" asp-action="Export" method="post" class="d-none">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="Search.Value" id="guardianExportSearch" />
+</form>
 @section Scripts {
     <link href="~/css/bootstrap-multiselect.css" rel="stylesheet" />
     <script src="~/js/bootstrap-multiselect.js"></script>

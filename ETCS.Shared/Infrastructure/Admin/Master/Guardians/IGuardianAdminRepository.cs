@@ -5,6 +5,7 @@ namespace ETCS.Shared.Infrastructure.Admin.Master.Guardians;
 public interface IGuardianAdminRepository
 {
     Task<DataTableResponse<GuardianListItemDto>> GetDataAsync(DataTableRequest request, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<GuardianListItemDto>> ListForExportAsync(DataTableRequest request, CancellationToken cancellationToken = default);
     Task<GuardianSaveRequest?> GetAsync(int id, CancellationToken cancellationToken = default);
     Task<AdminOperationResult> SaveAsync(GuardianSaveRequest request, CancellationToken cancellationToken = default);
     Task<AdminOperationResult> DeleteAsync(int id, CancellationToken cancellationToken = default);

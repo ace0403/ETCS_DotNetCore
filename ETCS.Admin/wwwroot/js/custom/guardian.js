@@ -20,6 +20,11 @@ var myTable = initAdminDataTable('#grid_table', 'guardian/getlist', [
     }
 ], { order: [[0, 'desc']] });
 
+function exportGuardians() {
+    $('#guardianExportSearch').val($('#adminGridSearch').val() || '');
+    $('#frmGuardianExport').submit();
+}
+
 function loadData(id) {
     $.get(SiteUrl + 'guardian/get?id=' + id, function (h) {
         $('#div_add').html(h);

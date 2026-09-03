@@ -23,9 +23,11 @@
             {
                 <div class="col-md-12">
                     <label asp-for="GuardianId" class="form-label">Parent</label>
-                    <select asp-for="GuardianId" class="form-select" asp-items="ViewBag.Guardians">
-                        <option value="">- Select Parent -</option>
-                    </select>
+                    <div class="student-guardian-select-wrap">
+                        <select asp-for="GuardianId" class="js-student-guardian-select" asp-items="ViewBag.Guardians">
+                            <option value="">- Select Parent -</option>
+                        </select>
+                    </div>
                     <span asp-validation-for="GuardianId" class="text-danger"></span>
                 </div>
             }

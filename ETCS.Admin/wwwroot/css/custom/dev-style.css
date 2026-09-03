@@ -711,6 +711,136 @@ table.dataTable thead th {
     padding: .45rem .75rem;
 }
 
+#addDataModal .student-guardian-select-wrap .select2-container {
+    width: 100% !important;
+    display: block;
+}
+
+#addDataModal .student-guardian-select-wrap .select2-container--default .select2-selection--single {
+    position: relative;
+    display: block;
+    width: 100%;
+    padding: .6rem 2rem .6rem .75rem !important;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #131920;
+    border: 1px solid #bec8d0 !important;
+    border-radius: 8px !important;
+    background-color: #fff !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right .75rem center !important;
+    background-size: 16px 12px !important;
+    height: auto;
+    min-height: calc(1.5em + 1.2rem + 2px);
+    transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+}
+
+#addDataModal .student-guardian-select-wrap .select2-container--default.select2-container--focus .select2-selection--single,
+#addDataModal .student-guardian-select-wrap .select2-container--default.select2-container--open .select2-selection--single {
+    border-color: #86b7fe !important;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15) !important;
+    outline: 0;
+}
+
+#addDataModal .student-guardian-select-wrap .select2-selection--single .select2-selection__rendered {
+    display: block;
+    padding: 0 !important;
+    padding-right: 1.25rem !important;
+    line-height: 1.5;
+    color: inherit;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#addDataModal .student-guardian-select-wrap .select2-selection--single .select2-selection__placeholder {
+    color: #5b6b79;
+}
+
+#addDataModal .student-guardian-select-wrap .select2-selection--single .select2-selection__arrow {
+    display: none !important;
+}
+
+#addDataModal .student-guardian-select-wrap .select2-selection--single .select2-selection__clear {
+    position: absolute;
+    right: 1.65rem;
+    top: 50%;
+    transform: translateY(-50%);
+    float: none;
+    margin: 0;
+    padding: 0;
+    width: 1rem;
+    height: 1rem;
+    line-height: 1rem;
+    font-size: .875rem;
+    font-weight: 400;
+    color: #5b6b79;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+}
+
+#addDataModal .student-guardian-select-wrap .select2-selection--single .select2-selection__clear:hover {
+    color: #131920;
+}
+
+.select2-container--open .select2-dropdown.student-parent-select2-dropdown,
+.student-parent-select2-dropdown {
+    z-index: 2000;
+    border: 1px solid #bec8d0;
+    border-radius: 8px;
+    box-shadow: 0 0.25rem 0.75rem rgba(19, 25, 32, 0.12);
+    font-family: inherit;
+    font-size: inherit;
+    color: #131920;
+    overflow: hidden;
+}
+
+.student-parent-select2-dropdown .select2-search--dropdown {
+    padding: 0;
+    border-bottom: 1px solid #bec8d0;
+}
+
+.student-parent-select2-dropdown .select2-search--dropdown .select2-search__field {
+    display: block;
+    width: 100%;
+    margin: 0;
+    border: 0;
+    border-radius: 8px 8px 0 0;
+    padding: .6rem .75rem;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #131920;
+    background: #fff;
+    box-shadow: none;
+    outline: 0;
+}
+
+.student-parent-select2-dropdown .select2-search--dropdown .select2-search__field::placeholder {
+    color: #5b6b79;
+}
+
+.student-parent-select2-dropdown .select2-results__option {
+    padding: .5rem .75rem;
+    font-size: inherit;
+    line-height: 1.5;
+}
+
+.student-parent-select2-dropdown .select2-results__option--highlighted.select2-results__option--selectable {
+    background-color: #4680ff;
+    color: #fff;
+}
+
+.student-parent-select2-dropdown .select2-results__option--selected {
+    background-color: #f3f5f7;
+    color: #131920;
+}
+
 .input-group > .form-control {
     border-radius: 8px !important;
 }

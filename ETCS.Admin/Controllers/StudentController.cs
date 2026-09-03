@@ -1,4 +1,5 @@
 using ETCS.Admin.Infrastructure.Auth;
+using ETCS.Admin.Infrastructure.Master;
 using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
 using ETCS.Shared.Infrastructure.Admin.Models;
 using ETCS.Shared.Infrastructure.Admin.Master.Students;
@@ -38,6 +39,25 @@ public class StudentController : Controller
         _schoolScope.ApplyListScope(request);
         var response = await _repository.GetDataAsync(request, cancellationToken);
         return Json(response);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Export([FromForm] DataTableRequest request, CancellationToken cancellationToken)
+    {
+        _schoolScope.ApplyListScope(request);
+        var rows = await _repository.ListForExportAsync(request, cancellationToken);
+        if (rows.Count == 0)
+        {
+            TempData["ExportError"] = "No data available.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var fileBytes = StudentMasterExcelExporter.Export(rows);
+        return File(
+            fileBytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            StudentMasterExcelExporter.BuildFileName());
     }
 
     public async Task<IActionResult> Get(decimal id, CancellationToken cancellationToken)
@@ -103,7 +123,7 @@ public class StudentController : Controller
         var allergies = await _mealEnumRepository.GetByTypeIdAsync(MealEnumTypeIds.FoodAllergy, cancellationToken);
         var orderTypes = await _mealEnumRepository.GetStudentOrderTypesAsync(cancellationToken);
 
-        ViewBag.Guardians = new SelectList(guardians, "Id", "Name");
+        ViewBag.Guardians = new SelectList(guardians.Where(x=>!string.IsNullOrWhiteSpace(x.Name)).ToList(), "Id", "Name");
         ViewBag.Grades = grades;
         ViewBag.Schools = _schoolScope.FilterSchools(schools, s => s.Id);
         ViewBag.Allergies = new SelectList(allergies, "Id", "Name");

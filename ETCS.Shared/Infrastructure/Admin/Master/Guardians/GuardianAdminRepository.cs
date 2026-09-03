@@ -104,6 +104,26 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
             defaultSortDirection: "DESC");
     }
 
+    public async Task<IReadOnlyList<GuardianListItemDto>> ListForExportAsync(
+        DataTableRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+        return await QueryAllAsync<GuardianListItemDto>(
+            dbConnection,
+            SelectSql,
+            FromSql,
+            baseFilterSql: null,
+            SearchFilterSql,
+            SortColumns,
+            "g.GrdID",
+            request,
+            cancellationToken: cancellationToken,
+            defaultSortDirection: "DESC");
+    }
+
     public async Task<GuardianSaveRequest?> GetAsync(int id, CancellationToken cancellationToken = default)
     {
         if (id <= 0) return null;
@@ -518,8 +538,6 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
             return AdminOperationResult.Fail("First name is required.");
         if (request.GradeId <= 0)
             return AdminOperationResult.Fail("Class / grade is required.");
-        if (string.IsNullOrWhiteSpace(request.Division))
-            return AdminOperationResult.Fail("Division is required.");
         if (request.SchoolId <= 0)
             return AdminOperationResult.Fail("School is required.");
 
@@ -585,7 +603,7 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
             StudCountryID = school.CountryId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             StudSchoolID = school.SchoolId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             StudStd = grade.Grade,
-            StudDiv = request.Division.Trim(),
+            StudDiv = request.Division?.Trim() ?? string.Empty,
             Year = DateTime.Now.Year.ToString(System.Globalization.CultureInfo.InvariantCulture),
             StudFirstName = request.FirstName.Trim(),
             StudLastName = request.LastName?.Trim() ?? string.Empty,

@@ -92,6 +92,40 @@ public static class DataTablePagingHelper
         };
     }
 
+    public static async Task<IReadOnlyList<T>> QueryAllAsync<T>(
+        DbConnection connection,
+        string selectSql,
+        string fromSql,
+        string? baseFilterSql,
+        string searchFilterSql,
+        IReadOnlyDictionary<string, string> sortColumnMap,
+        string defaultSortColumn,
+        DataTableRequest request,
+        object? extraParameters = null,
+        CancellationToken cancellationToken = default,
+        string defaultSortDirection = "ASC")
+    {
+        var search = request.SearchText;
+        var (sortColumn, sortDirection) = ResolveSort(
+            request, sortColumnMap, defaultSortColumn, defaultSortDirection);
+
+        var parameters = new DynamicParameters(extraParameters);
+        parameters.Add("Search", search);
+
+        selectSql = selectSql.Trim();
+        fromSql = fromSql.Trim();
+        searchFilterSql = searchFilterSql.Trim();
+        baseFilterSql = baseFilterSql?.Trim();
+
+        var whereClause = BuildWhereClause(baseFilterSql, searchFilterSql);
+        var dataSql = $"{selectSql} {fromSql} {whereClause} ORDER BY {sortColumn} {sortDirection};";
+
+        var rows = await connection.QueryAsync<T>(
+            new CommandDefinition(dataSql, parameters, cancellationToken: cancellationToken));
+
+        return rows.ToList();
+    }
+
     private static string BuildWhereClause(string? baseFilterSql, string searchFilterSql)
     {
         var conditions = new List<string>();

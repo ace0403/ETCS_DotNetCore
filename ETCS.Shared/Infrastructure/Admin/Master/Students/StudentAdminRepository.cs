@@ -31,6 +31,7 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
             LTRIM(RTRIM(ISNULL(sl.StudCode, ''))) AS StudCode,
             LTRIM(RTRIM(ISNULL(sl.StudFirstName, ''))) + ' ' + LTRIM(RTRIM(ISNULL(sl.StudLastName, ''))) AS Name,
             LTRIM(RTRIM(ISNULL(sch.SchoolName, ''))) AS SchoolName,
+            LTRIM(RTRIM(ISNULL(sl.StudStd, ''))) AS Grade,
             LTRIM(RTRIM(ISNULL(g.FirstName, ''))) + ' ' + LTRIM(RTRIM(ISNULL(g.LastName, ''))) AS GuardianName,
             CAST(AddDate as datetime) AS CreatedAt,
             {BalanceSql} AS Balance
@@ -46,6 +47,7 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
         LTRIM(RTRIM(ISNULL(sl.StudCode, ''))) LIKE '%' + @Search + '%'
         OR LTRIM(RTRIM(ISNULL(sl.StudFirstName, ''))) + ' ' + LTRIM(RTRIM(ISNULL(sl.StudLastName, ''))) LIKE '%' + @Search + '%'
         OR LTRIM(RTRIM(ISNULL(sch.SchoolName, ''))) LIKE '%' + @Search + '%'
+        OR LTRIM(RTRIM(ISNULL(sl.StudStd, ''))) LIKE '%' + @Search + '%'
         OR LTRIM(RTRIM(ISNULL(g.FirstName, ''))) + ' ' + LTRIM(RTRIM(ISNULL(g.LastName, ''))) LIKE '%' + @Search + '%'
         OR CAST({BalanceSql} AS varchar(30)) LIKE '%' + @Search + '%'
         """;
@@ -56,6 +58,7 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
         ["StudCode"] = "sl.StudCode",
         ["Name"] = "sl.StudFirstName",
         ["SchoolName"] = "sch.SchoolName",
+        ["Grade"] = "sl.StudStd",
         ["GuardianName"] = "g.FirstName",
         ["Balance"] = BalanceSql
     };
@@ -114,6 +117,30 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
         var (schoolFilterSql, schoolFilterParams) = BuildSchoolIdFilter(request, "sl.StudSchoolId");
 
         return await QueryPagedAsync<StudentAdminListItemDto>(
+            dbConnection,
+            SelectSql,
+            FromSql,
+            schoolFilterSql,
+            SearchFilterSql,
+            SortColumns,
+            "sl.UserId",
+            request,
+            schoolFilterParams,
+            cancellationToken: cancellationToken,
+            defaultSortDirection: "DESC");
+    }
+
+    public async Task<IReadOnlyList<StudentAdminListItemDto>> ListForExportAsync(
+        DataTableRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+
+        var (schoolFilterSql, schoolFilterParams) = BuildSchoolIdFilter(request, "sl.StudSchoolId");
+
+        return await QueryAllAsync<StudentAdminListItemDto>(
             dbConnection,
             SelectSql,
             FromSql,
@@ -514,7 +541,7 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
             StudCountryID = school.CountryId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             StudSchoolID = school.SchoolId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             StudStd = gradeText,
-            StudDiv = request.Division.Trim(),
+            StudDiv = request.Division?.Trim() ?? string.Empty,
             Year = DateTime.Now.Year.ToString(System.Globalization.CultureInfo.InvariantCulture),
             StudFirstName = request.FirstName.Trim(),
             StudLastName = request.LastName?.Trim() ?? string.Empty,

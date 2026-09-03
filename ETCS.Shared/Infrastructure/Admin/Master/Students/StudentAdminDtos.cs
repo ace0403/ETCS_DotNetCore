@@ -18,6 +18,8 @@ public sealed class StudentAdminListItemDto
 
     public string? SchoolName { get; init; }
 
+    public string? Grade { get; init; }
+
     public string? GuardianName { get; init; }
 
     public decimal Balance { get; init; }
