@@ -199,6 +199,325 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
         }
     }
 
+    public async Task<GenerateTokenResult> GenerateTokenAsync(CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_options.BaseUrl))
+        {
+            return new GenerateTokenResult
+            {
+                IsSuccess = false,
+                Message = "Payment gateway base URL is not configured."
+            };
+        }
+
+        var tokenRequest = new ComtrustGenerateTokenRequest
+        {
+            GenerateToken = new ComtrustGenerateTokenPayload
+            {
+                UserName = _options.UserName,
+                Password = _options.Password
+            }
+        };
+
+        try
+        {
+            using var httpRequest = CreateJsonPostRequest(tokenRequest);
+            using var httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
+            var rawResponse = await ReadResponseBodyAsync(httpResponse, cancellationToken);
+            var parsed = DeserializeTransactionResponse(rawResponse);
+            var token = parsed?.Transaction?.AuthenticationToken ?? string.Empty;
+            var isSuccess = IsGatewaySuccess(parsed?.Transaction) && !string.IsNullOrWhiteSpace(token);
+
+            return new GenerateTokenResult
+            {
+                IsSuccess = isSuccess,
+                Message = parsed?.Transaction?.ResponseDescription
+                           ?? (isSuccess ? "Token generated." : "Token generation failed."),
+                AuthenticationToken = token
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating Comtrust authentication token.");
+            return new GenerateTokenResult
+            {
+                IsSuccess = false,
+                Message = "Unable to generate authentication token at the moment."
+            };
+        }
+    }
+
+    public Task<NativePaymentSessionResult> CreateNativeTopupSessionAsync(
+        StudentTopupPaymentRequest request,
+        string orderId,
+        CancellationToken cancellationToken,
+        string? returnUrl = null) =>
+        CreateNativeSessionInternalAsync(
+            orderId,
+            request.Amount,
+            request.StudentId,
+            "student topup",
+            cancellationToken,
+            returnUrl);
+
+    public Task<NativePaymentSessionResult> CreateNativeOrderSessionAsync(
+        OrderPaymentSessionRequest request,
+        CancellationToken cancellationToken) =>
+        CreateNativeSessionInternalAsync(
+            request.OrderId,
+            request.Total,
+            request.StudentId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "meal order",
+            cancellationToken);
+
+    public async Task<NativeWalletSessionResult> CreateWalletRegistrationAsync(
+        WalletRegistrationRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_options.BaseUrl))
+        {
+            return FailWallet(request.OrderId, "Payment gateway base URL is not configured.");
+        }
+
+        var tokenResult = await GenerateTokenAsync(cancellationToken);
+        if (!tokenResult.IsSuccess)
+        {
+            return FailWallet(request.OrderId, tokenResult.Message);
+        }
+
+        var walletName = request.WalletName;
+        if (string.IsNullOrWhiteSpace(walletName))
+        {
+            walletName = request.PaymentMethod.Equals("SamsungPay", StringComparison.OrdinalIgnoreCase)
+                ? "Samsung Pay"
+                : "Apple Pay";
+        }
+
+        var walletRequest = new ComtrustWalletRegistrationRequest
+        {
+            WalletRegistration = new ComtrustWalletRegistrationPayload
+            {
+                OrderID = request.OrderId,
+                OrderName = _options.OrderName,
+                OrderInfo = string.IsNullOrWhiteSpace(request.OrderInfo) ? request.OrderId : request.OrderInfo,
+                Channel = ResolveMobileChannel(),
+                Amount = request.Amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture),
+                Currency = _options.Currency,
+                TransactionHint = _options.WalletTransactionHint,
+                Customer = _options.CustomerName,
+                UserName = _options.UserName,
+                Password = _options.Password,
+                WalletName = walletName
+            }
+        };
+
+        try
+        {
+            using var httpRequest = CreateJsonPostRequest(walletRequest);
+            using var httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
+            var rawResponse = await ReadResponseBodyAsync(httpResponse, cancellationToken);
+            var parsed = DeserializeTransactionResponse(rawResponse);
+            var transaction = parsed?.Transaction;
+            var isSuccess = IsGatewaySuccess(transaction)
+                            && !string.IsNullOrWhiteSpace(transaction?.TransactionId)
+                            && !string.IsNullOrWhiteSpace(transaction?.SessionId);
+
+            if (!isSuccess)
+            {
+                _logger.LogWarning(
+                    "Wallet registration failed for OrderId={OrderId}. Description={Description}",
+                    request.OrderId,
+                    transaction?.ResponseDescription);
+            }
+
+            var callbackUrl = string.Format(_options.ReturnBaseUrl, request.OrderId).TrimEnd('/');
+
+            return new NativeWalletSessionResult
+            {
+                IsSuccess = isSuccess,
+                Message = transaction?.ResponseDescription
+                           ?? (isSuccess ? "Wallet session created." : "Wallet registration failed."),
+                OrderId = request.OrderId,
+                TransactionId = transaction?.TransactionId ?? string.Empty,
+                AuthenticationToken = tokenResult.AuthenticationToken,
+                SessionId = transaction?.SessionId ?? string.Empty,
+                MerchantUserName = _options.UserName,
+                CustomerName = _options.CustomerName,
+                BaseUrl = ToNativeSdkBaseUrl(_options.BaseUrl),
+                CallbackUrl = callbackUrl,
+                Amount = request.Amount,
+                Currency = _options.Currency,
+                PaymentMethod = request.PaymentMethod,
+                MerchantIdentifier = _options.ApplePayMerchantIdentifier,
+                SamsungPayMerchantId = _options.SamsungPayMerchantId,
+                SamsungPayServiceId = _options.SamsungPayServiceId
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating wallet registration for OrderId={OrderId}.", request.OrderId);
+            return FailWallet(request.OrderId, "Unable to create wallet session at the moment.");
+        }
+    }
+
+    private async Task<NativePaymentSessionResult> CreateNativeSessionInternalAsync(
+        string orderId,
+        decimal amount,
+        string orderInfo,
+        string context,
+        CancellationToken cancellationToken,
+        string? returnUrlOverride = null)
+    {
+        if (string.IsNullOrWhiteSpace(_options.BaseUrl))
+        {
+            return FailNative(orderId, amount, "Payment gateway base URL is not configured.");
+        }
+
+        if (string.IsNullOrWhiteSpace(_options.Password))
+        {
+            return FailNative(orderId, amount, "Payment gateway password is not configured.");
+        }
+
+        var returnUrl = string.IsNullOrWhiteSpace(returnUrlOverride)
+            ? string.Format(_options.ReturnBaseUrl, orderId)
+            : string.Format(returnUrlOverride, orderId);
+
+        // Comtrust Mobile registration requires merchant Password (AuthenticationToken-only fails with 5061).
+        var registration = new ComtrustRegistrationRequest
+        {
+            Registration = new ComtrustRegistrationPayload
+            {
+                Customer = _options.CustomerName,
+                Channel = ResolveMobileChannel(),
+                Amount = amount,
+                Currency = _options.Currency,
+                OrderID = orderId,
+                OrderName = _options.OrderName,
+                OrderInfo = orderInfo,
+                TransactionHint = _options.TransactionHint,
+                UserName = _options.UserName,
+                Password = _options.Password,
+                ReturnPath = returnUrl.TrimEnd('/')
+            }
+        };
+
+        var sessionTimeoutSeconds = _options.SessionTimeoutSeconds > 0
+            ? _options.SessionTimeoutSeconds
+            : 60;
+
+        try
+        {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(sessionTimeoutSeconds));
+
+            using var httpRequest = CreateJsonPostRequest(registration);
+            using var httpResponse = await _httpClient.SendAsync(httpRequest, timeoutCts.Token);
+            var rawResponse = await ReadResponseBodyAsync(httpResponse, timeoutCts.Token);
+            var parsed = DeserializeTransactionResponse(rawResponse);
+            var transaction = parsed?.Transaction;
+            var isSuccess = IsGatewaySuccess(transaction)
+                            && !string.IsNullOrWhiteSpace(transaction?.TransactionId);
+
+            if (!isSuccess)
+            {
+                _logger.LogWarning(
+                    "Native payment session creation failed for {Context}. OrderId={OrderId}; Description={Description}",
+                    context,
+                    orderId,
+                    transaction?.ResponseDescription);
+            }
+
+            var authenticationToken = transaction?.AuthenticationToken ?? string.Empty;
+            if (isSuccess && string.IsNullOrWhiteSpace(authenticationToken))
+            {
+                var tokenResult = await GenerateTokenAsync(cancellationToken);
+                if (tokenResult.IsSuccess)
+                {
+                    authenticationToken = tokenResult.AuthenticationToken;
+                }
+            }
+
+            return new NativePaymentSessionResult
+            {
+                IsSuccess = isSuccess,
+                Message = transaction?.ResponseDescription
+                           ?? (isSuccess ? "Native payment session created." : "Native payment session creation failed."),
+                OrderId = orderId,
+                TransactionId = transaction?.TransactionId ?? string.Empty,
+                AuthenticationToken = authenticationToken,
+                MerchantUserName = _options.UserName,
+                CustomerName = _options.CustomerName,
+                BaseUrl = ToNativeSdkBaseUrl(_options.BaseUrl),
+                CallbackUrl = returnUrl.TrimEnd('/'),
+                Amount = amount,
+                Currency = _options.Currency,
+                PaymentMethod = "Card"
+            };
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogError(ex, "Timeout creating native session for {Context}. OrderId={OrderId}.", context, orderId);
+            return FailNative(
+                orderId,
+                amount,
+                cancellationToken.IsCancellationRequested
+                    ? "Payment session request was cancelled."
+                    : $"Payment gateway timeout after {sessionTimeoutSeconds} seconds.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating native session for {Context}. OrderId={OrderId}.", context, orderId);
+            return FailNative(orderId, amount, "Unable to create native payment session at the moment.");
+        }
+    }
+
+    private static NativePaymentSessionResult FailNative(string orderId, decimal amount, string message) =>
+        new()
+        {
+            IsSuccess = false,
+            Message = message,
+            OrderId = orderId,
+            Amount = amount
+        };
+
+    private static NativeWalletSessionResult FailWallet(string orderId, string message) =>
+        new()
+        {
+            IsSuccess = false,
+            Message = message,
+            OrderId = orderId
+        };
+
+    private string ResolveMobileChannel() =>
+        string.IsNullOrWhiteSpace(_options.MobileChannel) ? "Phone" : _options.MobileChannel;
+
+    private static ComtrustRegistrationResponse? DeserializeTransactionResponse(string? rawResponse)
+    {
+        if (string.IsNullOrWhiteSpace(rawResponse))
+        {
+            return null;
+        }
+
+        return JsonSerializer.Deserialize<ComtrustRegistrationResponse>(rawResponse, ResponseJsonOptions);
+    }
+
+    private static bool IsGatewaySuccess(ComtrustTransaction? transaction)
+    {
+        if (transaction is null)
+        {
+            return false;
+        }
+
+        if (string.Equals(transaction.ResponseCode, "0", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var responseClass = transaction.ResponseClassDescription?.Trim() ?? string.Empty;
+        return responseClass.Equals("success", StringComparison.OrdinalIgnoreCase)
+               || responseClass.Equals("pending", StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task<PaymentSessionCreateResult> CreateSessionInternalAsync(
         string orderId,
         decimal amount,
@@ -372,5 +691,18 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
         CancellationToken cancellationToken)
     {
         return await response.Content.ReadAsStringAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Retrofit inside the native EPG Android SDK requires a trailing slash.
+    /// </summary>
+    private static string ToNativeSdkBaseUrl(string baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return string.Empty;
+        }
+
+        return $"{baseUrl.Trim().TrimEnd('/')}/";
     }
 }

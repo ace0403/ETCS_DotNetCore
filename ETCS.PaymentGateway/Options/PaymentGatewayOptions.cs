@@ -12,8 +12,22 @@ public sealed class PaymentGatewayOptions
     public string CallbackPath { get; set; } = string.Empty;
     public string Currency { get; set; } = "AED";
     public string Channel { get; set; } = "Web";
+
+    /// <summary>EPG channel for native SDK registration (e.g. Mobile).</summary>
+    public string MobileChannel { get; set; } = "Phone";
+
     public string TransactionHint { get; set; } = "CPT:Y;VCC:Y;";
+
+    /// <summary>Transaction hint for wallet (Apple Pay / Samsung Pay) registration.</summary>
+    public string WalletTransactionHint { get; set; } = "CPT:N";
+
     public string OrderName { get; set; } = "Smart Food Card";
+
+    public string ApplePayMerchantIdentifier { get; set; } = string.Empty;
+
+    public string SamsungPayMerchantId { get; set; } = string.Empty;
+
+    public string SamsungPayServiceId { get; set; } = string.Empty;
     public int TimeoutSeconds { get; set; } = 600;
 
     /// <summary>Max seconds to wait for Comtrust Finalization per attempt.</summary>

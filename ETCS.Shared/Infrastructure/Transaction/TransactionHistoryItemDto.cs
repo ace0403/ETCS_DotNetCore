@@ -33,4 +33,6 @@ public sealed class TransactionHistoryItemDto
     public DateTime CreatedOn { get; init; }
 
     public DateTime? UpdatedOn { get; init; }
+
+    public string PaymentMethod { get; init; } = "Unknown";
 }

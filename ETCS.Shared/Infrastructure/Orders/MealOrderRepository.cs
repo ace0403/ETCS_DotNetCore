@@ -73,13 +73,14 @@ public sealed class MealOrderRepository : IMealOrderRepository
     public async Task<int> CreatePendingOrderAsync(
         OrderInitiateRequest request,
         int transactionStatusId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int? paymentMethod = null)
     {
         const string insertTransactionSql = """
             INSERT INTO [Transaction]
-                (GuardianId, StudentId, TransactionType, Amount, Remarks, IsTransactionCompleted, IsDebit, StatusId, CreatedOn, CreatedBy)
+                (GuardianId, StudentId, TransactionType, Amount, Remarks, IsTransactionCompleted, IsDebit, StatusId, CreatedOn, CreatedBy, PaymentMethod)
             VALUES
-                (@GuardianId, @StudentId, NULL, @Amount, @Remarks, 0, 1, @StatusId, GETDATE(), @CreatedBy);
+                (@GuardianId, @StudentId, NULL, @Amount, @Remarks, 0, 1, @StatusId, GETDATE(), @CreatedBy, @PaymentMethod);
             SELECT CAST(SCOPE_IDENTITY() AS int);
             """;
 
@@ -115,7 +116,8 @@ public sealed class MealOrderRepository : IMealOrderRepository
                     Amount = request.Total,
                     Remarks = request.OrderId,
                     StatusId = transactionStatusId,
-                    CreatedBy = request.GuardianId
+                    CreatedBy = request.GuardianId,
+                    PaymentMethod = paymentMethod
                 },
                 transaction: transaction,
                 cancellationToken: cancellationToken));

@@ -82,6 +82,7 @@ builder.Services.AddScoped<ISchoolCalendarRepository, SchoolCalendarRepository>(
 builder.Services.AddScoped<ISchoolCalendarService, SchoolCalendarService>();
 builder.Services.AddOrderFlowServices();
 builder.Services.AddTopupFlowServices();
+builder.Services.AddNativePaymentFlowServices();
 builder.Services.AddPosServices();
 builder.Services.AddGuardianEmailServices();
 builder.Services.AddGuardianInAppNotificationServices();

@@ -381,5 +381,6 @@ ETCS.API/Database/AdminStoredProcedures/spMealOrderPaymentSummary_New.sql
 ETCS.API/Database/accesslog-backfill-branchcode.sql
 *.sql
 *.sql
+!ETCS.API/Scripts/AddTransactionPaymentMethod.sql
 /ETCS.API/Database
 /ETCS.API/Database
