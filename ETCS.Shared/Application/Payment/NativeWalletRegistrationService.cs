@@ -75,7 +75,8 @@ public sealed class NativeWalletRegistrationService : INativeWalletRegistrationS
                 Amount = request.Amount,
                 OrderInfo = string.IsNullOrWhiteSpace(request.OrderInfo) ? request.OrderId.Trim() : request.OrderInfo,
                 PaymentMethod = paymentMethod.ToApiString(),
-                WalletName = paymentMethod == PaymentMethodEnum.SamsungPay ? "Samsung Pay" : "Apple Pay"
+                WalletName = paymentMethod == PaymentMethodEnum.SamsungPay ? "Samsung Pay" : "Apple Pay",
+                ReturnUrl = request.ReturnUrl
             },
             cancellationToken);
 

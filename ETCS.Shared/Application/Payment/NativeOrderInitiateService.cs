@@ -117,7 +117,8 @@ public sealed class NativeOrderInitiateService : INativeOrderInitiateService
                     Amount = request.Total,
                     OrderInfo = request.Notes,
                     PaymentMethod = paymentMethod.ToApiString(),
-                    WalletName = paymentMethod == PaymentMethodEnum.SamsungPay ? "Samsung Pay" : "Apple Pay"
+                    WalletName = paymentMethod == PaymentMethodEnum.SamsungPay ? "Samsung Pay" : "Apple Pay",
+                    ReturnUrl = request.ReturnUrl
                 },
                 cancellationToken);
 
@@ -153,7 +154,8 @@ public sealed class NativeOrderInitiateService : INativeOrderInitiateService
                 GuardianId = request.GuardianId,
                 OrderId = generatedOrderId,
                 Total = request.Total,
-                Notes = request.Notes
+                Notes = request.Notes,
+                ReturnUrl = request.ReturnUrl
             },
             cancellationToken);
 

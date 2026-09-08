@@ -64,6 +64,8 @@ public sealed class NativeOrderInitiateRequest
 
     public string PaymentMethod { get; init; } = "Card";
 
+    public string? ReturnUrl { get; init; }
+
     public IReadOnlyList<ETCS.Shared.Infrastructure.Orders.OrderMealLineItemRequest> MealList { get; init; } =
         Array.Empty<ETCS.Shared.Infrastructure.Orders.OrderMealLineItemRequest>();
 }
@@ -122,6 +124,8 @@ public sealed class NativeWalletRegisterRequest
     public string PaymentMethod { get; init; } = string.Empty;
 
     public string OrderInfo { get; init; } = string.Empty;
+
+    public string? ReturnUrl { get; init; }
 }
 
 public sealed class NativeWalletRegisterResponse

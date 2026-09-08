@@ -9,12 +9,19 @@ public sealed class PaymentGatewayOptions
     public string UserName { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
     public string ReturnBaseUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// HTTPS return URL template for native EPG SDK sessions (Comtrust ReturnPath).
+    /// Example: https://api.example.com/api/v2/Payment/mobile-return?orderid={0}
+    /// </summary>
+    public string NativeReturnBaseUrl { get; set; } = string.Empty;
+
     public string CallbackPath { get; set; } = string.Empty;
     public string Currency { get; set; } = "AED";
     public string Channel { get; set; } = "Web";
 
-    /// <summary>EPG channel for native SDK registration (e.g. Mobile).</summary>
-    public string MobileChannel { get; set; } = "Phone";
+    /// <summary>EPG channel for native SDK registration. Official EPG merchant sample uses Web.</summary>
+    public string MobileChannel { get; set; } = "Web";
 
     public string TransactionHint { get; set; } = "CPT:Y;VCC:Y;";
 

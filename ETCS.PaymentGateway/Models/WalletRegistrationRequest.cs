@@ -11,4 +11,7 @@ public sealed class WalletRegistrationRequest
     public string WalletName { get; init; } = string.Empty;
 
     public string PaymentMethod { get; init; } = string.Empty;
+
+    /// <summary>Optional HTTPS template from the mobile app; falls back to NativeReturnBaseUrl.</summary>
+    public string? ReturnUrl { get; init; }
 }

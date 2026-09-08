@@ -1,10 +1,12 @@
 using Asp.Versioning;
 using ETCS.API.Infrastructure.Auth;
 using ETCS.PaymentGateway.Models;
+using ETCS.PaymentGateway.Options;
 using ETCS.Shared.Application.Payment;
 using ETCS.Shared.Application.Topup;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace ETCS.API.Controllers.V2;
 
@@ -17,15 +19,29 @@ public sealed class PaymentController : ControllerBase
     private readonly INativeTopupInitiateService _nativeTopupInitiateService;
     private readonly INativeWalletRegistrationService _nativeWalletRegistrationService;
     private readonly ITopupPaymentCompleteService _topupPaymentCompleteService;
+    private readonly PaymentGatewayOptions _paymentGatewayOptions;
 
     public PaymentController(
         INativeTopupInitiateService nativeTopupInitiateService,
         INativeWalletRegistrationService nativeWalletRegistrationService,
-        ITopupPaymentCompleteService topupPaymentCompleteService)
+        ITopupPaymentCompleteService topupPaymentCompleteService,
+        IOptions<PaymentGatewayOptions> paymentGatewayOptions)
     {
         _nativeTopupInitiateService = nativeTopupInitiateService;
         _nativeWalletRegistrationService = nativeWalletRegistrationService;
         _topupPaymentCompleteService = topupPaymentCompleteService;
+        _paymentGatewayOptions = paymentGatewayOptions.Value;
+    }
+
+    [HttpGet("native-capabilities")]
+    public IActionResult GetNativeCapabilities()
+    {
+        return Ok(new NativePaymentCapabilitiesResponse
+        {
+            SamsungPayEnabled = !string.IsNullOrWhiteSpace(_paymentGatewayOptions.SamsungPayMerchantId)
+                                && !string.IsNullOrWhiteSpace(_paymentGatewayOptions.SamsungPayServiceId),
+            ApplePayEnabled = !string.IsNullOrWhiteSpace(_paymentGatewayOptions.ApplePayMerchantIdentifier)
+        });
     }
 
     [HttpPost("topup/request")]
@@ -84,7 +100,8 @@ public sealed class PaymentController : ControllerBase
                 OrderId = request.OrderId,
                 Amount = request.Amount,
                 PaymentMethod = request.PaymentMethod,
-                OrderInfo = request.OrderInfo
+                OrderInfo = request.OrderInfo,
+                ReturnUrl = request.ReturnUrl
             },
             cancellationToken);
 
@@ -94,6 +111,38 @@ public sealed class PaymentController : ControllerBase
         }
 
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Comtrust 3DS return URL for native EPG SDK sessions. Must be HTTPS so the SDK WebView can load it.
+    /// </summary>
+    [HttpGet("mobile-return")]
+    [AllowAnonymous]
+    public IActionResult MobileReturn([FromQuery] string orderid)
+    {
+        if (string.IsNullOrWhiteSpace(orderid))
+        {
+            return BadRequest("orderid is required.");
+        }
+
+        var encodedOrderId = Uri.EscapeDataString(orderid.Trim());
+        var deepLink = $"nourixapp://payment-complete?orderid={encodedOrderId}";
+        var html = $"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1" />
+              <title>Payment complete</title>
+            </head>
+            <body>
+              <p>Payment received. Returning to the app…</p>
+              <script>window.location.replace({System.Text.Json.JsonSerializer.Serialize(deepLink)});</script>
+            </body>
+            </html>
+            """;
+
+        return Content(html, "text/html; charset=utf-8");
     }
 
     /// <summary>
@@ -156,4 +205,13 @@ public sealed class NativeWalletApiRequest
     public string PaymentMethod { get; init; } = string.Empty;
 
     public string OrderInfo { get; init; } = string.Empty;
+
+    public string? ReturnUrl { get; init; }
+}
+
+public sealed class NativePaymentCapabilitiesResponse
+{
+    public bool SamsungPayEnabled { get; init; }
+
+    public bool ApplePayEnabled { get; init; }
 }

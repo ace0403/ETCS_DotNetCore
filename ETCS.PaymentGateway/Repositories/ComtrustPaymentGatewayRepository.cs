@@ -268,7 +268,8 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             request.Total,
             request.StudentId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             "meal order",
-            cancellationToken);
+            cancellationToken,
+            request.ReturnUrl);
 
     public async Task<NativeWalletSessionResult> CreateWalletRegistrationAsync(
         WalletRegistrationRequest request,
@@ -330,7 +331,7 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
                     transaction?.ResponseDescription);
             }
 
-            var callbackUrl = string.Format(_options.ReturnBaseUrl, request.OrderId).TrimEnd('/');
+            var callbackUrl = ResolveNativeReturnUrl(request.OrderId, request.ReturnUrl);
 
             return new NativeWalletSessionResult
             {
@@ -378,11 +379,21 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             return FailNative(orderId, amount, "Payment gateway password is not configured.");
         }
 
-        var returnUrl = string.IsNullOrWhiteSpace(returnUrlOverride)
-            ? string.Format(_options.ReturnBaseUrl, orderId)
-            : string.Format(returnUrlOverride, orderId);
+        var returnUrl = ResolveNativeReturnUrl(orderId, returnUrlOverride);
 
-        // Comtrust Mobile registration requires merchant Password (AuthenticationToken-only fails with 5061).
+        var tokenResult = await GenerateTokenAsync(cancellationToken);
+        if (!tokenResult.IsSuccess || string.IsNullOrWhiteSpace(tokenResult.AuthenticationToken))
+        {
+            return FailNative(
+                orderId,
+                amount,
+                string.IsNullOrWhiteSpace(tokenResult.Message)
+                    ? "Unable to generate EPG authentication token."
+                    : tokenResult.Message);
+        }
+
+        // Native SDK flow matches EPG merchant sample: GenerateToken, then Registration with
+        // AuthenticationToken + Store/Terminal (MobileSDK), not Password-only web registration.
         var registration = new ComtrustRegistrationRequest
         {
             Registration = new ComtrustRegistrationPayload
@@ -396,7 +407,7 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
                 OrderInfo = orderInfo,
                 TransactionHint = _options.TransactionHint,
                 UserName = _options.UserName,
-                Password = _options.Password,
+                AuthenticationToken = tokenResult.AuthenticationToken,
                 ReturnPath = returnUrl.TrimEnd('/')
             }
         };
@@ -427,15 +438,7 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
                     transaction?.ResponseDescription);
             }
 
-            var authenticationToken = transaction?.AuthenticationToken ?? string.Empty;
-            if (isSuccess && string.IsNullOrWhiteSpace(authenticationToken))
-            {
-                var tokenResult = await GenerateTokenAsync(cancellationToken);
-                if (tokenResult.IsSuccess)
-                {
-                    authenticationToken = tokenResult.AuthenticationToken;
-                }
-            }
+            var authenticationToken = tokenResult.AuthenticationToken;
 
             return new NativePaymentSessionResult
             {
@@ -471,6 +474,17 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
         }
     }
 
+    private string ResolveNativeReturnUrl(string orderId, string? returnUrlOverride)
+    {
+        var template = !string.IsNullOrWhiteSpace(returnUrlOverride)
+            ? returnUrlOverride
+            : !string.IsNullOrWhiteSpace(_options.NativeReturnBaseUrl)
+                ? _options.NativeReturnBaseUrl
+                : _options.ReturnBaseUrl;
+
+        return string.Format(template, orderId).TrimEnd('/');
+    }
+
     private static NativePaymentSessionResult FailNative(string orderId, decimal amount, string message) =>
         new()
         {
@@ -489,7 +503,7 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
         };
 
     private string ResolveMobileChannel() =>
-        string.IsNullOrWhiteSpace(_options.MobileChannel) ? "Phone" : _options.MobileChannel;
+        string.IsNullOrWhiteSpace(_options.MobileChannel) ? "Web" : _options.MobileChannel;
 
     private static ComtrustRegistrationResponse? DeserializeTransactionResponse(string? rawResponse)
     {

@@ -63,6 +63,7 @@ public sealed class OrderController : ControllerBase
                 Total = request.Total,
                 Notes = request.Notes,
                 PaymentMethod = request.PaymentMethod,
+                ReturnUrl = request.ReturnUrl,
                 MealList = request.MealList
             },
             cancellationToken);
@@ -93,7 +94,8 @@ public sealed class OrderController : ControllerBase
                 OrderId = request.OrderId,
                 Amount = request.Amount,
                 PaymentMethod = request.PaymentMethod,
-                OrderInfo = request.OrderInfo
+                OrderInfo = request.OrderInfo,
+                ReturnUrl = request.ReturnUrl
             },
             cancellationToken);
 
@@ -154,6 +156,8 @@ public sealed class NativeOrderApiRequest
     public string Notes { get; init; } = string.Empty;
 
     public string PaymentMethod { get; init; } = "Card";
+
+    public string? ReturnUrl { get; init; }
 
     public IReadOnlyList<OrderMealLineItemRequest> MealList { get; init; } = [];
 }

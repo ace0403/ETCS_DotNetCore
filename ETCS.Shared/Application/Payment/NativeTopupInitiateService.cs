@@ -214,7 +214,8 @@ public sealed class NativeTopupInitiateService : INativeTopupInitiateService
                 Amount = request.Amount,
                 OrderInfo = $"student topup {studentPk}",
                 PaymentMethod = paymentMethod.ToApiString(),
-                WalletName = paymentMethod == PaymentMethodEnum.SamsungPay ? "Samsung Pay" : "Apple Pay"
+                WalletName = paymentMethod == PaymentMethodEnum.SamsungPay ? "Samsung Pay" : "Apple Pay",
+                ReturnUrl = request.ReturnUrl
             },
             cancellationToken);
 
