@@ -1,4 +1,9 @@
 var reportTable = null;
+var studentConsumptionPager = {
+    pageIndex: 0,
+    pageSize: 10,
+    totalStudents: 0
+};
 
 function formatReportCurrency(value) {
     if (value === null || value === undefined || value === '') {
@@ -26,6 +31,7 @@ function setStudentConsumptionReportLoading(isLoading, message) {
     $viewBtn.prop('disabled', isLoading);
     $viewBtn.find('.btn-spinner').toggleClass('d-none', !isLoading);
     $('#btnExportReport').prop('disabled', isLoading);
+    $('#btnStudentPagePrev, #btnStudentPageNext, #ddlStudentPageSize').prop('disabled', isLoading);
 }
 
 function parseMonthInput(value) {
@@ -55,6 +61,35 @@ function monthInputToDateRange(fromValue, toValue) {
     return { StartDate: startDate, EndDate: endDate };
 }
 
+function getSelectedSchoolId() {
+    return $('#ddlSchool').val() || '';
+}
+
+function isStudentConsumptionSchoolSelected() {
+    return !!getSelectedSchoolId();
+}
+
+function clearStudentConsumptionSelection() {
+    var $student = $('#ddlStudent');
+    if (!$student.length) {
+        return;
+    }
+
+    $student.val(null).trigger('change');
+}
+
+function setStudentConsumptionStudentEnabled(isEnabled) {
+    var $student = $('#ddlStudent');
+    if (!$student.length) {
+        return;
+    }
+
+    $student.prop('disabled', !isEnabled);
+    if ($student.hasClass('select2-hidden-accessible')) {
+        $student.trigger('change.select2');
+    }
+}
+
 function getStudentConsumptionFilters() {
     var fromMonth = $('#txtStartDate').val() || '';
     var toMonth = $('#txtEndDate').val() || '';
@@ -65,8 +100,71 @@ function getStudentConsumptionFilters() {
         ToMonth: toMonth,
         StartDate: range ? range.StartDate : '',
         EndDate: range ? range.EndDate : '',
+        SchoolId: getSelectedSchoolId(),
         StudentUserId: $('#ddlStudent').val() || ''
     };
+}
+
+function isStudentConsumptionSingleStudentMode() {
+    return !!getStudentConsumptionFilters().StudentUserId;
+}
+
+function resetStudentConsumptionPaging() {
+    studentConsumptionPager.pageIndex = 0;
+    studentConsumptionPager.pageSize = parseInt($('#ddlStudentPageSize').val(), 10) || 10;
+    studentConsumptionPager.totalStudents = 0;
+    updateStudentConsumptionPager();
+}
+
+function getStudentConsumptionPaginationParams() {
+    studentConsumptionPager.pageSize = parseInt($('#ddlStudentPageSize').val(), 10) || 10;
+
+    if (isStudentConsumptionSingleStudentMode()) {
+        return { start: 0, length: 1 };
+    }
+
+    return {
+        start: studentConsumptionPager.pageIndex * studentConsumptionPager.pageSize,
+        length: studentConsumptionPager.pageSize
+    };
+}
+
+function applyStudentConsumptionPaginationToPayload(payload) {
+    var paging = getStudentConsumptionPaginationParams();
+    // DataTables always sends its own start/length (defaults to 0/10) — override both casings for model binding.
+    payload.start = paging.start;
+    payload.length = paging.length;
+    payload.Start = paging.start;
+    payload.Length = paging.length;
+}
+
+function updateStudentConsumptionPager() {
+    var $pager = $('#studentConsumptionPager');
+    var total = studentConsumptionPager.totalStudents;
+    var pageSize = studentConsumptionPager.pageSize;
+    var pageIndex = studentConsumptionPager.pageIndex;
+    var singleStudent = isStudentConsumptionSingleStudentMode();
+
+    if (singleStudent || total <= pageSize) {
+        $pager.addClass('d-none');
+    } else {
+        $pager.removeClass('d-none');
+    }
+
+    if (total <= 0) {
+        $('#studentConsumptionPageInfo').text('');
+        $('#btnStudentPagePrev, #btnStudentPageNext').prop('disabled', true);
+        return;
+    }
+
+    var startStudent = pageIndex * pageSize + 1;
+    var endStudent = Math.min((pageIndex + 1) * pageSize, total);
+    $('#studentConsumptionPageInfo').text(
+        'Showing students ' + startStudent + ' to ' + endStudent + ' of ' + total
+    );
+
+    $('#btnStudentPagePrev').prop('disabled', pageIndex <= 0);
+    $('#btnStudentPageNext').prop('disabled', endStudent >= total);
 }
 
 function validateStudentConsumptionFilters(filters) {
@@ -82,8 +180,8 @@ function validateStudentConsumptionFilters(filters) {
         toastMsg('From month should be less than or equal to to month.', false);
         return false;
     }
-    if (!filters.StudentUserId) {
-        toastMsg('Student is required.', false);
+    if (!filters.SchoolId) {
+        toastMsg('School is required.', false);
         return false;
     }
     return true;
@@ -99,10 +197,12 @@ function initStudentConsumptionSelect() {
         $student.select2('destroy');
     }
 
+    setStudentConsumptionStudentEnabled(isStudentConsumptionSchoolSelected());
+
     $student.select2({
         width: '100%',
         minimumInputLength: 1,
-        placeholder: '- Select Student -',
+        placeholder: 'All Students',
         allowClear: true,
         dropdownCssClass: 'student-consumption-select2-dropdown',
         containerCssClass: 'student-consumption-select2-container',
@@ -111,12 +211,20 @@ function initStudentConsumptionSelect() {
             dataType: 'json',
             delay: 300,
             data: function (params) {
-                return { term: params.term || '' };
+                return {
+                    term: params.term || '',
+                    schoolId: getSelectedSchoolId()
+                };
             },
             processResults: function (data) {
                 return { results: data.results || [] };
             },
             transport: function (params, success, failure) {
+                if (!isStudentConsumptionSchoolSelected()) {
+                    success({ results: [] });
+                    return null;
+                }
+
                 var request = $.ajax(params);
                 request.then(success);
                 request.fail(function (jqXHR, textStatus) {
@@ -132,10 +240,22 @@ function initStudentConsumptionSelect() {
     });
 }
 
+function onStudentConsumptionSchoolChanged() {
+    clearStudentConsumptionSelection();
+    setStudentConsumptionStudentEnabled(isStudentConsumptionSchoolSelected());
+    resetStudentConsumptionPaging();
+}
+
+function onStudentConsumptionStudentChanged() {
+    resetStudentConsumptionPaging();
+}
+
 function mergeStudentConsumptionCells() {
     if (!reportTable) {
         return;
     }
+
+    $('#grid_table td[rowspan]').removeAttr('rowspan').removeClass('align-top');
 
     var blocks = [];
     var current = [];
@@ -174,7 +294,6 @@ function mergeStudentConsumptionCells() {
         for (var i = 1; i < blockRows.length; i++) {
             var $row = $(blockRows[i]);
             var rowData = reportTable.row(blockRows[i]).data();
-            // Remove by original column index (high to low) so indices do not shift mid-loop.
             if (rowData && rowData.RowKind !== 2) {
                 $row.find('td:eq(2)').remove();
             }
@@ -195,7 +314,9 @@ function bindStudentConsumptionReportTable() {
         var filters = getStudentConsumptionFilters();
         payload.StartDate = filters.StartDate;
         payload.EndDate = filters.EndDate;
+        payload.SchoolId = filters.SchoolId;
         payload.StudentUserId = filters.StudentUserId;
+        applyStudentConsumptionPaginationToPayload(payload);
     };
 
     ajaxConfig.dataFilter = function (raw) {
@@ -203,11 +324,16 @@ function bindStudentConsumptionReportTable() {
         if (j.Success === false && j.Message) {
             toastMsg(j.Message, false);
         }
-        if (!j.RecordsFiltered) {
+
+        studentConsumptionPager.totalStudents = j.RecordsFiltered || j.RecordsTotal || 0;
+        updateStudentConsumptionPager();
+
+        if (!j.Data || j.Data.length === 0) {
             $('#reportEmptyMessage').text('No data available..').removeClass('d-none');
         } else {
             $('#reportEmptyMessage').addClass('d-none');
         }
+
         return JSON.stringify({
             draw: j.Draw,
             recordsTotal: j.RecordsTotal,
@@ -273,7 +399,24 @@ function loadStudentConsumptionReport() {
         return;
     }
 
+    resetStudentConsumptionPaging();
     bindStudentConsumptionReportTable();
+}
+
+function goToStudentConsumptionPage(nextPageIndex) {
+    if (!reportTable || nextPageIndex < 0) {
+        return;
+    }
+
+    studentConsumptionPager.pageSize = parseInt($('#ddlStudentPageSize').val(), 10) || 10;
+    var maxPageIndex = Math.max(0, Math.ceil(studentConsumptionPager.totalStudents / studentConsumptionPager.pageSize) - 1);
+    if (nextPageIndex > maxPageIndex) {
+        return;
+    }
+
+    studentConsumptionPager.pageIndex = nextPageIndex;
+    updateStudentConsumptionPager();
+    reportTable.ajax.reload(null, false);
 }
 
 function exportStudentConsumptionReport() {
@@ -284,12 +427,31 @@ function exportStudentConsumptionReport() {
 
     $('#exportStartDate').val(filters.StartDate);
     $('#exportEndDate').val(filters.EndDate);
+    $('#exportSchoolId').val(filters.SchoolId);
     $('#exportStudentUserId').val(filters.StudentUserId);
     $('#frmExport').trigger('submit');
 }
 
 $(function () {
     initStudentConsumptionSelect();
+    $('#ddlSchool').on('change', onStudentConsumptionSchoolChanged);
+    $('#ddlStudent').on('change', onStudentConsumptionStudentChanged);
+    $('#ddlStudentPageSize').on('change', function () {
+        studentConsumptionPager.pageSize = parseInt($(this).val(), 10) || 10;
+        studentConsumptionPager.pageIndex = 0;
+        if (reportTable) {
+            updateStudentConsumptionPager();
+            reportTable.ajax.reload(null, false);
+        } else {
+            updateStudentConsumptionPager();
+        }
+    });
+    $('#btnStudentPagePrev').on('click', function () {
+        goToStudentConsumptionPage(studentConsumptionPager.pageIndex - 1);
+    });
+    $('#btnStudentPageNext').on('click', function () {
+        goToStudentConsumptionPage(studentConsumptionPager.pageIndex + 1);
+    });
     $('#btnViewReport').on('click', loadStudentConsumptionReport);
     $('#btnExportReport').on('click', exportStudentConsumptionReport);
 });

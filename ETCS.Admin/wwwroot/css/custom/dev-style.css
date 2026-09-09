@@ -1127,6 +1127,12 @@ div.dt-search {
     padding: .6rem 2rem .6rem .75rem !important;
 }
 
+.datatable-selector, .form-select-sm {
+    padding-top: .375rem !important;
+    padding-bottom: .375rem !important;
+    padding-left: .7rem !important;
+}
+
 .form-control {
     padding: .6rem .75rem !important;
 }

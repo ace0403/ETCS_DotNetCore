@@ -5,6 +5,7 @@ using ETCS.Shared.Infrastructure.Admin.Reports.AdminTransactions;
 using ETCS.Shared.Infrastructure.Admin.Reports.CanteenTransactions;
 using ETCS.Shared.Infrastructure.Admin.Reports.MealOrders;
 using ETCS.Shared.Infrastructure.Admin.Reports.MealOrderPayments;
+using ETCS.Shared.Infrastructure.Admin.Master.Students;
 using ETCS.Shared.Infrastructure.Admin.Reports.StudentConsumption;
 using ETCS.Shared.Infrastructure.Admin.Reports.TerminalSalesSummary;
 using Microsoft.AspNetCore.Authorization;
@@ -25,6 +26,7 @@ public class ReportController : Controller
     private readonly IMealOrderPaymentReportRepository _mealOrderPaymentReportRepository;
     private readonly IMealOrderPaymentMealDbReportRepository _mealOrderPaymentMealDbReportRepository;
     private readonly IMealEnumAdminRepository _mealEnumAdminRepository;
+    private readonly IStudentAdminRepository _studentAdminRepository;
     private readonly IAdminSchoolScopeService _schoolScope;
     private readonly MealOrderPaymentReportDateRules _mealOrderPaymentReportDateRules;
 
@@ -38,6 +40,7 @@ public class ReportController : Controller
         IMealOrderPaymentReportRepository mealOrderPaymentReportRepository,
         IMealOrderPaymentMealDbReportRepository mealOrderPaymentMealDbReportRepository,
         IMealEnumAdminRepository mealEnumAdminRepository,
+        IStudentAdminRepository studentAdminRepository,
         IAdminSchoolScopeService schoolScope,
         MealOrderPaymentReportDateRules mealOrderPaymentReportDateRules)
     {
@@ -50,6 +53,7 @@ public class ReportController : Controller
         _mealOrderPaymentReportRepository = mealOrderPaymentReportRepository;
         _mealOrderPaymentMealDbReportRepository = mealOrderPaymentMealDbReportRepository;
         _mealEnumAdminRepository = mealEnumAdminRepository;
+        _studentAdminRepository = studentAdminRepository;
         _schoolScope = schoolScope;
         _mealOrderPaymentReportDateRules = mealOrderPaymentReportDateRules;
     }
@@ -76,27 +80,31 @@ public class ReportController : Controller
     }
 
     [Route("/report/student-consumption")]
-    public IActionResult StudentConsumption()
+    public async Task<IActionResult> StudentConsumption(CancellationToken cancellationToken)
     {
+        var schools = await _studentAdminRepository.SchoolLookupsAsync(cancellationToken);
+        ViewBag.Schools = _schoolScope.FilterSchools(schools, s => s.Id);
         return View();
     }
 
     [HttpGet]
     public async Task<JsonResult> StudentConsumptionSearchStudents(
         string term,
+        int schoolId,
         CancellationToken cancellationToken)
     {
         try
         {
-            IReadOnlyList<int>? scopedSchoolIds = null;
-            if (!_schoolScope.IsUnrestricted)
+            if (schoolId <= 0)
             {
-                scopedSchoolIds = _schoolScope.GetAllowedSchoolIds();
+                return Json(new { results = Array.Empty<object>() });
             }
+
+            _schoolScope.EnsureReportSchoolIdInScope(schoolId.ToString());
 
             var rows = await _studentConsumptionReportRepository.SearchStudentsAsync(
                 term,
-                scopedSchoolIds,
+                [schoolId],
                 cancellationToken: cancellationToken);
 
             var results = rows.Select(r => new
@@ -112,6 +120,10 @@ public class ReportController : Controller
         catch (OperationCanceledException)
         {
             // Select2 aborts the previous request when the user types quickly.
+            return Json(new { results = Array.Empty<object>() });
+        }
+        catch (UnauthorizedAccessException)
+        {
             return Json(new { results = Array.Empty<object>() });
         }
     }
@@ -131,13 +143,13 @@ public class ReportController : Controller
             });
         }
 
-        if (request.StudentUserId <= 0)
+        if (request.SchoolId <= 0)
         {
             return Json(new StudentConsumptionReportPagedResult
             {
                 Draw = request.Draw,
                 Success = false,
-                Message = "Student is required."
+                Message = "School is required."
             });
         }
 
@@ -153,14 +165,13 @@ public class ReportController : Controller
 
         try
         {
-            var report = await LoadStudentConsumptionReportAsync(request, cancellationToken);
-            var rows = report.Rows;
+            var report = await LoadStudentConsumptionReportPagedAsync(request, cancellationToken);
             return Json(new StudentConsumptionReportPagedResult
             {
                 Draw = request.Draw,
-                RecordsTotal = rows.Count,
-                RecordsFiltered = rows.Count,
-                Data = rows
+                RecordsTotal = report.TotalStudents,
+                RecordsFiltered = report.TotalStudents,
+                Data = report.Rows
             });
         }
         catch (UnauthorizedAccessException)
@@ -186,9 +197,9 @@ public class ReportController : Controller
             return RedirectToAction(nameof(StudentConsumption));
         }
 
-        if (filter.StudentUserId <= 0)
+        if (filter.SchoolId <= 0)
         {
-            TempData["ReportError"] = "Student is required.";
+            TempData["ReportError"] = "School is required.";
             return RedirectToAction(nameof(StudentConsumption));
         }
 
@@ -205,6 +216,7 @@ public class ReportController : Controller
                 {
                     StartDate = filter.StartDate,
                     EndDate = filter.EndDate,
+                    SchoolId = filter.SchoolId,
                     StudentUserId = filter.StudentUserId
                 },
                 cancellationToken);
@@ -885,26 +897,45 @@ public class ReportController : Controller
             MealOrderPaymentExcelExporter.BuildFileName());
     }
 
-    private async Task<StudentConsumptionReportResult> LoadStudentConsumptionReportAsync(
+    private async Task<StudentConsumptionReportPagedData> LoadStudentConsumptionReportPagedAsync(
         StudentConsumptionReportListRequest request,
         CancellationToken cancellationToken)
     {
-        IReadOnlyList<int>? scopedSchoolIds = null;
-        if (!_schoolScope.IsUnrestricted)
-        {
-            scopedSchoolIds = _schoolScope.GetAllowedSchoolIds();
-        }
+        _schoolScope.EnsureReportSchoolIdInScope(request.SchoolId.ToString());
 
         var filter = new StudentConsumptionReportFilter
         {
             StartDate = request.StartDate!.Value.Date,
             EndDate = request.EndDate!.Value.Date,
+            SchoolId = request.SchoolId,
+            StudentUserId = request.StudentUserId
+        };
+
+        return await _studentConsumptionReportRepository.GetReportPagedAsync(
+            filter,
+            [request.SchoolId],
+            Math.Max(0, request.Start),
+            request.StudentPageSize,
+            cancellationToken);
+    }
+
+    private async Task<StudentConsumptionReportResult> LoadStudentConsumptionReportAsync(
+        StudentConsumptionReportListRequest request,
+        CancellationToken cancellationToken)
+    {
+        _schoolScope.EnsureReportSchoolIdInScope(request.SchoolId.ToString());
+
+        var filter = new StudentConsumptionReportFilter
+        {
+            StartDate = request.StartDate!.Value.Date,
+            EndDate = request.EndDate!.Value.Date,
+            SchoolId = request.SchoolId,
             StudentUserId = request.StudentUserId
         };
 
         return await _studentConsumptionReportRepository.GetReportAsync(
             filter,
-            scopedSchoolIds,
+            [request.SchoolId],
             cancellationToken);
     }
 

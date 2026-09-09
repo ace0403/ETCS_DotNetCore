@@ -2,6 +2,13 @@ namespace ETCS.Shared.Infrastructure.Admin.Reports.StudentConsumption;
 
 public interface IStudentConsumptionReportRepository
 {
+    Task<StudentConsumptionReportPagedData> GetReportPagedAsync(
+        StudentConsumptionReportFilter filter,
+        IReadOnlyList<int>? scopedSchoolIds,
+        int studentSkip,
+        int studentTake,
+        CancellationToken cancellationToken = default);
+
     Task<StudentConsumptionReportResult> GetReportAsync(
         StudentConsumptionReportFilter filter,
         IReadOnlyList<int>? scopedSchoolIds,

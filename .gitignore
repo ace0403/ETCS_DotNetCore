@@ -383,4 +383,5 @@ ETCS.API/Database/accesslog-backfill-branchcode.sql
 /ETCS.API/Database
 !ETCS.API/Database/
 !ETCS.API/Database/AdminModule_Report_StudentConsumption.sql
+!ETCS.API/Database/StudentConsumption_AccessLog_Index.sql
 *.ps1

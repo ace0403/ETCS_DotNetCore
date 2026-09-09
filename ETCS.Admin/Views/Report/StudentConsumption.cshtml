@@ -1,15 +1,14 @@
+@using ETCS.Admin.Infrastructure.Auth
+@using ETCS.Shared.Infrastructure.Admin.Master.Students
 @{
-
     ViewData["Title"] = "Student Consumption";
-
     Layout = "~/Views/Shared/_Layout.cshtml";
-
     var startMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).ToString("yyyy-MM");
-
     var endMonth = DateTime.Today.ToString("yyyy-MM");
-
     var reportError = TempData["ReportError"] as string;
-
+    var schools = ViewBag.Schools as IReadOnlyList<SchoolLookupDto> ?? Array.Empty<SchoolLookupDto>();
+    var isScoped = User.IsSchoolScoped() && !User.IsAdminRole();
+    var selectedSchoolId = isScoped && schools.Count == 1 ? schools[0].Id : 0;
 }
 
 
@@ -47,14 +46,25 @@
             </div>
 
             <div class="col-12 col-md-6 col-lg-4">
+                <label for="ddlSchool" class="form-label">School</label>
+                <select id="ddlSchool" class="form-select" @(isScoped && schools.Count == 1 ? "disabled" : "")>
+                    <option value="">- Select School -</option>
+                    @foreach (var school in schools)
+                    {
+                        <option value="@school.Id" selected="@(selectedSchoolId == school.Id)">@school.Name</option>
+                    }
+                </select>
+            </div>
 
-                <label for="ddlStudent" class="form-label">Student</label>
+            <div class="col-12 col-md-6 col-lg-4">
+
+                <label for="ddlStudent" class="form-label">Student <span class="text-muted">(optional)</span></label>
 
                 <div class="student-consumption-select-wrap">
 
                     <select id="ddlStudent" class="js-student-consumption-select">
 
-                        <option value="">- Select Student -</option>
+                        <option value="">All Students</option>
 
                     </select>
 
@@ -92,6 +102,7 @@
 
     <input type="hidden" name="EndDate" id="exportEndDate" />
 
+    <input type="hidden" name="SchoolId" id="exportSchoolId" />
     <input type="hidden" name="StudentUserId" id="exportStudentUserId" />
 
 </form>
@@ -120,7 +131,7 @@
 
     <div class="card-body">
 
-        <div id="reportEmptyMessage" class="text-muted mb-2">Select from/to month, student, then click View Report.</div>
+        <div id="reportEmptyMessage" class="text-muted mb-2">Select from/to month and school, then click View Report.</div>
 
         <div id="studentConsumptionReportGridWrap" class="canteen-report-grid-wrap">
 
@@ -154,6 +165,19 @@
 
             </div>
 
+        </div>
+
+        <div id="studentConsumptionPager" class="student-consumption-pager d-none d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+            <div id="studentConsumptionPageInfo" class="text-muted small"></div>
+            <div class="d-flex align-items-center gap-2">
+                <select id="ddlStudentPageSize" class="form-select form-select-sm student-consumption-page-size">
+                    <option value="10" selected>10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                </select>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnStudentPagePrev">Previous</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnStudentPageNext">Next</button>
+            </div>
         </div>
 
     </div>
