@@ -384,3 +384,5 @@ ETCS.API/Database/accesslog-backfill-branchcode.sql
 !ETCS.API/Scripts/AddTransactionPaymentMethod.sql
 /ETCS.API/Database
 /ETCS.API/Database
+/ETCS.Admin/wwwroot/meal-combo
+/ETCS.Admin/wwwroot/meal-image
