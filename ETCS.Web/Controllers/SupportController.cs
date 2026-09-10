@@ -39,7 +39,7 @@ public sealed class SupportController : Controller
 
         var guardianEmail = (User.GetEmail() ?? string.Empty).Trim();
 
-        var subject = Uri.EscapeDataString($"MealHub Support – {guardianName}");
+        var subject = Uri.EscapeDataString($"Emirates Taste Support – {guardianName}");
         var bodyBuilder = new StringBuilder();
         bodyBuilder.AppendLine($"Guardian: {guardianName}");
         if (!string.IsNullOrWhiteSpace(guardianEmail))
