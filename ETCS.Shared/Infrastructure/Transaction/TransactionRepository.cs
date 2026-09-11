@@ -239,9 +239,9 @@ public sealed class TransactionRepository : ITransactionRepository
     {
         const string sql = """
             INSERT INTO [Transaction]
-                (GuardianId, StudentId, TransactionType, Amount, Remarks, IsTransactionCompleted, IsDebit, StatusId, CreatedOn, CreatedBy, ReconcileAttemptCount)
+                (GuardianId, StudentId, TransactionType, Amount, Remarks, IsTransactionCompleted, IsDebit, StatusId, CreatedOn, CreatedBy, ReconcileAttemptCount, PaymentMethod)
             VALUES
-                (@GuardianId, @StudentId, NULL, @Amount, @Remarks, 0, 1, @StatusId, GETDATE(), @CreatedBy, 0);
+                (@GuardianId, @StudentId, NULL, @Amount, @Remarks, 0, 1, @StatusId, GETDATE(), @CreatedBy, 0, @PaymentMethod);
             SELECT CAST(SCOPE_IDENTITY() AS int);
             """;
 
@@ -255,7 +255,8 @@ public sealed class TransactionRepository : ITransactionRepository
                 request.Amount,
                 request.Remarks,
                 request.StatusId,
-                request.CreatedBy
+                request.CreatedBy,
+                PaymentMethod = request.PaymentMethod
             },
             commandType: System.Data.CommandType.Text,
             commandTimeout: DefaultCommandTimeoutSeconds,
@@ -740,7 +741,14 @@ public sealed class TransactionRepository : ITransactionRepository
                     ELSE t.StatusId
                 END,
                 CreatedOn = ISNULL(t.CreatedOn, a.LogDateTimeServer),
-                UpdatedOn = t.UpdatedOn
+                UpdatedOn = t.UpdatedOn,
+                PaymentMethod = CASE ISNULL(t.PaymentMethod, 0)
+                    WHEN 1 THEN 'Card'
+                    WHEN 2 THEN 'ApplePay'
+                    WHEN 3 THEN 'SamsungPay'
+                    WHEN 4 THEN 'WebRedirect'
+                    ELSE 'Unknown'
+                END
             FROM ibonus.dbo.AccessLog a
             INNER JOIN ibonus.dbo.StudentLogin sl
                 ON LTRIM(RTRIM(ISNULL(sl.CustomerID, ''))) = LTRIM(RTRIM(ISNULL(a.CustomerID, '')))
@@ -837,7 +845,14 @@ public sealed class TransactionRepository : ITransactionRepository
                 IsTransactionCompleted = ISNULL(t.IsTransactionCompleted, 0),
                 t.StatusId,
                 t.CreatedOn,
-                t.UpdatedOn
+                t.UpdatedOn,
+                PaymentMethod = CASE ISNULL(t.PaymentMethod, 0)
+                    WHEN 1 THEN 'Card'
+                    WHEN 2 THEN 'ApplePay'
+                    WHEN 3 THEN 'SamsungPay'
+                    WHEN 4 THEN 'WebRedirect'
+                    ELSE 'Unknown'
+                END
             FROM [Transaction] t
             LEFT JOIN [Order] o ON o.TransactionId = t.Id
             WHERE t.Id = @TransactionId

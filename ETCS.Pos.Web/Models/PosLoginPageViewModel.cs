@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ETCS.Pos.Web.Models;
 
-public sealed class PosLoginRequest
+public sealed class PosLoginPageViewModel
 {
     [Required(ErrorMessage = "Username is required")]
     [MaxLength(100)]
@@ -11,4 +11,8 @@ public sealed class PosLoginRequest
     [Required(ErrorMessage = "Password is required")]
     [DataType(DataType.Password)]
     public string Password { get; set; } = string.Empty;
+
+    public bool BridgeSetupAvailable { get; init; }
+
+    public string BridgeSetupDownloadUrl { get; init; } = string.Empty;
 }

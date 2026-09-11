@@ -1443,6 +1443,61 @@ body.pos-api-offline .pos-line-select {
     filter: brightness(1.05);
 }
 
+.pos-receipt-preview-card {
+    width: min(420px, 100%);
+    max-height: min(92vh, 900px);
+    display: flex;
+    flex-direction: column;
+}
+
+.pos-receipt-preview-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.pos-receipt-preview-header .pos-modal-title {
+    margin-bottom: 0;
+}
+
+.pos-receipt-preview-close {
+    border: 0;
+    background: transparent;
+    color: var(--pos-muted);
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+.pos-receipt-preview-frame {
+    flex: 1;
+    overflow: auto;
+    margin: 12px 0 16px;
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px solid var(--pos-border);
+    border-radius: 12px;
+}
+
+.pos-receipt-preview-image {
+    display: block;
+    width: 100%;
+    max-width: 280px;
+    margin: 0 auto;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.pos-receipt-preview-actions {
+    grid-template-columns: 1fr;
+}
+
+body.pos-receipt-preview-open {
+    overflow: hidden;
+}
+
 .pos-btn:disabled {
     opacity: 0.55;
     cursor: not-allowed;

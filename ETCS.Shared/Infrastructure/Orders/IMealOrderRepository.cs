@@ -15,7 +15,8 @@ public interface IMealOrderRepository
     Task<int> CreatePendingOrderAsync(
         OrderInitiateRequest request,
         int transactionStatusId,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        int? paymentMethod = null);
 
     Task SetPaymentSessionAsync(
         string orderId,

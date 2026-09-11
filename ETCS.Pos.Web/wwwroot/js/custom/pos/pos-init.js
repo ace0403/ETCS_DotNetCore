@@ -82,6 +82,8 @@
         document.getElementById('btnRemoveSelected')?.addEventListener('click', () => App.cart.removeSelected());
         document.getElementById('btnApplyDiscount')?.addEventListener('click', () => App.cart.toggleDiscount());
         document.getElementById('btnCard')?.addEventListener('click', () => App.checkout.cardCheckout());
+        document.getElementById('btnPreviewReceipt')?.addEventListener('click', () => App.cart.previewCurrentReceipt());
+        App.receiptPreview.bind();
 
         document.getElementById('txtDiscountPercent')?.addEventListener('input', () => App.cart.onDiscountPercentInput());
         document.getElementById('txtVatPercent')?.addEventListener('input', () => App.cart.refreshTotals());

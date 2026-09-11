@@ -112,15 +112,14 @@
                     return;
                 }
 
-                const totals = App.cart.getTotals();
-                await BridgeClient.printUndoReceipt({
-                    items: state.cart.length > 0
-                        ? state.cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity }))
-                        : [],
-                    total: payable,
-                    vatPercent: totals.vatPercent,
-                    discountPercent: totals.discountPercent,
-                    discountApplied: state.discountApplied
+                await App.cart.dispatchReceiptPrint({
+                    isUndo: true,
+                    overrides: {
+                        items: state.cart.length > 0
+                            ? state.cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity }))
+                            : [],
+                        total: payable
+                    }
                 });
 
                 state.lastTransactionId = '';

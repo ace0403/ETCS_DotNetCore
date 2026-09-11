@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<PosWebOptions>(builder.Configuration.GetSection(PosWebOptions.SectionName));
+builder.Services.Configure<ReceiptBrandingOptions>(builder.Configuration.GetSection(ReceiptBrandingOptions.SectionName));
+builder.Services.Configure<ReceiptPrintOptions>(builder.Configuration.GetSection(ReceiptPrintOptions.SectionName));
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
 builder.Services.Configure<MealDatabaseOptions>(builder.Configuration.GetSection(MealDatabaseOptions.SectionName));
 builder.Services.ConfigureMediaOptions(builder.Configuration, PosWebOptions.SectionName);
@@ -22,6 +24,7 @@ builder.Services.AddScoped<IAdminPermissionRepository, AdminPermissionRepository
 
 builder.Services.AddScoped<IPosApiProxyService, PosApiProxyService>();
 builder.Services.AddScoped<IBridgeSetupFileResolver, BridgeSetupFileResolver>();
+builder.Services.AddSingleton<IReceiptLogoLoader, ReceiptLogoLoader>();
 
 var posApiBuilder = builder.Services.AddHttpClient("PosApi", (sp, client) =>
 {

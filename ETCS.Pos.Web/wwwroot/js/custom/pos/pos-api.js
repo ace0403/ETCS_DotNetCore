@@ -44,6 +44,15 @@
                     body: JSON.stringify(payload)
                 });
                 return parseApiResponse(res);
+            },
+            async previewReceipt(payload, isUndo) {
+                const path = isUndo ? '/print/undo-receipt/preview' : '/print/receipt/preview';
+                const res = await fetch(config.bridgeBaseUrl + path, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                return parseApiResponse(res);
             }
         },
 

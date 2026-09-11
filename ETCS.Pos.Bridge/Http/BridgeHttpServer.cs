@@ -134,24 +134,35 @@ public sealed class BridgeHttpServer : IDisposable
         }
 
         if ((string.Equals(path, "/print/receipt", StringComparison.OrdinalIgnoreCase)
-             || string.Equals(path, "/print/undo-receipt", StringComparison.OrdinalIgnoreCase))
+             || string.Equals(path, "/print/undo-receipt", StringComparison.OrdinalIgnoreCase)
+             || string.Equals(path, "/print/receipt/preview", StringComparison.OrdinalIgnoreCase)
+             || string.Equals(path, "/print/undo-receipt/preview", StringComparison.OrdinalIgnoreCase))
             && string.Equals(request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase))
         {
             var body = ReadBody(request);
             var model = JsonConvert.DeserializeObject<ReceiptPrintRequest>(body) ?? new ReceiptPrintRequest();
-            if (string.Equals(path, "/print/undo-receipt", StringComparison.OrdinalIgnoreCase))
+            var isUndo = string.Equals(path, "/print/undo-receipt", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(path, "/print/undo-receipt/preview", StringComparison.OrdinalIgnoreCase);
+            var isPreview = string.Equals(path, "/print/receipt/preview", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(path, "/print/undo-receipt/preview", StringComparison.OrdinalIgnoreCase);
+
+            if (isUndo)
             {
                 model.IsUndo = true;
             }
 
             try
             {
-                _printer.Print(model);
-                WriteJson(response, HttpStatusCode.OK, new { isSuccess = true, message = "Receipt sent to printer." });
+                var result = isPreview ? _printer.Preview(model) : _printer.Print(model);
+                WriteJson(response, result.IsSuccess ? HttpStatusCode.OK : HttpStatusCode.BadRequest, result);
             }
             catch (Exception ex)
             {
-                WriteJson(response, HttpStatusCode.BadRequest, new { isSuccess = false, message = ex.Message });
+                WriteJson(response, HttpStatusCode.BadRequest, new ReceiptPrintResult
+                {
+                    IsSuccess = false,
+                    Message = ex.Message
+                });
             }
 
             return;
@@ -162,7 +173,8 @@ public sealed class BridgeHttpServer : IDisposable
 
     private static string ReadBody(HttpListenerRequest request)
     {
-        using var reader = new StreamReader(request.InputStream, request.ContentEncoding ?? Encoding.UTF8);
+        // Browser fetch() sends UTF-8 JSON without always setting charset; do not use ContentEncoding.
+        using var reader = new StreamReader(request.InputStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
         return reader.ReadToEnd();
     }
 

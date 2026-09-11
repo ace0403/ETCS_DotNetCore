@@ -81,6 +81,40 @@
         });
     }
 
+    function normalizeReceiptText(value) {
+        return String(value || '')
+            .replace(/\u2013|\u2014|\u2212/g, '-')
+            .replace(/â€[\u0093\u0094"]/g, '-')
+            .trim();
+    }
+
+    function buildReceiptPrintPayload(overrides) {
+        const totals = getTotals();
+        const sourceItems = (overrides && overrides.items) || state.cart.map(c => ({
+            name: c.name,
+            price: c.price,
+            quantity: c.quantity
+        }));
+        const items = sourceItems.map(item => ({
+            name: normalizeReceiptText(item.name),
+            price: item.price,
+            quantity: item.quantity
+        }));
+
+        return {
+            items,
+            total: overrides && overrides.total != null ? overrides.total : totals.afterDiscount,
+            vatPercent: totals.vatPercent,
+            discountPercent: totals.discountPercent,
+            discountApplied: state.discountApplied,
+            companyLine: normalizeReceiptText(App.config.receiptCompanyLine),
+            locationLine: normalizeReceiptText(App.helpers.getSelectedSchoolName()),
+            terminalLine: normalizeReceiptText(App.helpers.getSelectedTerminalLabel()),
+            logoBase64: App.config.receiptLogoBase64 || '',
+            printedAt: new Date().toISOString()
+        };
+    }
+
     function updateTotalsDisplay() {
         const totals = getTotals();
         const count = cartItemCount();
@@ -117,15 +151,56 @@
             updateTotalsDisplay();
         },
 
+        buildReceiptPrintPayload,
+
+        getReceiptPrintMode() {
+            return String(App.config.receiptPrintMode || 'Print').trim().toLowerCase();
+        },
+
+        async dispatchReceiptPrint(options) {
+            const isUndo = !!(options && options.isUndo);
+            const overrides = (options && options.overrides) || {};
+            const mode = App.cart.getReceiptPrintMode();
+            const payload = buildReceiptPrintPayload(overrides);
+            const client = App.api.BridgeClient;
+
+            if (mode === 'disabled') {
+                return { ok: true, data: { isSuccess: true, message: 'Receipt printing disabled.' } };
+            }
+
+            let result;
+            if (mode === 'preview') {
+                result = await client.previewReceipt(payload, isUndo);
+            } else if (isUndo) {
+                result = await client.printUndoReceipt(payload);
+            } else {
+                result = await client.printReceipt(payload);
+            }
+
+            if (result.ok) {
+                App.receiptPreview.showFromResult(result.data);
+            }
+
+            return result;
+        },
+
         async printCurrentReceipt() {
-            const totals = getTotals();
-            const result = await App.api.BridgeClient.printReceipt({
-                items: state.cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity })),
-                total: totals.afterDiscount,
-                vatPercent: totals.vatPercent,
-                discountPercent: totals.discountPercent,
-                discountApplied: state.discountApplied
-            });
+            return App.cart.dispatchReceiptPrint();
+        },
+
+        async previewCurrentReceipt() {
+            if (state.cart.length === 0) {
+                await App.ui.warning('Add items to the cart before previewing a receipt.');
+                return { ok: false };
+            }
+
+            const payload = buildReceiptPrintPayload();
+            const result = await App.api.BridgeClient.previewReceipt(payload, false);
+            if (result.ok) {
+                App.receiptPreview.showFromResult(result.data);
+            } else {
+                await App.ui.error(result.data?.message || 'Unable to generate receipt preview.');
+            }
             return result;
         },
 

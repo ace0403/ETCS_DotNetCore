@@ -28,7 +28,13 @@ public sealed class ComtrustRegistrationPayload
 
     public required string UserName { get; init; }
 
-    public required string Password { get; init; }
+    public string? Store { get; init; }
+
+    public string? Terminal { get; init; }
+
+    public string? Password { get; init; }
+
+    public string? AuthenticationToken { get; init; }
 
     public required string ReturnPath { get; init; }
 }

@@ -6,9 +6,11 @@
     <AssemblyName>ETCS.Pos.Bridge</AssemblyName>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
+    <ApplicationConfiguration>App.config</ApplicationConfiguration>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System.ServiceProcess" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Configuration.Install" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Web.Extensions" />

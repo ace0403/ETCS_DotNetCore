@@ -13,4 +13,6 @@ public sealed class TopupTransactionCreateRequest
     public int StatusId { get; init; }
 
     public int CreatedBy { get; init; }
+
+    public int? PaymentMethod { get; init; }
 }
