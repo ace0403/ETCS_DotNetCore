@@ -213,7 +213,9 @@ body.pos-login-page {
     font-size: 0.875rem;
 }
 
-.pos-login-alert:empty {
+.pos-login-alert:empty,
+.pos-login-alert ul:empty,
+.pos-login-alert.validation-summary-valid {
     display: none;
 }
 
@@ -250,6 +252,63 @@ body.pos-login-page {
 }
 
 .pos-login-submit:active {
+    transform: translateY(1px);
+}
+
+.pos-login-bridge {
+    display: grid;
+    gap: 12px;
+    margin-top: 22px;
+    padding: 16px;
+    border: 1px solid var(--pos-login-border);
+    border-radius: 14px;
+    background: linear-gradient(180deg, #f8fbfe 0%, #f3f8fc 100%);
+}
+
+.pos-login-bridge-copy strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.92rem;
+    color: var(--pos-login-ink);
+}
+
+.pos-login-bridge-copy p {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: var(--pos-login-muted);
+}
+
+.pos-login-bridge-download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(52, 152, 219, 0.35);
+    background: #fff;
+    color: var(--pos-login-primary);
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.pos-login-bridge-download .pos-login-icon {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
+.pos-login-bridge-download:hover {
+    background: var(--pos-login-primary-soft);
+    border-color: var(--pos-login-primary);
+    color: var(--pos-login-primary-dark);
+}
+
+.pos-login-bridge-download:active {
     transform: translateY(1px);
 }
 

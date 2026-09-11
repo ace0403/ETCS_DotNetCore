@@ -186,9 +186,30 @@
             <button type="button" id="btnCard" class="pos-btn pos-btn--card">Credit / Debit Card</button>
             <button type="button" id="btnUndoCash" class="pos-btn pos-btn--undo-cash">Undo Cash</button>
             <button type="button" id="btnCash" class="pos-btn pos-btn--cash">Cash</button>
+            @if (string.Equals(Model.ReceiptPrintMode, "Preview", StringComparison.OrdinalIgnoreCase))
+            {
+                <button type="button" id="btnPreviewReceipt" class="pos-btn pos-btn--ghost">Preview Receipt</button>
+            }
         </div>
         </div>
     </aside>
+</div>
+
+<div id="receiptPreviewModal" class="pos-modal pos-receipt-preview-modal" hidden aria-hidden="true">
+    <div class="pos-modal-backdrop" data-receipt-preview-dismiss></div>
+    <div class="pos-modal-card pos-receipt-preview-card" role="dialog" aria-labelledby="receiptPreviewTitle" aria-modal="true">
+        <div class="pos-receipt-preview-header">
+            <h3 id="receiptPreviewTitle" class="pos-modal-title">Receipt preview</h3>
+            <button type="button" class="pos-receipt-preview-close" data-receipt-preview-dismiss aria-label="Close receipt preview">&times;</button>
+        </div>
+        <p class="pos-modal-hint">Preview only. Configure <code>ReceiptPrint.Mode</code> in appsettings and <code>ReceiptPrintMode</code> in Bridge App.config.</p>
+        <div class="pos-receipt-preview-frame">
+            <img id="receiptPreviewImage" class="pos-receipt-preview-image" alt="Receipt preview" />
+        </div>
+        <div class="pos-modal-actions pos-receipt-preview-actions">
+            <button type="button" class="pos-btn pos-btn--confirm" data-receipt-preview-dismiss>Close</button>
+        </div>
+    </div>
 </div>
 
 <div id="schoolSwitchModal" class="pos-modal" hidden aria-hidden="true">
@@ -253,6 +274,9 @@
         defaultDiscount: @Model.DefaultDiscount.ToString(System.Globalization.CultureInfo.InvariantCulture),
         defaultBranchCode: '1',
         prePrintReceipt: false,
-        defaultItemImage: '/images/meal-default.png'
+        defaultItemImage: '/images/meal-default.png',
+        receiptCompanyLine: @Json.Serialize(Model.ReceiptCompanyLine),
+        receiptLogoBase64: @Json.Serialize(Model.ReceiptLogoBase64),
+        receiptPrintMode: @Json.Serialize(Model.ReceiptPrintMode)
     };
 </script>

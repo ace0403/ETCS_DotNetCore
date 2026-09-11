@@ -14,16 +14,25 @@ public sealed class PosController : Controller
 {
     private readonly IPosApiProxyService _proxy;
     private readonly IBridgeSetupFileResolver _bridgeSetupResolver;
+    private readonly IReceiptLogoLoader _receiptLogoLoader;
     private readonly PosWebOptions _options;
+    private readonly ReceiptBrandingOptions _receiptBranding;
+    private readonly ReceiptPrintOptions _receiptPrint;
 
     public PosController(
         IPosApiProxyService proxy,
         IBridgeSetupFileResolver bridgeSetupResolver,
-        IOptions<PosWebOptions> options)
+        IReceiptLogoLoader receiptLogoLoader,
+        IOptions<PosWebOptions> options,
+        IOptions<ReceiptBrandingOptions> receiptBranding,
+        IOptions<ReceiptPrintOptions> receiptPrint)
     {
         _proxy = proxy;
         _bridgeSetupResolver = bridgeSetupResolver;
+        _receiptLogoLoader = receiptLogoLoader;
         _options = options.Value;
+        _receiptBranding = receiptBranding.Value;
+        _receiptPrint = receiptPrint.Value;
     }
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -45,13 +54,16 @@ public sealed class PosController : Controller
             BridgeBaseUrl = _options.BridgeBaseUrl.TrimEnd('/'),
             BridgeSetupAvailable = bridgeSetupAvailable,
             BridgeSetupDownloadUrl = bridgeSetupAvailable
-                ? Url.Action(nameof(DownloadBridgeSetup), "Pos") ?? string.Empty
+                ? Url.Action("DownloadBridgeSetup", "Home") ?? string.Empty
                 : string.Empty,
             VatPercent = _options.VatPercent,
             DefaultDiscount = _options.DefaultDiscount,
             ApiOnline = apiOnline,
             ApiStatusMessage = apiOnline ? string.Empty : ToStaffApiMessage(apiError),
-            ApiStatusDetail = apiError ?? string.Empty
+            ApiStatusDetail = apiError ?? string.Empty,
+            ReceiptCompanyLine = _receiptBranding.CompanyLine,
+            ReceiptLogoBase64 = _receiptLogoLoader.LoadLogoBase64(),
+            ReceiptPrintMode = _receiptPrint.Mode
         };
 
         return View(model);
@@ -71,18 +83,6 @@ public sealed class PosController : Controller
         }
 
         return "Sales data is temporarily unavailable. Try again or ask your supervisor.";
-    }
-
-    [HttpGet]
-    public IActionResult DownloadBridgeSetup()
-    {
-        var path = _bridgeSetupResolver.Resolve();
-        if (path is null)
-        {
-            return NotFound();
-        }
-
-        return PhysicalFile(path, "application/octet-stream", BridgeSetupFileResolver.SetupFileName);
     }
 
     [HttpPost]
@@ -133,6 +133,10 @@ public sealed class PosController : Controller
         };
         return PartialView("_Cart", model);
     }
+
+    [HttpGet]
+    public IActionResult DownloadBridgeSetup() =>
+        RedirectToAction("DownloadBridgeSetup", "Home");
 
     [AllowAnonymous]
     public IActionResult Error() => View();

@@ -1,4 +1,4 @@
-@model PosLoginRequest
+@model PosLoginPageViewModel
 @{
     Layout = null;
 }
@@ -26,7 +26,6 @@
 
             <form asp-controller="Home" asp-action="Index" method="post" class="pos-login-form" novalidate>
                 @Html.AntiForgeryToken()
-                <div asp-validation-summary="ModelOnly" class="pos-login-alert"></div>
 
                 <div class="pos-login-field">
                     <label asp-for="Username" class="pos-login-label">Username</label>
@@ -78,6 +77,24 @@
                     </svg>
                 </button>
             </form>
+
+            @if (Model.BridgeSetupAvailable)
+            {
+                <div class="pos-login-bridge">
+                    <div class="pos-login-bridge-copy">
+                        <strong>POS Bridge setup</strong>
+                        <p>Install or update the local bridge on this terminal before signing in.</p>
+                    </div>
+                    <a class="pos-login-bridge-download"
+                       href="@Model.BridgeSetupDownloadUrl"
+                       download>
+                        <svg class="pos-login-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 3a1 1 0 011 1v9.6l2.3-2.3a1 1 0 111.4 1.4l-4.2 4.2a1 1 0 01-1.4 0l-4.2-4.2a1 1 0 111.4-1.4L11 13.6V4a1 1 0 011-1zm-7 14a1 1 0 011 1v1h12v-1a1 1 0 112 0v2a1 1 0 01-1 1H5a1 1 0 01-1-1v-2a1 1 0 011-1z" />
+                        </svg>
+                        <span>Download latest setup</span>
+                    </a>
+                </div>
+            }
 
             <p class="pos-login-footer">&copy; @DateTime.Now.Year ETCS. All rights reserved.</p>
         </section>

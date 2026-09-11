@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace ETCS.Pos.Bridge.Models;
@@ -42,9 +43,20 @@ public sealed class ReceiptPrintRequest
     public decimal VatPercent { get; set; }
     public decimal DiscountPercent { get; set; }
     public bool DiscountApplied { get; set; }
-    public string HeaderLine1 { get; set; } = "Harness Foods And";
-    public string HeaderLine2 { get; set; } = "Restaurants L.L.C";
+    public string CompanyLine { get; set; } = "Emirates Taste Catering Services Food LLC";
+    public string LocationLine { get; set; } = string.Empty;
+    public string TerminalLine { get; set; } = string.Empty;
+    public string? LogoBase64 { get; set; }
+    public DateTime? PrintedAt { get; set; }
     public bool IsUndo { get; set; }
+}
+
+public sealed class ReceiptPrintResult
+{
+    public bool IsSuccess { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public string? PreviewImageBase64 { get; set; }
+    public string? PreviewFilePath { get; set; }
 }
 
 public sealed class HealthResponse

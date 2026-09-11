@@ -119,6 +119,24 @@ window.PosApp = window.PosApp || {};
             return fromDropdown > 0 ? fromDropdown : App.state.selectedSchoolId;
         },
 
+        getSelectedSchoolName() {
+            const ddl = document.getElementById('ddlSchool');
+            if (!ddl || ddl.selectedIndex < 0) {
+                return '';
+            }
+
+            return (ddl.options[ddl.selectedIndex]?.text || '').trim();
+        },
+
+        getSelectedTerminalLabel() {
+            const ddl = document.getElementById('ddlTerminal');
+            if (!ddl || ddl.selectedIndex < 0) {
+                return '';
+            }
+
+            return (ddl.options[ddl.selectedIndex]?.text || '').trim();
+        },
+
         async validateOrderSetup() {
             const schoolId = App.helpers.getSelectedSchoolId();
             if (!schoolId) {
@@ -675,6 +693,57 @@ window.PosApp = window.PosApp || {};
         init() {
             App.apiStatus.bindRetry();
             App.ui.syncInteractionState();
+        }
+    };
+
+    App.receiptPreview = {
+        bind() {
+            const modal = document.getElementById('receiptPreviewModal');
+            if (!modal || modal.dataset.bound === '1') {
+                return;
+            }
+
+            modal.dataset.bound = '1';
+            modal.querySelectorAll('[data-receipt-preview-dismiss]').forEach(el => {
+                el.addEventListener('click', () => App.receiptPreview.hide());
+            });
+        },
+
+        showFromResult(data) {
+            const imageBase64 = data?.previewImageBase64;
+            if (!imageBase64) {
+                return;
+            }
+
+            App.receiptPreview.show(imageBase64);
+        },
+
+        show(imageBase64) {
+            const modal = document.getElementById('receiptPreviewModal');
+            const image = document.getElementById('receiptPreviewImage');
+            if (!modal || !image) {
+                return;
+            }
+
+            image.src = imageBase64.startsWith('data:') ? imageBase64 : 'data:image/png;base64,' + imageBase64;
+            modal.hidden = false;
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('pos-receipt-preview-open');
+        },
+
+        hide() {
+            const modal = document.getElementById('receiptPreviewModal');
+            const image = document.getElementById('receiptPreviewImage');
+            if (!modal) {
+                return;
+            }
+
+            modal.hidden = true;
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('pos-receipt-preview-open');
+            if (image) {
+                image.removeAttribute('src');
+            }
         }
     };
 })(window.PosApp);
