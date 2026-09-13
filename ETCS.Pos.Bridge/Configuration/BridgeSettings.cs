@@ -46,6 +46,20 @@ public static class BridgeSettings
         }
     }
 
+    public static int NfcWaitTimeoutSeconds
+    {
+        get
+        {
+            var raw = ConfigurationManager.AppSettings["NfcWaitTimeoutSeconds"];
+            if (int.TryParse(raw, out var seconds) && seconds > 0)
+            {
+                return Math.Min(seconds, 120);
+            }
+
+            return 30;
+        }
+    }
+
     public static string ResolvePreviewFolder()
     {
         var configured = ReceiptPreviewFolder;

@@ -53,6 +53,31 @@
                     body: JSON.stringify(payload)
                 });
                 return parseApiResponse(res);
+            },
+            async nfcStatus() {
+                const res = await fetch(config.bridgeBaseUrl + '/nfc/status');
+                return parseApiResponse(res);
+            },
+            async waitNfcCard(timeoutSeconds) {
+                const seconds = timeoutSeconds || 30;
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), (seconds + 5) * 1000);
+                try {
+                    const res = await fetch(config.bridgeBaseUrl + '/nfc/wait-card', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ timeoutSeconds: seconds }),
+                        signal: controller.signal
+                    });
+                    return parseApiResponse(res);
+                } catch (error) {
+                    if (error && error.name === 'AbortError') {
+                        return { ok: false, data: { isSuccess: false, message: 'Waiting for card timed out.' } };
+                    }
+                    throw error;
+                } finally {
+                    clearTimeout(timer);
+                }
             }
         },
 
@@ -102,6 +127,22 @@
             },
             async spendInfo(customerId) {
                 const res = await fetch('/Pos/Api/Students/' + encodeURIComponent(customerId) + '/SpendInfo');
+                return parseApiResponse(res);
+            },
+            async nfcPurchase(body) {
+                const res = await fetch('/Pos/Api/Purchases/Nfc', {
+                    method: 'POST',
+                    headers: this.jsonHeaders(),
+                    body: JSON.stringify(body)
+                });
+                return parseApiResponse(res);
+            },
+            async nfcUndo(body) {
+                const res = await fetch('/Pos/Api/Purchases/Nfc/Undo', {
+                    method: 'POST',
+                    headers: this.jsonHeaders(),
+                    body: JSON.stringify(body)
+                });
                 return parseApiResponse(res);
             }
         }

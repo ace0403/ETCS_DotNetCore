@@ -18,6 +18,7 @@ public sealed class PosApiController : ControllerBase
     private readonly IPosCatalogRepository _catalogRepository;
     private readonly IPosSpendRepository _spendRepository;
     private readonly IPosLegacyTransactionRepository _legacyRepository;
+    private readonly IPosNfcPurchaseService _nfcPurchaseService;
     private readonly IManualTopupService _manualTopupService;
     private readonly PosOptions _posOptions;
 
@@ -26,6 +27,7 @@ public sealed class PosApiController : ControllerBase
         IPosCatalogRepository catalogRepository,
         IPosSpendRepository spendRepository,
         IPosLegacyTransactionRepository legacyRepository,
+        IPosNfcPurchaseService nfcPurchaseService,
         IManualTopupService manualTopupService,
         IOptions<PosOptions> posOptions)
     {
@@ -33,6 +35,7 @@ public sealed class PosApiController : ControllerBase
         _catalogRepository = catalogRepository;
         _spendRepository = spendRepository;
         _legacyRepository = legacyRepository;
+        _nfcPurchaseService = nfcPurchaseService;
         _manualTopupService = manualTopupService;
         _posOptions = posOptions.Value;
     }
@@ -223,6 +226,24 @@ public sealed class PosApiController : ControllerBase
         });
     }
 
+    [HttpPost("purchases/nfc")]
+    public async Task<IActionResult> NfcPurchase(
+        [FromBody] PosNfcPurchaseRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _nfcPurchaseService.PurchaseAsync(request, cancellationToken);
+        return ToNfcResult(result);
+    }
+
+    [HttpPost("purchases/nfc/undo")]
+    public async Task<IActionResult> NfcUndo(
+        [FromBody] PosNfcUndoRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _nfcPurchaseService.UndoAsync(request, cancellationToken);
+        return ToNfcResult(result);
+    }
+
     [HttpPost("purchases/cash")]
     public async Task<IActionResult> CashPurchase(
         [FromBody] PosCashPurchaseRequest request,
@@ -409,5 +430,20 @@ public sealed class PosApiController : ControllerBase
     {
         var now = DateTime.Now;
         return terminalNumeric + now.ToString("ddMMyymmss");
+    }
+
+    private static IActionResult ToNfcResult(PosNfcPurchaseResponse result)
+    {
+        if (result.IsSuccess)
+        {
+            return new OkObjectResult(result);
+        }
+
+        if (string.Equals(result.Code, "CARD_NOT_FOUND", StringComparison.OrdinalIgnoreCase))
+        {
+            return new NotFoundObjectResult(result);
+        }
+
+        return new BadRequestObjectResult(result);
     }
 }

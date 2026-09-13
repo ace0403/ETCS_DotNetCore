@@ -1923,14 +1923,25 @@ a.pos-bridge-overlay-btn--secondary:visited {
     background: var(--pos-primary-dark);
 }
 
+.pos-btn--nfc {
+    background: #1d4ed8;
+    color: #fff;
+}
+
+.pos-btn--nfc:hover:not(:disabled) {
+    background: #1e40af;
+}
+
 .pos-btn--undo,
-.pos-btn--undo-cash {
+.pos-btn--undo-cash,
+.pos-btn--nfc-undo {
     background: var(--pos-warning);
     color: #fff;
 }
 
 .pos-btn--undo:hover:not(:disabled),
-.pos-btn--undo-cash:hover:not(:disabled) {
+.pos-btn--undo-cash:hover:not(:disabled),
+.pos-btn--nfc-undo:hover:not(:disabled) {
     background: var(--pos-warning-dark);
 }
 

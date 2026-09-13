@@ -387,3 +387,5 @@ ETCS.API/Database/accesslog-backfill-branchcode.sql
 *.ps1
 /ETCS.Admin/wwwroot/meal-combo
 /ETCS.Admin/wwwroot/meal-image
+/ETCS.Pos.Bridge/Installer/README.md
+/ETCS.Pos.Web/E2E_VERIFICATION.md

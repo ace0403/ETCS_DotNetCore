@@ -310,6 +310,10 @@
                 state.lastCustomerId = '';
                 state.lastPayableAmount = 0;
                 state.lastItemCount = 0;
+                state.lastNfcTransactionId = '';
+                state.lastNfcCardSn = '';
+                state.lastNfcPayableAmount = 0;
+                state.lastNfcItemCount = 0;
             }
             updateReturnCash();
             syncDiscountButton();

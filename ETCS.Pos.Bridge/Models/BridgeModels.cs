@@ -74,3 +74,28 @@ public sealed class IbonusConnectTestResult
     public string SoapUrl { get; set; } = string.Empty;
     public System.Collections.Generic.IReadOnlyList<string> Details { get; set; } = System.Array.Empty<string>();
 }
+
+public sealed class NfcWaitCardRequest
+{
+    public int TimeoutSeconds { get; set; }
+}
+
+public sealed class NfcWaitCardResult
+{
+    public bool IsSuccess { get; set; }
+    public string CardSn { get; set; } = string.Empty;
+    public string UidHex { get; set; } = string.Empty;
+    public string UidHexReversed { get; set; } = string.Empty;
+    public string UidDecimal { get; set; } = string.Empty;
+    public string UidDecimalReversed { get; set; } = string.Empty;
+    public string ReaderName { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+}
+
+public sealed class NfcStatusResult
+{
+    public bool IsReady { get; set; }
+    public string ReaderName { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public IReadOnlyList<string> Readers { get; set; } = Array.Empty<string>();
+}

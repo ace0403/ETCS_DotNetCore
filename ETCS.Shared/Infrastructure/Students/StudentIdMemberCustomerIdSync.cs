@@ -7,7 +7,7 @@ public static class StudentIdMemberCustomerIdSync
 {
     private const string UpdateSql = """
         UPDATE IdMember
-        SET CustomerID = @NewCustomerId
+        SET CustomerID = @NewCustomerId, LastVisit = GETDATE()
         WHERE LTRIM(RTRIM(ISNULL(CustomerID, ''))) = LTRIM(RTRIM(@OldCustomerId))
           AND LTRIM(RTRIM(ISNULL(CustomerID, ''))) <> '';
         """;

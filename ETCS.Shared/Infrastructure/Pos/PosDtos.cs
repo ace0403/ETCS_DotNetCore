@@ -117,6 +117,41 @@ public sealed class PosCardCheckResponse
     public decimal Balance { get; init; }
 }
 
+public sealed class PosNfcPurchaseRequest
+{
+    public string CardSn { get; init; } = string.Empty;
+    public string? UidHex { get; init; }
+    public string? UidHexReversed { get; init; }
+    public string? UidDecimal { get; init; }
+    public string? UidDecimalReversed { get; init; }
+    public string TransactionId { get; init; } = string.Empty;
+    public string IpAddress { get; init; } = string.Empty;
+    public string BranchCode { get; init; } = "1";
+    public IReadOnlyList<PosPostPurchaseLineRequest> Lines { get; init; } = [];
+}
+
+public sealed class PosNfcUndoRequest
+{
+    public string CardSn { get; init; } = string.Empty;
+    public string? UidHex { get; init; }
+    public string? UidHexReversed { get; init; }
+    public string? UidDecimal { get; init; }
+    public string? UidDecimalReversed { get; init; }
+    public decimal Amount { get; init; }
+    public string TransactionId { get; init; } = string.Empty;
+}
+
+public sealed class PosNfcPurchaseResponse
+{
+    public bool IsSuccess { get; init; }
+    public string Message { get; init; } = string.Empty;
+    public string? Code { get; init; }
+    public string CustomerId { get; init; } = string.Empty;
+    public string TransactionId { get; init; } = string.Empty;
+    public string CardSn { get; init; } = string.Empty;
+    public decimal Balance { get; init; }
+}
+
 public sealed class PosAccessLogResponse
 {
     public bool IsSuccess { get; init; }

@@ -18,6 +18,10 @@ window.PosApp = window.PosApp || {};
         lastCustomerId: '',
         lastPayableAmount: 0,
         lastItemCount: 0,
+        lastNfcTransactionId: '',
+        lastNfcCardSn: '',
+        lastNfcPayableAmount: 0,
+        lastNfcItemCount: 0,
         posBusy: false,
         bridgeOnline: null,
         bridgeChecking: true,
@@ -28,7 +32,7 @@ window.PosApp = window.PosApp || {};
     App.constants = {
         BRIDGE_POLL_MS: 15000,
         POS_ACTION_BUTTONS: [
-            'btnPay', 'btnCard', 'btnUndo', 'btnUndoCash', 'btnCash',
+            'btnPay', 'btnNfcPay', 'btnCard', 'btnUndo', 'btnNfcUndo', 'btnUndoCash', 'btnCash',
             'btnReset', 'btnRemoveSelected', 'btnApplyDiscount'
         ]
     };
@@ -137,7 +141,8 @@ window.PosApp = window.PosApp || {};
             return (ddl.options[ddl.selectedIndex]?.text || '').trim();
         },
 
-        async validateOrderSetup() {
+        async validateOrderSetup(options) {
+            const requireReaderIp = !options || options.requireReaderIp !== false;
             const schoolId = App.helpers.getSelectedSchoolId();
             if (!schoolId) {
                 await App.ui.warning('Select a school before placing an order.', 'School required');
@@ -153,7 +158,7 @@ window.PosApp = window.PosApp || {};
             }
 
             const terminalIp = App.helpers.getTerminalIp();
-            if (!terminalIp) {
+            if (requireReaderIp && !terminalIp) {
                 await App.ui.warning('Reader IP is required. Select a terminal with an IP address or enter the reader IP.', 'Reader IP required');
                 document.getElementById('txtTerminalIp')?.focus();
                 return false;

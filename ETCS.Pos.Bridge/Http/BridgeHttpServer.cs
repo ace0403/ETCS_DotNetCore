@@ -19,6 +19,7 @@ public sealed class BridgeHttpServer : IDisposable
     };
     private readonly HttpListener _listener = new();
     private readonly IbonusSoapService _ibonus = new();
+    private readonly NfcReaderService _nfc = new();
     private readonly ReceiptPrintService _printer = new();
     private CancellationTokenSource? _cts;
     private Thread? _worker;
@@ -129,6 +130,26 @@ public sealed class BridgeHttpServer : IDisposable
             var body = ReadBody(request);
             var model = JsonConvert.DeserializeObject<IbonusUndoRequest>(body) ?? new IbonusUndoRequest();
             var result = _ibonus.Undo(model);
+            WriteJson(response, result.IsSuccess ? HttpStatusCode.OK : HttpStatusCode.BadRequest, result);
+            return;
+        }
+
+        if (string.Equals(path, "/nfc/status", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(request.HttpMethod, "GET", StringComparison.OrdinalIgnoreCase))
+        {
+            var result = _nfc.GetStatus();
+            WriteJson(response, result.IsReady ? HttpStatusCode.OK : HttpStatusCode.BadRequest, result);
+            return;
+        }
+
+        if (string.Equals(path, "/nfc/wait-card", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase))
+        {
+            var body = ReadBody(request);
+            var model = string.IsNullOrWhiteSpace(body)
+                ? new NfcWaitCardRequest()
+                : JsonConvert.DeserializeObject<NfcWaitCardRequest>(body) ?? new NfcWaitCardRequest();
+            var result = _nfc.WaitForCard(model);
             WriteJson(response, result.IsSuccess ? HttpStatusCode.OK : HttpStatusCode.BadRequest, result);
             return;
         }

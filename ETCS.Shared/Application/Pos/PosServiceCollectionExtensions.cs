@@ -12,6 +12,8 @@ public static class PosServiceCollectionExtensions
         services.AddScoped<IPOSOrderRepository, POSOrderRepository>();
         services.AddScoped<IPosSpendRepository, PosSpendRepository>();
         services.AddScoped<IPosLegacyTransactionRepository, PosLegacyTransactionRepository>();
+        services.AddScoped<IPosNfcMemberRepository, PosNfcMemberRepository>();
+        services.AddScoped<IPosNfcPurchaseService, PosNfcPurchaseService>();
         services.AddScoped<IPosOrderInitiateService, PosOrderInitiateService>();
         services.AddScoped<IPosOrderCompleteService, PosOrderCompleteService>();
         return services;

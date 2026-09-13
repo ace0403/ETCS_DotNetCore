@@ -75,8 +75,10 @@
 
     function bindStaticControls() {
         document.getElementById('btnPay')?.addEventListener('click', () => App.checkout.checkout());
+        document.getElementById('btnNfcPay')?.addEventListener('click', () => App.checkout.nfcCheckout());
         document.getElementById('btnCash')?.addEventListener('click', () => App.checkout.cashCheckout());
         document.getElementById('btnUndo')?.addEventListener('click', () => App.checkout.undoLast());
+        document.getElementById('btnNfcUndo')?.addEventListener('click', () => App.checkout.undoNfcLast());
         document.getElementById('btnUndoCash')?.addEventListener('click', () => App.checkout.undoCashCheckout());
         document.getElementById('btnReset')?.addEventListener('click', () => App.cart.clear(true));
         document.getElementById('btnRemoveSelected')?.addEventListener('click', () => App.cart.removeSelected());

@@ -39,6 +39,22 @@ public sealed class PosApiProxyController : ControllerBase
         return ProxyPostAsync("api/pos/purchases/post-lines", request, cancellationToken);
     }
 
+    [HttpPost("Purchases/Nfc")]
+    public Task<IActionResult> NfcPurchase(
+        [FromBody] PosNfcPurchaseRequest request,
+        CancellationToken cancellationToken)
+    {
+        return ProxyPostAsync("api/pos/purchases/nfc", request, cancellationToken);
+    }
+
+    [HttpPost("Purchases/Nfc/Undo")]
+    public Task<IActionResult> NfcUndo(
+        [FromBody] PosNfcUndoRequest request,
+        CancellationToken cancellationToken)
+    {
+        return ProxyPostAsync("api/pos/purchases/nfc/undo", request, cancellationToken);
+    }
+
     [HttpPost("Purchases/Cash")]
     public Task<IActionResult> CashPurchase(
         [FromBody] PosCashPurchaseRequest request,
