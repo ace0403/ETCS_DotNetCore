@@ -12,6 +12,7 @@ public sealed class PosPageViewModel
     public decimal VatPercent { get; init; }
     public decimal DefaultDiscount { get; init; }
     public string ReceiptCompanyLine { get; init; } = string.Empty;
+    public string ReceiptVatRegNoLine { get; init; } = string.Empty;
     public string? ReceiptLogoBase64 { get; init; }
     public string ReceiptPrintMode { get; init; } = "Print";
     public bool ApiOnline { get; init; } = true;

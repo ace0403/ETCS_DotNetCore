@@ -37,12 +37,14 @@
                 const bridgeResult = await BridgeClient.purchase(payable, transactionId, itemCount);
                 if (!bridgeResult.ok || !apiIsSuccess(bridgeResult.data)) {
                     await App.ui.error(apiMessage(bridgeResult.data, 'iBonus purchase failed.'));
+                    App.cart.clear(false);
                     return;
                 }
 
                 const customerId = getJsonProp(bridgeResult.data, 'customerId') || '';
                 if (!customerId) {
                     await App.ui.error('iBonus did not return a customer ID.');
+                    App.cart.clear(false);
                     return;
                 }
 
@@ -50,12 +52,14 @@
                 if (!spend.ok) {
                     await PosApiClient.rollbackSpendLimit({ customerId, amount: payable });
                     await App.ui.error('Unable to resolve student for customer ID.');
+                    App.cart.clear(false);
                     return;
                 }
 
                 if (spendLimitExceeded(spend.data)) {
                     await PosApiClient.rollbackSpendLimit({ customerId, amount: payable });
                     await App.ui.error(spendLimitMessage(spend.data));
+                    App.cart.clear(false);
                     return;
                 }
 
@@ -69,6 +73,7 @@
                 if (!postResult.ok || !apiIsSuccess(postResult.data)) {
                     await PosApiClient.rollbackSpendLimit({ customerId, amount: payable });
                     await App.ui.error(apiMessage(postResult.data, 'POS purchase recording failed.'));
+                    App.cart.clear(false);
                     return;
                 }
 

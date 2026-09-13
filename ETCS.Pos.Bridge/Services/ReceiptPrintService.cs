@@ -16,7 +16,7 @@ public sealed class ReceiptPrintService
     private const float RegularFontSize = 8f;
     private const float BoldFontSize = 8f;
     private const float TitleFontSize = 9f;
-    private const float LogoMaxWidth = 140f;
+    private const float LogoMaxWidth = 90f;
     private const float LineSpacing = 4f;
     private const float SectionSpacing = 8f;
     private const float PageWidth = 280f;
@@ -177,6 +177,11 @@ public sealed class ReceiptPrintService
 
             DrawLogo(graphics);
             DrawCenteredLine(graphics, _request.CompanyLine, _bold);
+            if (!string.IsNullOrWhiteSpace(_request.VatRegNoLine))
+            {
+                DrawCenteredLine(graphics, _request.VatRegNoLine.Trim(), _bold);
+            }
+
             if (!string.IsNullOrWhiteSpace(_request.LocationLine))
             {
                 DrawCenteredLine(graphics, _request.LocationLine.Trim(), _regular);
@@ -418,6 +423,7 @@ public sealed class ReceiptPrintService
     private static ReceiptPrintRequest NormalizeRequest(ReceiptPrintRequest request)
     {
         request.CompanyLine = ReceiptTextNormalizer.Normalize(request.CompanyLine);
+        request.VatRegNoLine = ReceiptTextNormalizer.Normalize(request.VatRegNoLine);
         request.LocationLine = ReceiptTextNormalizer.Normalize(request.LocationLine);
         request.TerminalLine = ReceiptTextNormalizer.Normalize(request.TerminalLine);
 

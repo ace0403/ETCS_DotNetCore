@@ -44,6 +44,7 @@ public sealed class ReceiptPrintRequest
     public decimal DiscountPercent { get; set; }
     public bool DiscountApplied { get; set; }
     public string CompanyLine { get; set; } = "Emirates Taste Catering Services Food LLC";
+    public string VatRegNoLine { get; set; } = "VAT Reg No: 100355890300003";
     public string LocationLine { get; set; } = string.Empty;
     public string TerminalLine { get; set; } = string.Empty;
     public string? LogoBase64 { get; set; }

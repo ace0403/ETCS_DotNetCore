@@ -108,6 +108,7 @@
             discountPercent: totals.discountPercent,
             discountApplied: state.discountApplied,
             companyLine: normalizeReceiptText(App.config.receiptCompanyLine),
+            vatRegNoLine: normalizeReceiptText(App.config.receiptVatRegNoLine),
             locationLine: normalizeReceiptText(App.helpers.getSelectedSchoolName()),
             terminalLine: normalizeReceiptText(App.helpers.getSelectedTerminalLabel()),
             logoBase64: App.config.receiptLogoBase64 || '',

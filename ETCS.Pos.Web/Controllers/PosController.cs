@@ -62,6 +62,7 @@ public sealed class PosController : Controller
             ApiStatusMessage = apiOnline ? string.Empty : ToStaffApiMessage(apiError),
             ApiStatusDetail = apiError ?? string.Empty,
             ReceiptCompanyLine = _receiptBranding.CompanyLine,
+            ReceiptVatRegNoLine = _receiptBranding.VatRegNoLine,
             ReceiptLogoBase64 = _receiptLogoLoader.LoadLogoBase64(),
             ReceiptPrintMode = _receiptPrint.Mode
         };
