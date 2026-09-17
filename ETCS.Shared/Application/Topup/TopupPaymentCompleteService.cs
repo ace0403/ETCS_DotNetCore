@@ -177,16 +177,6 @@ public sealed class TopupPaymentCompleteService : ITopupPaymentCompleteService
                         UpdatedBy = parentDetails?.GuardianId ?? topupState.GuardianId
                     },
                     dbToken);
-
-                if (parentDetails is not null && !string.IsNullOrWhiteSpace(parentDetails.CustomerId))
-                {
-                    await EnsureTopupAccessLogAttachedAsync(
-                        topupState.TransactionPkId,
-                        parentDetails.CustomerId,
-                        gatewayTransactionId,
-                        topupState.Amount,
-                        dbToken);
-                }
             }
 
             var topupAmount = topupState?.Amount ?? 0m;
@@ -194,6 +184,10 @@ public sealed class TopupPaymentCompleteService : ITopupPaymentCompleteService
             {
                 try
                 {
+                    // Wallet credit is owned by spUpdatePreOrderResTransInfo
+                    // (IdMember.BalPrepaid += amount). That SP skips the credit if AccessLog
+                    // already exists for this transaction, so do not insert AccessLog or call
+                    // spUpdatePrepaidBalance first.
                     await _transactionRepository.UpdatePendingAndTopupTransactionAsync(
                         new UpdatePendingTransactionRequest
                         {
@@ -209,15 +203,6 @@ public sealed class TopupPaymentCompleteService : ITopupPaymentCompleteService
                             Remarks = request.OrderId
                         },
                         dbToken);
-
-                    /// TODO Need to check double updated wallet balance issue. If the topup amount is already updated in the idmember table, then we should not update it again.
-                    //if (topupAmount > 0)
-                    //{
-                    //    await _transactionRepository.UpdatePrepaidBalanceAsync(
-                    //        parentDetails.CustomerId,
-                    //        topupAmount,
-                    //        dbToken);
-                    //}
                 }
                 catch (Exception ex)
                 {
@@ -227,6 +212,16 @@ public sealed class TopupPaymentCompleteService : ITopupPaymentCompleteService
                         "Wallet/pending update failed after successful capture. OrderId={OrderId}, GatewayTransactionId={GatewayTransactionId}",
                         request.OrderId,
                         gatewayTransactionId);
+                }
+
+                if (topupState is not null)
+                {
+                    await EnsureTopupAccessLogAttachedAsync(
+                        topupState.TransactionPkId,
+                        parentDetails.CustomerId,
+                        gatewayTransactionId,
+                        topupState.Amount,
+                        dbToken);
                 }
             }
 

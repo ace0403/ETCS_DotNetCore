@@ -202,6 +202,27 @@
     font-size: 0.82rem;
 }
 
+.history-page .history-results-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    margin: 0.85rem 1.15rem 0;
+    padding: 0.75rem 0.9rem;
+    border-radius: 10px;
+    background: var(--history-accent-soft);
+    border: 1px solid rgba(70, 128, 255, 0.18);
+    color: var(--history-text);
+    font-size: 0.84rem;
+    line-height: 1.45;
+}
+
+.history-page .history-results-note .ti {
+    color: var(--history-accent-dark);
+    font-size: 1rem;
+    line-height: 1.35;
+    flex-shrink: 0;
+}
+
 .history-page .history-timeline {
     display: flex;
     flex-direction: column;
