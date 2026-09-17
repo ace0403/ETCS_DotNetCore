@@ -7,6 +7,7 @@ public sealed class MealComboListDto
 {
     public int Id { get; init; }
     public string PackageName { get; init; } = string.Empty;
+    public string WeekNos { get; init; } = string.Empty;
     public int SchoolId { get; init; }
     public decimal Price { get; init; }
     public decimal ProcessingFee { get; init; }

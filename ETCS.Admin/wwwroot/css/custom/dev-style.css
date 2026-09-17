@@ -1052,11 +1052,20 @@ div.dt-search {
     max-width: 220px;
 }
 
+.admin-grid-week-filter {
+    width: 100%;
+    max-width: 180px;
+}
+
 .admin-grid-school-filter .form-select {
     border-radius: 8px;
 }
 
 .admin-grid-order-type-filter .form-select {
+    border-radius: 8px;
+}
+
+.admin-grid-week-filter .form-select {
     border-radius: 8px;
 }
 

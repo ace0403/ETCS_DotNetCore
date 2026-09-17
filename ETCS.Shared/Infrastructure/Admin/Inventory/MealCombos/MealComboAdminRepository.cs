@@ -22,15 +22,36 @@ public sealed class MealComboAdminRepository : IMealComboAdminRepository
         _mealEnumAdminRepository = mealEnumAdminRepository;
     }
 
-    private const string SelectSql = "SELECT p.Id, p.PackageName, p.SchoolId, p.Price, ISNULL(p.ProcessingFee, 0) AS ProcessingFee, ISNULL(p.IsActive, 1) AS IsActive";
-    private const string FromSql = "FROM MealPackages p";
+    private const string SelectSql = """
+        SELECT p.Id,
+            p.PackageName,
+            LTRIM(RTRIM(ISNULL(weeks.WeekNos, ''))) AS WeekNos,
+            p.SchoolId,
+            p.Price,
+            ISNULL(p.ProcessingFee, 0) AS ProcessingFee,
+            ISNULL(p.IsActive, 1) AS IsActive
+        """;
+    private const string FromSql = """
+        FROM MealPackages p
+        OUTER APPLY (
+            SELECT STRING_AGG(CAST(w.WeekNo AS varchar(10)), ', ') WITHIN GROUP (ORDER BY w.WeekNo) AS WeekNos
+            FROM MealPackageWeeks w
+            WHERE w.MealPackageId = p.Id
+        ) weeks
+        """;
     private const string BaseFilterSql = "ISNULL(p.IsDeleted, 0) = 0";
-    private const string SearchFilterSql = "LTRIM(RTRIM(ISNULL(p.PackageName, ''))) LIKE '%' + @Search + '%' OR CAST(p.SchoolId AS varchar(20)) LIKE '%' + @Search + '%' OR CAST(p.Price AS varchar(30)) LIKE '%' + @Search + '%'";
+    private const string SearchFilterSql = """
+        LTRIM(RTRIM(ISNULL(p.PackageName, ''))) LIKE '%' + @Search + '%'
+        OR LTRIM(RTRIM(ISNULL(weeks.WeekNos, ''))) LIKE '%' + @Search + '%'
+        OR CAST(p.SchoolId AS varchar(20)) LIKE '%' + @Search + '%'
+        OR CAST(p.Price AS varchar(30)) LIKE '%' + @Search + '%'
+        """;
 
     private static readonly IReadOnlyDictionary<string, string> SortColumns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["Id"] = "p.Id",
         ["PackageName"] = "p.PackageName",
+        ["WeekNos"] = "weeks.WeekNos",
         ["SchoolId"] = "p.SchoolId",
         ["Price"] = "p.Price",
         ["ProcessingFee"] = "p.ProcessingFee",
@@ -46,16 +67,29 @@ public sealed class MealComboAdminRepository : IMealComboAdminRepository
         await dbConnection.OpenAsync(cancellationToken);
 
         var baseFilterSql = BaseFilterSql;
-        object? extraParameters = null;
+        var extraParameters = new DynamicParameters();
         if (request.ScopedSchoolIds is { Count: > 0 })
         {
             baseFilterSql += " AND p.SchoolId IN @ScopedSchoolIds";
-            extraParameters = new { ScopedSchoolIds = request.ScopedSchoolIds };
+            extraParameters.Add("ScopedSchoolIds", request.ScopedSchoolIds);
         }
         else if (request.SchoolId is > 0)
         {
             baseFilterSql += " AND p.SchoolId = @SchoolId";
-            extraParameters = new { SchoolId = request.SchoolId.Value };
+            extraParameters.Add("SchoolId", request.SchoolId.Value);
+        }
+
+        if (request.WeekNo is >= 1 and <= 5)
+        {
+            baseFilterSql += """
+                 AND EXISTS (
+                     SELECT 1
+                     FROM MealPackageWeeks w
+                     WHERE w.MealPackageId = p.Id
+                       AND w.WeekNo = @WeekNo
+                 )
+                """;
+            extraParameters.Add("WeekNo", request.WeekNo.Value);
         }
 
         return await QueryPagedAsync<MealComboListDto>(

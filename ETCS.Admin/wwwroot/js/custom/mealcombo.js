@@ -14,6 +14,7 @@ var myTable = initAdminDataTable('#grid_table', 'mealcombo/getlist', [
             return formatComboAmount((parseFloat(row.Price) || 0) + (parseFloat(row.ProcessingFee) || 0));
         }
     },
+    { data: 'WeekNos' },
     { data: 'IsActive', render: function (d) { return d ? 'Yes' : 'No'; } },
     {
         data: 'Id',
@@ -22,7 +23,7 @@ var myTable = initAdminDataTable('#grid_table', 'mealcombo/getlist', [
         className: 'text-center admin-action-cell',
         render: function (d) { return adminActionEditDelete(d); }
     }
-], { order: [[0, 'asc']], schoolFilterSelector: '#adminGridSchoolFilter' });
+], { order: [[0, 'asc']], schoolFilterSelector: '#adminGridSchoolFilter', weekFilterSelector: '#adminGridWeekFilter' });
 
 function initMealComboMultiSelect(id) {
     var $el = $('#' + id);

@@ -145,6 +145,15 @@ function bindAdminGridOrderTypeFilter(table, filterSelector) {
     });
 }
 
+function bindAdminGridWeekFilter(table, filterSelector) {
+    var $filter = $(filterSelector || '#adminGridWeekFilter');
+    if (!$filter.length) return;
+
+    $filter.off('.adminGridWeekFilter').on('change.adminGridWeekFilter', function () {
+        table.draw();
+    });
+}
+
 function initAdminDataTable(selector, relativeUrl, columns, options) {
     options = options || {};
     var searchDelay = options.searchDelay || 400;
@@ -178,6 +187,22 @@ function initAdminDataTable(selector, relativeUrl, columns, options) {
             var orderTypeId = $(orderTypeFilterSelector).val();
             if (orderTypeId) {
                 payload.OrderTypeId = orderTypeId;
+            }
+        };
+    }
+
+    if (options.weekFilterSelector) {
+        var weekFilterSelector = options.weekFilterSelector;
+        var weekPreviousDataFn = ajaxConfig.data;
+
+        ajaxConfig.data = function (payload) {
+            if (typeof weekPreviousDataFn === 'function') {
+                weekPreviousDataFn(payload);
+            }
+
+            var weekNo = $(weekFilterSelector).val();
+            if (weekNo) {
+                payload.WeekNo = weekNo;
             }
         };
     }
@@ -228,6 +253,7 @@ function initAdminDataTable(selector, relativeUrl, columns, options) {
 
     bindAdminGridSchoolFilter(table, options.schoolFilterSelector);
     bindAdminGridOrderTypeFilter(table, options.orderTypeFilterSelector);
+    bindAdminGridWeekFilter(table, options.weekFilterSelector);
     bindAdminDataTableEmptyStateFix(table);
 
     if (window.adminSchoolScope && window.adminSchoolScope.restricted && options.schoolFilterSelector) {

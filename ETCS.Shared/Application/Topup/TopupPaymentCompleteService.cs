@@ -194,14 +194,6 @@ public sealed class TopupPaymentCompleteService : ITopupPaymentCompleteService
             {
                 try
                 {
-                    if (topupAmount > 0)
-                    {
-                        await _transactionRepository.UpdatePrepaidBalanceAsync(
-                            parentDetails.CustomerId,
-                            topupAmount,
-                            dbToken);
-                    }
-
                     await _transactionRepository.UpdatePendingAndTopupTransactionAsync(
                         new UpdatePendingTransactionRequest
                         {
@@ -217,6 +209,15 @@ public sealed class TopupPaymentCompleteService : ITopupPaymentCompleteService
                             Remarks = request.OrderId
                         },
                         dbToken);
+
+                    /// TODO Need to check double updated wallet balance issue. If the topup amount is already updated in the idmember table, then we should not update it again.
+                    //if (topupAmount > 0)
+                    //{
+                    //    await _transactionRepository.UpdatePrepaidBalanceAsync(
+                    //        parentDetails.CustomerId,
+                    //        topupAmount,
+                    //        dbToken);
+                    //}
                 }
                 catch (Exception ex)
                 {

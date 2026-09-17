@@ -9,6 +9,7 @@ public sealed class MealItemListDto
     public string CategoryName { get; init; } = string.Empty;
     public string SchoolNames { get; init; } = string.Empty;
     public string OrderTypeNames { get; init; } = string.Empty;
+    public string WeekNos { get; init; } = string.Empty;
     public int SchoolId { get; init; }
     public int MealSessionId { get; init; }
     public int MealTypeId { get; init; }

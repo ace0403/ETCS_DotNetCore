@@ -1,0 +1,9 @@
+<div class="admin-grid-week-filter">
+    <select id="adminGridWeekFilter" class="form-select" aria-label="Filter by week">
+        <option value="">All Weeks</option>
+        @for (var weekNo = 1; weekNo <= 5; weekNo++)
+        {
+            <option value="@weekNo">Week @weekNo</option>
+        }
+    </select>
+</div>

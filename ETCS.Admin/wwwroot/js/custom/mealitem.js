@@ -3,6 +3,7 @@ var myTable = initAdminDataTable('#grid_table', 'mealitem/getlist', [
     { data: 'CategoryName' },
     { data: 'OrderTypeNames' },
     { data: 'Price' },
+    { data: 'WeekNos' },
     { data: 'IsActive', render: function (d) { return d ? 'Yes' : 'No'; } },
     {
         data: 'Id',
@@ -14,7 +15,8 @@ var myTable = initAdminDataTable('#grid_table', 'mealitem/getlist', [
 ], {
     order: [[0, 'asc']],
     schoolFilterSelector: '#adminGridSchoolFilter',
-    orderTypeFilterSelector: '#adminGridOrderTypeFilter'
+    orderTypeFilterSelector: '#adminGridOrderTypeFilter',
+    weekFilterSelector: '#adminGridWeekFilter'
 });
 
 var MEAL_ITEM_CHANNEL = window.MEAL_ITEM_CHANNEL || {};

@@ -10,6 +10,7 @@ public sealed class DataTableRequest
     public int? SchoolId { get; set; }
     public List<int>? ScopedSchoolIds { get; set; }
     public int? OrderTypeId { get; set; }
+    public int? WeekNo { get; set; }
     public DataTableSearchParam? Search { get; set; }
     public List<DataTableOrderParam>? Order { get; set; }
     public List<DataTableColumnParam>? Columns { get; set; }

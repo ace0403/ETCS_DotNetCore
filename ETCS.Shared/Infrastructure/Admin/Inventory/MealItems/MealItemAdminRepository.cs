@@ -35,6 +35,7 @@ public sealed class MealItemAdminRepository : IMealItemAdminRepository
             LTRIM(RTRIM(ISNULL(mc.EnumValue, ''))) AS CategoryName,
             LTRIM(RTRIM(ISNULL(schools.SchoolNames, ''))) AS SchoolNames,
             COALESCE(NULLIF(LTRIM(RTRIM(ISNULL(orderTypes.OrderTypeNames, ''))), ''), 'Meal Plans') AS OrderTypeNames,
+            LTRIM(RTRIM(ISNULL(weeks.WeekNos, ''))) AS WeekNos,
             mi.SchoolId,
             mi.MealSessionId,
             mi.MealTypeId,
@@ -56,6 +57,11 @@ public sealed class MealItemAdminRepository : IMealItemAdminRepository
             LEFT JOIN Enums ot ON ot.Id = miot.OrderTypeId
             WHERE miot.MealItemId = mi.Id
         ) orderTypes
+        OUTER APPLY (
+            SELECT STRING_AGG(CAST(w.WeekNo AS varchar(10)), ', ') WITHIN GROUP (ORDER BY w.WeekNo) AS WeekNos
+            FROM MealItemWeeks w
+            WHERE w.MealItemId = mi.Id
+        ) weeks
         """;
     private const string BaseFilterSql = "ISNULL(mi.IsDeleted, 0) = 0";
     private const string SearchFilterSql = """
@@ -63,6 +69,7 @@ public sealed class MealItemAdminRepository : IMealItemAdminRepository
         OR LTRIM(RTRIM(ISNULL(mc.EnumValue, ''))) LIKE '%' + @Search + '%'
         OR LTRIM(RTRIM(ISNULL(schools.SchoolNames, ''))) LIKE '%' + @Search + '%'
         OR COALESCE(NULLIF(LTRIM(RTRIM(ISNULL(orderTypes.OrderTypeNames, ''))), ''), 'Meal Plans') LIKE '%' + @Search + '%'
+        OR LTRIM(RTRIM(ISNULL(weeks.WeekNos, ''))) LIKE '%' + @Search + '%'
         OR CAST(mi.SchoolId AS varchar(20)) LIKE '%' + @Search + '%'
         OR CAST(mi.MealTypeId AS varchar(20)) LIKE '%' + @Search + '%'
         OR CAST(mi.MealCategotyId AS varchar(20)) LIKE '%' + @Search + '%'
@@ -76,6 +83,7 @@ public sealed class MealItemAdminRepository : IMealItemAdminRepository
         ["CategoryName"] = "mc.EnumValue",
         ["SchoolNames"] = "schools.SchoolNames",
         ["OrderTypeNames"] = "COALESCE(NULLIF(LTRIM(RTRIM(ISNULL(orderTypes.OrderTypeNames, ''))), ''), 'Meal Plans')",
+        ["WeekNos"] = "weeks.WeekNos",
         ["SchoolId"] = "mi.SchoolId",
         ["MealSessionId"] = "mi.MealSessionId",
         ["MealTypeId"] = "mi.MealTypeId",
@@ -142,6 +150,19 @@ public sealed class MealItemAdminRepository : IMealItemAdminRepository
                    )
                   """;
             parameters.Add("OrderTypeId", request.OrderTypeId.Value);
+        }
+
+        if (request.WeekNo is >= 1 and <= 5)
+        {
+            baseFilterSql += """
+                   AND EXISTS (
+                       SELECT 1
+                       FROM MealItemWeeks w
+                       WHERE w.MealItemId = mi.Id
+                         AND w.WeekNo = @WeekNo
+                   )
+                  """;
+            parameters.Add("WeekNo", request.WeekNo.Value);
         }
 
         return await QueryPagedAsync<MealItemListDto>(
