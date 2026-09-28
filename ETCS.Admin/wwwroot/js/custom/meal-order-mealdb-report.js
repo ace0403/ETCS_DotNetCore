@@ -54,7 +54,8 @@ function getMealOrderReportFilters() {
         EndDate: $('#txtEndDate').val(),
         SchoolId: $('#ddlSchool').val() || '',
         MealSessionId: $('#ddlMealSession').val() || '',
-        MealTypeId: $('#ddlMealType').val() || ''
+        MealTypeId: $('#ddlMealType').val() || '',
+        StudentCardNo: $.trim($('#txtStudCode').val())
     };
 }
 
@@ -107,6 +108,7 @@ function initMealOrderReportTable() {
         payload.SchoolId = filters.SchoolId;
         payload.MealSessionId = filters.MealSessionId;
         payload.MealTypeId = filters.MealTypeId;
+        payload.StudentCardNo = filters.StudentCardNo;
     };
 
     ajaxConfig.dataFilter = function (raw) {
@@ -203,6 +205,7 @@ function exportMealOrderReport() {
     $('#exportSchoolId').val(filters.SchoolId);
     $('#exportMealSessionId').val(filters.MealSessionId);
     $('#exportMealTypeId').val(filters.MealTypeId);
+    $('#exportStudentCardNo').val(filters.StudentCardNo);
     $('#frmExport').trigger('submit');
 }
 

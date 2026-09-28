@@ -389,3 +389,4 @@ ETCS.API/Database/accesslog-backfill-branchcode.sql
 /ETCS.Admin/wwwroot/meal-image
 /ETCS.Pos.Bridge/Installer/README.md
 /ETCS.Pos.Web/E2E_VERIFICATION.md
+/ETCS.API/Database/MealStoredProcedures/spMealOrderSummary_MealDB_New.sql

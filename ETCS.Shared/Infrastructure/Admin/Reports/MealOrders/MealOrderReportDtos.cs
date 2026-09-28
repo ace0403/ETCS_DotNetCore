@@ -10,6 +10,7 @@ public sealed class MealOrderReportFilter
     public string? SchoolIdsCsv { get; set; }
     public int? MealSessionId { get; set; }
     public int? MealTypeId { get; set; }
+    public string? StudentCardNo { get; set; }
 }
 
 public sealed class MealOrderReportListRequest
@@ -23,6 +24,7 @@ public sealed class MealOrderReportListRequest
     public string? SchoolIdsCsv { get; set; }
     public int? MealSessionId { get; set; }
     public int? MealTypeId { get; set; }
+    public string? StudentCardNo { get; set; }
 
     public int PageSize => Length <= 0 ? DataTableRequest.DefaultPageSize : Length;
 }

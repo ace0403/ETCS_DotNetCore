@@ -17,6 +17,8 @@ public sealed class MealOrderPaymentReportFilter
     public int? MealTypeId { get; set; }
 
     public string? TransactionId { get; set; }
+
+    public string? StudentCardNo { get; set; }
 }
 
 public sealed class MealOrderPaymentReportListRequest
@@ -40,6 +42,8 @@ public sealed class MealOrderPaymentReportListRequest
     public int? MealTypeId { get; set; }
 
     public string? TransactionId { get; set; }
+
+    public string? StudentCardNo { get; set; }
 
     public int PageSize => Length <= 0 ? DataTableRequest.DefaultPageSize : Length;
 }

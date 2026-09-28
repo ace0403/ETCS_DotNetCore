@@ -32,6 +32,12 @@ public sealed class MealOrderPaymentMealDbReportRepository : IMealOrderPaymentMe
         WHERE sl.UserId IN @StudentIds;
         """;
 
+    private const string ResolveStudentIdByCustomerIdSql = """
+        SELECT TOP 1 sl.UserId
+        FROM StudentLogin sl
+        WHERE LTRIM(RTRIM(ISNULL(sl.CustomerId, ''))) = @StudentCardNo;
+        """;
+
     private readonly IMealDbConnectionFactory _mealDbConnectionFactory;
     private readonly IDbConnectionFactory _connectionFactory;
 
@@ -93,11 +99,17 @@ public sealed class MealOrderPaymentMealDbReportRepository : IMealOrderPaymentMe
         int length,
         CancellationToken cancellationToken)
     {
+        var studentIdResult = await ResolveStudentIdAsync(filter.StudentCardNo, cancellationToken);
+        if (studentIdResult.NotFound)
+        {
+            return ([], 0);
+        }
+
         using var mealConnection = _mealDbConnectionFactory.CreateConnection();
         var mealDbConnection = (DbConnection)mealConnection;
         await mealDbConnection.OpenAsync(cancellationToken);
 
-        var parameters = BuildParameters(filter, start, length);
+        var parameters = BuildParameters(filter, studentIdResult.StudentId, start, length);
         parameters.Add("TotalCount", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
         var spRows = (await mealDbConnection.QueryAsync<MealOrderPaymentMealDbSpRow>(
@@ -123,6 +135,31 @@ public sealed class MealOrderPaymentMealDbReportRepository : IMealOrderPaymentMe
             .ToList();
 
         return (rows, totalCount);
+    }
+
+    private async Task<(int StudentId, bool NotFound)> ResolveStudentIdAsync(
+        string? studentCardNo,
+        CancellationToken cancellationToken)
+    {
+        var cardNo = studentCardNo?.Trim() ?? string.Empty;
+        if (cardNo.Length == 0)
+        {
+            return (0, false);
+        }
+
+        using var connection = _connectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+
+        var userId = await dbConnection.QuerySingleOrDefaultAsync<int?>(
+            new CommandDefinition(
+                ResolveStudentIdByCustomerIdSql,
+                new { StudentCardNo = cardNo },
+                cancellationToken: cancellationToken));
+
+        return userId is null or 0
+            ? (0, true)
+            : (userId.Value, false);
     }
 
     private async Task<IReadOnlyList<MealOrderPaymentStudentRow>> LoadStudentsAsync(
@@ -156,7 +193,8 @@ public sealed class MealOrderPaymentMealDbReportRepository : IMealOrderPaymentMe
             SchoolIdsCsv = request.SchoolIdsCsv,
             MealSessionId = request.MealSessionId,
             MealTypeId = request.MealTypeId,
-            TransactionId = request.TransactionId
+            TransactionId = request.TransactionId,
+            StudentCardNo = request.StudentCardNo
         };
 
     private static MealOrderPaymentReportPagedResult EmptyPagedResult(int draw) =>
@@ -168,7 +206,11 @@ public sealed class MealOrderPaymentMealDbReportRepository : IMealOrderPaymentMe
             Data = []
         };
 
-    private static DynamicParameters BuildParameters(MealOrderPaymentReportFilter filter, int start, int length)
+    private static DynamicParameters BuildParameters(
+        MealOrderPaymentReportFilter filter,
+        int studentId,
+        int start,
+        int length)
     {
         var parameters = new DynamicParameters();
         parameters.Add("startdate", filter.StartDate.Date);
@@ -176,6 +218,7 @@ public sealed class MealOrderPaymentMealDbReportRepository : IMealOrderPaymentMe
         parameters.Add("SchoolId", filter.SchoolId?.Trim() ?? string.Empty);
         parameters.Add("SchoolIdsCsv", filter.SchoolIdsCsv?.Trim() ?? string.Empty);
         parameters.Add("TransactionId", filter.TransactionId?.Trim() ?? string.Empty);
+        parameters.Add("StudentId", studentId);
         parameters.Add("Start", start);
         parameters.Add("Length", length);
         return parameters;

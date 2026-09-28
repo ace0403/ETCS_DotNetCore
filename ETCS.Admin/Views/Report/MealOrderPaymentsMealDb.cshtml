@@ -30,6 +30,10 @@
                 <label for="txtTransactionId" class="form-label">Transaction Id</label>
                 <input type="text" id="txtTransactionId" class="form-control" placeholder="Transaction Id" maxlength="100" />
             </div>
+            <div class="col-12 col-md-6 col-lg-4">
+                <label for="txtStudCode" class="form-label">Student Card No</label>
+                <input type="text" id="txtStudCode" class="form-control" placeholder="Student Card No" maxlength="50" />
+            </div>
             <div class="col-12">
                 <button type="button" class="btn btn-primary" id="btnViewReport">
                     <span class="btn-label">View Report</span>
@@ -47,6 +51,7 @@
     <input type="hidden" name="EndDate" id="exportEndDate" />
     <input type="hidden" name="SchoolId" id="exportSchoolId" />
     <input type="hidden" name="TransactionId" id="exportTransactionId" />
+    <input type="hidden" name="StudentCardNo" id="exportStudentCardNo" />
 </form>
 
 <div id="mealOrderReportLoader" class="canteen-report-screen-loader d-none" aria-live="polite" aria-busy="true">

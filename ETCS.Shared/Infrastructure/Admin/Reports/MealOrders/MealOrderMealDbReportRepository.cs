@@ -28,6 +28,12 @@ public sealed class MealOrderMealDbReportRepository : IMealOrderMealDbReportRepo
         WHERE sl.UserId IN @StudentIds;
         """;
 
+    private const string ResolveStudentIdByCustomerIdSql = """
+        SELECT TOP 1 sl.UserId
+        FROM StudentLogin sl
+        WHERE LTRIM(RTRIM(ISNULL(sl.CustomerId, ''))) = @StudentCardNo;
+        """;
+
     private readonly IMealDbConnectionFactory _mealDbConnectionFactory;
     private readonly IDbConnectionFactory _connectionFactory;
 
@@ -89,11 +95,17 @@ public sealed class MealOrderMealDbReportRepository : IMealOrderMealDbReportRepo
         int length,
         CancellationToken cancellationToken)
     {
+        var studentIdResult = await ResolveStudentIdAsync(filter.StudentCardNo, cancellationToken);
+        if (studentIdResult.NotFound)
+        {
+            return ([], 0);
+        }
+
         using var mealConnection = _mealDbConnectionFactory.CreateConnection();
         var mealDbConnection = (DbConnection)mealConnection;
         await mealDbConnection.OpenAsync(cancellationToken);
 
-        var parameters = BuildParameters(filter, start, length);
+        var parameters = BuildParameters(filter, studentIdResult.StudentId, start, length);
         parameters.Add("TotalCount", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
         var spRows = (await mealDbConnection.QueryAsync<MealOrderMealDbSpRow>(
@@ -119,6 +131,31 @@ public sealed class MealOrderMealDbReportRepository : IMealOrderMealDbReportRepo
             .ToList();
 
         return (rows, totalCount);
+    }
+
+    private async Task<(int StudentId, bool NotFound)> ResolveStudentIdAsync(
+        string? studentCardNo,
+        CancellationToken cancellationToken)
+    {
+        var cardNo = studentCardNo?.Trim() ?? string.Empty;
+        if (cardNo.Length == 0)
+        {
+            return (0, false);
+        }
+
+        using var connection = _connectionFactory.CreateConnection();
+        var dbConnection = (DbConnection)connection;
+        await dbConnection.OpenAsync(cancellationToken);
+
+        var userId = await dbConnection.QuerySingleOrDefaultAsync<int?>(
+            new CommandDefinition(
+                ResolveStudentIdByCustomerIdSql,
+                new { StudentCardNo = cardNo },
+                cancellationToken: cancellationToken));
+
+        return userId is null or 0
+            ? (0, true)
+            : (userId.Value, false);
     }
 
     private async Task<IReadOnlyList<MealOrderStudentRow>> LoadStudentsAsync(
@@ -151,7 +188,8 @@ public sealed class MealOrderMealDbReportRepository : IMealOrderMealDbReportRepo
             SchoolId = request.SchoolId,
             SchoolIdsCsv = request.SchoolIdsCsv,
             MealSessionId = request.MealSessionId,
-            MealTypeId = request.MealTypeId
+            MealTypeId = request.MealTypeId,
+            StudentCardNo = request.StudentCardNo
         };
 
     private static MealOrderReportPagedResult EmptyPagedResult(int draw) =>
@@ -163,7 +201,11 @@ public sealed class MealOrderMealDbReportRepository : IMealOrderMealDbReportRepo
             Data = []
         };
 
-    private static DynamicParameters BuildParameters(MealOrderReportFilter filter, int start, int length)
+    private static DynamicParameters BuildParameters(
+        MealOrderReportFilter filter,
+        int studentId,
+        int start,
+        int length)
     {
         var parameters = new DynamicParameters();
         parameters.Add("startdate", filter.StartDate.Date);
@@ -172,6 +214,7 @@ public sealed class MealOrderMealDbReportRepository : IMealOrderMealDbReportRepo
         parameters.Add("SchoolIdsCsv", filter.SchoolIdsCsv?.Trim() ?? string.Empty);
         parameters.Add("MealSessionId", filter.MealSessionId.GetValueOrDefault());
         parameters.Add("MealTypeId", filter.MealTypeId.GetValueOrDefault());
+        parameters.Add("StudentId", studentId);
         parameters.Add("Start", start);
         parameters.Add("Length", length);
         return parameters;
