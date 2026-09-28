@@ -6,6 +6,7 @@ using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Schools.Calendar;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Application.Orders;
+using ETCS.Shared.Application.Orders.Summaries;
 using ETCS.Shared.Application.Students;
 using ETCS.Web.Infrastructure.AlaCarte;
 using ETCS.Web.Infrastructure.Auth;

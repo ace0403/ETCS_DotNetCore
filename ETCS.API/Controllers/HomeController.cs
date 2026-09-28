@@ -1,4 +1,5 @@
 using ETCS.API.Infrastructure.Auth;
+using ETCS.Shared.Application.History;
 using ETCS.Shared.Infrastructure.Home;
 using ETCS.Shared.Infrastructure.Transaction;
 using Asp.Versioning;
@@ -15,10 +16,14 @@ namespace ETCS.API.Controllers;
 public sealed class HomeController : ControllerBase
 {
     private readonly ITransactionRepository _transactionRepository;
+    private readonly IGuardianHistoryService _guardianHistoryService;
 
-    public HomeController(ITransactionRepository transactionRepository)
+    public HomeController(
+        ITransactionRepository transactionRepository,
+        IGuardianHistoryService guardianHistoryService)
     {
         _transactionRepository = transactionRepository;
+        _guardianHistoryService = guardianHistoryService;
     }
 
     /// <summary>
@@ -52,7 +57,7 @@ public sealed class HomeController : ControllerBase
         return Ok(new HomeDashboardResponse
         {
             GuardianId = guardianId,
-            RecentTransactions = history.Items
+            RecentTransactions = history.Items.Select(_guardianHistoryService.MapListItem).ToList()
         });
     }
 }

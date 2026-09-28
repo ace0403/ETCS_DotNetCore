@@ -1,5 +1,6 @@
 using ETCS.API.Features.Payment;
 using ETCS.API.Infrastructure.Auth;
+using ETCS.Shared.Application.History;
 using ETCS.Shared.Application.Topup;
 using ETCS.PaymentGateway.Models;
 using ETCS.Shared.Infrastructure.Orders;
@@ -24,6 +25,7 @@ public sealed class PaymentController : ControllerBase
     private readonly ITopupInitiateService _topupInitiateService;
     private readonly ITopupPaymentCompleteService _topupPaymentCompleteService;
     private readonly IPaymentStatusService _paymentStatusService;
+    private readonly IGuardianHistoryService _guardianHistoryService;
 
     public PaymentController(
         IStudentRepository studentRepository,
@@ -31,7 +33,8 @@ public sealed class PaymentController : ControllerBase
         IMealOrderRepository mealOrderRepository,
         ITopupInitiateService topupInitiateService,
         ITopupPaymentCompleteService topupPaymentCompleteService,
-        IPaymentStatusService paymentStatusService)
+        IPaymentStatusService paymentStatusService,
+        IGuardianHistoryService guardianHistoryService)
     {
         _studentRepository = studentRepository;
         _transactionRepository = transactionRepository;
@@ -39,6 +42,7 @@ public sealed class PaymentController : ControllerBase
         _topupInitiateService = topupInitiateService;
         _topupPaymentCompleteService = topupPaymentCompleteService;
         _paymentStatusService = paymentStatusService;
+        _guardianHistoryService = guardianHistoryService;
     }
 
     /// <summary>
@@ -252,7 +256,7 @@ public sealed class PaymentController : ControllerBase
         {
             GuardianId = guardianId,
             Count = history.Items.Count,
-            Items = history.Items
+            Items = history.Items.Select(_guardianHistoryService.MapListItem).ToList()
         });
     }
 
@@ -302,7 +306,65 @@ public sealed class PaymentController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
 
-        return Ok(result);
+        return Ok(_guardianHistoryService.MapListResponse(result));
+    }
+
+    /// <summary>
+    /// Transaction detail for meal orders (orderId), POS / legacy meal (aid), matching parent web history.
+    /// </summary>
+    [HttpGet("transactions/detail")]
+    public async Task<IActionResult> GetTransactionDetail(
+        [FromQuery] string? orderId,
+        [FromQuery] long? aid,
+        CancellationToken cancellationToken = default)
+    {
+        if (!User.TryGetGuardianId(out var guardianId))
+        {
+            return Unauthorized(new { message = "Guardian claim is missing in token." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(orderId))
+        {
+            var orderDetail = await _guardianHistoryService.GetOrderDetailAsync(
+                guardianId,
+                orderId.Trim(),
+                cancellationToken);
+
+            return orderDetail is null ? NotFound(new { message = "Transaction detail not found." }) : Ok(orderDetail);
+        }
+
+        if (aid is not > 0)
+        {
+            return BadRequest(new { message = "Either orderId or aid is required." });
+        }
+
+        var accessLogDetail = await _guardianHistoryService.GetAccessLogDetailAsync(
+            guardianId,
+            aid.Value,
+            cancellationToken);
+
+        return accessLogDetail is null
+            ? NotFound(new { message = "Transaction detail not found." })
+            : Ok(accessLogDetail);
+    }
+
+    /// <summary>
+    /// Top-up transaction detail by MealDB transaction id.
+    /// </summary>
+    [HttpGet("transactions/topup/{id:int}")]
+    public async Task<IActionResult> GetTopupTransactionDetail(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        if (!User.TryGetGuardianId(out var guardianId))
+        {
+            return Unauthorized(new { message = "Guardian claim is missing in token." });
+        }
+
+        var detail = await _guardianHistoryService.GetTopupDetailAsync(guardianId, id, cancellationToken);
+        return detail is null
+            ? NotFound(new { message = "Top-up transaction not found." })
+            : Ok(detail);
     }
 
     /// <summary>

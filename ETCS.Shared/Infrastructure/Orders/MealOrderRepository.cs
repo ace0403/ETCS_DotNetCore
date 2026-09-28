@@ -485,6 +485,7 @@ public sealed class MealOrderRepository : IMealOrderRepository
                 o.StudentId,
                 o.GuardianId,
                 o.OrderTypeId,
+                GatewayTransactionId = ISNULL(t.TransactionId, ''),
                 o.SubTotal,
                 o.TaxAmount,
                 o.Total,
@@ -546,6 +547,7 @@ public sealed class MealOrderRepository : IMealOrderRepository
             StudentId = order.StudentId,
             GuardianId = order.GuardianId,
             OrderTypeId = order.OrderTypeId,
+            GatewayTransactionId = order.GatewayTransactionId,
             SubTotal = order.SubTotal,
             TaxAmount = order.TaxAmount,
             Total = order.Total,
@@ -570,7 +572,7 @@ public sealed class MealOrderRepository : IMealOrderRepository
     {
         // AccessLog is the source of truth for parent-app meal activity.
         // Meal Plan / Parent Orders are matched on Description (case-insensitive);
-        // Canteen Purchases are matched on TransactionType 1004 and 2004.
+        // Canteen Purchases are matched on TransactionType 1004, 2004, and 21002.
         const string sql = """
             SELECT
                 MealPlanMealsUsed = ISNULL(SUM(CASE
@@ -584,7 +586,7 @@ public sealed class MealOrderRepository : IMealOrderRepository
                     ELSE 0
                 END), 0),
                 PosAmount = ISNULL(SUM(CASE
-                    WHEN a.TransactionType IN (1004, 2004)
+                    WHEN a.TransactionType IN (1004, 2004, 21002)
                     THEN ISNULL(a.Amount, 0)
                     ELSE 0
                 END), 0)

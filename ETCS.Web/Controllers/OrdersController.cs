@@ -2,7 +2,6 @@ using ETCS.PaymentGateway.Models;
 using ETCS.Shared.Application.Orders;
 using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Web.Infrastructure.Auth;
-using ETCS.Web.Infrastructure.Orders;
 using ETCS.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

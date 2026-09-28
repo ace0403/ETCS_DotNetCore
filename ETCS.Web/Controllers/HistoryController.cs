@@ -1,9 +1,12 @@
+using ETCS.Shared.Application.History;
+using ETCS.Shared.Application.Orders;
+using ETCS.Shared.Application.Orders.Summaries;
 using ETCS.Shared.Enumeration;
+using ETCS.Shared.Infrastructure.History;
 using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Infrastructure.Transaction;
 using ETCS.Web.Infrastructure.Auth;
-using ETCS.Web.Infrastructure.Orders;
 using ETCS.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,17 +22,20 @@ public sealed class HistoryController : Controller
     private readonly ITransactionRepository _transactionRepository;
     private readonly IMealOrderRepository _mealOrderRepository;
     private readonly IStudentRepository _studentRepository;
+    private readonly IHistoryDetailRepository _historyDetailRepository;
     private readonly OrderPaymentSummaryBuilder _summaryBuilder;
 
     public HistoryController(
         ITransactionRepository transactionRepository,
         IMealOrderRepository mealOrderRepository,
         IStudentRepository studentRepository,
+        IHistoryDetailRepository historyDetailRepository,
         OrderPaymentSummaryBuilder summaryBuilder)
     {
         _transactionRepository = transactionRepository;
         _mealOrderRepository = mealOrderRepository;
         _studentRepository = studentRepository;
+        _historyDetailRepository = historyDetailRepository;
         _summaryBuilder = summaryBuilder;
     }
 
@@ -116,63 +122,42 @@ public sealed class HistoryController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Detail(string? orderId, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Detail(
+        string? orderId,
+        long? aid,
+        CancellationToken cancellationToken = default)
     {
         if (!User.TryGetGuardianId(out var guardianId))
         {
             return Forbid();
         }
 
-        if (string.IsNullOrWhiteSpace(orderId))
+        if (!string.IsNullOrWhiteSpace(orderId))
+        {
+            var orderDetail = await BuildOrderDetailViewModelAsync(guardianId, orderId.Trim(), cancellationToken);
+            if (orderDetail is null)
+            {
+                return NotFound();
+            }
+
+            return View(orderDetail);
+        }
+
+        if (aid is not > 0)
         {
             return NotFound();
         }
 
-        var trimmedOrderId = orderId.Trim();
-        var order = await _mealOrderRepository.GetOrderDetailByOrderIdAsync(guardianId, trimmedOrderId, cancellationToken);
-        if (order is null)
+        var accessLogDetail = await BuildAccessLogDetailViewModelAsync(guardianId, aid.Value, cancellationToken);
+        if (accessLogDetail is null)
         {
             return NotFound();
         }
 
-        var status = HistoryStatusHelper.ResolveCanonical(
-            order.OrderStatusId,
-            order.TransactionStatusId,
-            order.IsPaid,
-            order.IsTransactionCompleted);
-        AlaCarteSummaryViewModel? alaCarteSummary = null;
-        MealComboSummaryViewModel? comboSummary = null;
-
-        if (order.OrderTypeId == (int)TransactionTypeEnum.A_La_Carte)
+        return View(new HistoryDetailViewModel
         {
-            alaCarteSummary = await _summaryBuilder.BuildAlaCarteSummaryFromOrderAsync(
-                guardianId,
-                trimmedOrderId,
-                cancellationToken);
-        }
-        else if (order.OrderTypeId == (int)TransactionTypeEnum.MealOrder)
-        {
-            comboSummary = await _summaryBuilder.BuildComboSummaryFromOrderAsync(
-                guardianId,
-                trimmedOrderId,
-                cancellationToken);
-        }
-
-        var model = new HistoryOrderDetailViewModel
-        {
-            IsSuccess = status.IsCompleted || order.IsPaid,
-            IsPending = status.IsPending,
-            StatusLabel = status.Label,
-            StatusCss = status.Css,
-            Message = BuildOrderStatusMessage(status.Label, order.IsPaid),
-            OrderId = order.OrderId,
-            CreatedOn = order.CreatedOn,
-            OrderTypeId = order.OrderTypeId,
-            AlaCarteSummary = alaCarteSummary,
-            ComboSummary = comboSummary
-        };
-
-        return View(model);
+            AccessLog = accessLogDetail
+        });
     }
 
     [HttpGet]
@@ -216,24 +201,167 @@ public sealed class HistoryController : Controller
         return View(model);
     }
 
+    private async Task<HistoryDetailViewModel?> BuildOrderDetailViewModelAsync(
+        int guardianId,
+        string orderId,
+        CancellationToken cancellationToken)
+    {
+        var order = await _mealOrderRepository.GetOrderDetailByOrderIdAsync(guardianId, orderId, cancellationToken);
+        if (order is null)
+        {
+            return null;
+        }
+
+        var effectiveOrderTypeId = await ResolveEffectiveOrderTypeIdAsync(
+            guardianId,
+            order.OrderTypeId,
+            order.GatewayTransactionId,
+            cancellationToken);
+
+        var status = HistoryStatusHelper.ResolveCanonical(
+            order.OrderStatusId,
+            order.TransactionStatusId,
+            order.IsPaid,
+            order.IsTransactionCompleted);
+        AlaCarteSummaryViewModel? alaCarteSummary = null;
+        MealComboSummaryViewModel? comboSummary = null;
+
+        if (effectiveOrderTypeId == (int)TransactionTypeEnum.A_La_Carte)
+        {
+            alaCarteSummary = await _summaryBuilder.BuildAlaCarteSummaryFromOrderAsync(
+                guardianId,
+                orderId,
+                cancellationToken);
+        }
+        else if (effectiveOrderTypeId == (int)TransactionTypeEnum.MealOrder)
+        {
+            comboSummary = await _summaryBuilder.BuildComboSummaryFromOrderAsync(
+                guardianId,
+                orderId,
+                cancellationToken);
+        }
+
+        return new HistoryDetailViewModel
+        {
+            Order = new HistoryOrderDetailViewModel
+            {
+                IsSuccess = status.IsCompleted || order.IsPaid,
+                IsPending = status.IsPending,
+                StatusLabel = status.Label,
+                StatusCss = status.Css,
+                Message = BuildOrderStatusMessage(status.Label, order.IsPaid),
+                OrderId = order.OrderId,
+                CreatedOn = order.CreatedOn,
+                OrderTypeId = effectiveOrderTypeId,
+                AlaCarteSummary = alaCarteSummary,
+                ComboSummary = comboSummary
+            }
+        };
+    }
+
+    private async Task<HistoryAccessLogDetailViewModel?> BuildAccessLogDetailViewModelAsync(
+        int guardianId,
+        long accessLogId,
+        CancellationToken cancellationToken)
+    {
+        var header = await _historyDetailRepository.GetAccessLogHeaderAsync(guardianId, accessLogId, cancellationToken);
+        if (header is null)
+        {
+            return null;
+        }
+
+        IReadOnlyList<HistoryLineItemDto> lines;
+        string typeLabel;
+
+        if (HistoryConstants.IsPosAccessLogType(header.TransactionType))
+        {
+            lines = await _historyDetailRepository.GetPosPurchaseDetailAsync(header, cancellationToken);
+            typeLabel = HistoryConstants.ResolvePosTypeLabel(header.TransactionType);
+        }
+        else if (header.TransactionType == HistoryConstants.AccessLogMealOrderType
+                 && header.LogDateTimeServer.Date < HistoryConstants.LegacyCutoffDate)
+        {
+            lines = await _historyDetailRepository.GetLegacyMealOrderDetailAsync(header, cancellationToken);
+            typeLabel = "Meal Combo";
+        }
+        else
+        {
+            return null;
+        }
+
+        return new HistoryAccessLogDetailViewModel
+        {
+            StatusLabel = "Completed",
+            StatusCss = "is-success",
+            TypeLabel = typeLabel,
+            StudentName = header.StudentName,
+            Reference = header.TransactionId,
+            TotalAmount = header.Amount,
+            CreatedOn = header.LogDateTimeServer,
+            Lines = lines
+                .Select(line => new HistoryLineItemViewModel
+                {
+                    ItemName = line.ItemName,
+                    SkuCode = line.SkuCode,
+                    Amount = line.Amount,
+                    DeliveryDate = line.DeliveryDate
+                })
+                .ToList()
+        };
+    }
+
+    private async Task<int> ResolveEffectiveOrderTypeIdAsync(
+        int guardianId,
+        int orderTypeId,
+        string gatewayTransactionId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(gatewayTransactionId))
+        {
+            return orderTypeId;
+        }
+
+        var accessLogType = await _historyDetailRepository.GetAccessLogTransactionTypeByGatewayTransactionAsync(
+            guardianId,
+            gatewayTransactionId,
+            cancellationToken);
+
+        if (accessLogType == HistoryConstants.AccessLogMealOrderType
+            && orderTypeId == (int)TransactionTypeEnum.A_La_Carte)
+        {
+            return (int)TransactionTypeEnum.MealOrder;
+        }
+
+        return orderTypeId;
+    }
+
     private HistoryListItemViewModel MapListItem(TransactionHistoryItemDto item)
     {
         var status = HistoryStatusHelper.Resolve(item.StatusId, item.IsTransactionCompleted);
         var isTopup = string.Equals(item.TransactionType, "topup", StringComparison.OrdinalIgnoreCase);
-        var hasDetail = item.HasMealTransaction
-            && (isTopup
-                ? item.Id > 0
-                : !string.IsNullOrWhiteSpace(item.OrderId));
+        var isPos = HistoryConstants.IsPosAccessLogType(item.AccessLogTransactionType);
+        var isLegacyMeal = item.AccessLogTransactionType == HistoryConstants.AccessLogMealOrderType
+            && item.CreatedOn.Date < HistoryConstants.LegacyCutoffDate
+            && string.IsNullOrWhiteSpace(item.OrderId);
+        var hasOrderDetail = !isTopup && !string.IsNullOrWhiteSpace(item.OrderId);
+        var hasPosDetail = isPos && item.AccessLogId > 0;
+        var hasLegacyMealDetail = isLegacyMeal && item.AccessLogId > 0;
+        var hasDetail = isTopup
+            ? item.Id > 0
+            : hasPosDetail || hasLegacyMealDetail || hasOrderDetail;
 
         var detailUrl = !hasDetail
             ? string.Empty
             : isTopup
                 ? Url.Action("TopupDetail", "History", new { id = item.Id }) ?? string.Empty
-                : Url.Action("Detail", "History", new { orderId = item.OrderId }) ?? string.Empty;
+                : hasPosDetail || hasLegacyMealDetail
+                    ? Url.Action("Detail", "History", new { aid = item.AccessLogId }) ?? string.Empty
+                    : Url.Action("Detail", "History", new { orderId = item.OrderId }) ?? string.Empty;
 
         return new HistoryListItemViewModel
         {
             Id = item.Id,
+            AccessLogId = item.AccessLogId,
             TransactionType = item.TransactionType,
             OrderTypeId = item.OrderTypeId,
             TypeLabel = ResolveTypeLabel(item),
@@ -258,11 +386,15 @@ public sealed class HistoryController : Controller
             return "Top-up";
         }
 
+        if (item.OrderTypeId == (int)TransactionTypeEnum.POS)
+        {
+            return HistoryConstants.ResolvePosTypeLabel(item.AccessLogTransactionType);
+        }
+
         var orderLabel = item.OrderTypeId switch
         {
             (int)TransactionTypeEnum.A_La_Carte => "Ala-Carte",
             (int)TransactionTypeEnum.MealOrder => "Meal Combo",
-            (int)TransactionTypeEnum.POS => "POS",
             _ => null
         };
 
@@ -271,7 +403,6 @@ public sealed class HistoryController : Controller
             return orderLabel;
         }
 
-        // Legacy / other AccessLog rows: prefer ledger description when present.
         if (!string.IsNullOrWhiteSpace(item.Remarks))
         {
             return item.Remarks.Trim();

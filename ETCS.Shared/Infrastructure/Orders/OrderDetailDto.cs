@@ -14,6 +14,8 @@ public sealed class OrderDetailDto
 
     public int OrderTypeId { get; init; }
 
+    public string GatewayTransactionId { get; init; } = string.Empty;
+
     public decimal SubTotal { get; init; }
 
     public decimal TaxAmount { get; init; }

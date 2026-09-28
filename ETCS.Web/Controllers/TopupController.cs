@@ -6,6 +6,8 @@ using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Infrastructure.Transaction;
 using ETCS.Web.Infrastructure.Auth;
 using ETCS.Web.Infrastructure.Orders;
+using ETCS.Shared.Application.History;
+using ETCS.Shared.Application.Orders;
 using ETCS.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

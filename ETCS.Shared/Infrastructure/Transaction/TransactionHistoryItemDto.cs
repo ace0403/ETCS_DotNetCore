@@ -18,6 +18,8 @@ public sealed class TransactionHistoryItemDto
 
     public int? OrderTypeId { get; init; }
 
+    public int? AccessLogTransactionType { get; init; }
+
     public string OrderId { get; init; } = string.Empty;
 
     public string GatewayTransactionId { get; init; } = string.Empty;

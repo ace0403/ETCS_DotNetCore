@@ -1,3 +1,5 @@
+using ETCS.Shared.Application.History;
+
 namespace ETCS.Shared.Infrastructure.Transaction;
 
 public sealed class RecentTransactionsResponse
@@ -6,5 +8,5 @@ public sealed class RecentTransactionsResponse
 
     public int Count { get; init; }
 
-    public IReadOnlyList<TransactionHistoryItemDto> Items { get; init; } = [];
+    public IReadOnlyList<GuardianHistoryListItemDto> Items { get; init; } = [];
 }

@@ -1,11 +1,12 @@
+using System.Globalization;
+using ETCS.PaymentGateway.Models;
+using ETCS.Shared.Application.Orders.Summaries;
 using ETCS.Shared.Enumeration;
 using ETCS.Shared.Infrastructure.Meals;
 using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Students;
-using ETCS.Web.Models;
-using System.Globalization;
 
-namespace ETCS.Web.Infrastructure.Orders;
+namespace ETCS.Shared.Application.Orders;
 
 public sealed class OrderPaymentSummaryBuilder
 {
@@ -23,7 +24,7 @@ public sealed class OrderPaymentSummaryBuilder
         _studentRepository = studentRepository;
     }
 
-    public async Task<OrderPaymentReturnViewModel> BuildReceiptAsync(
+    public async Task<OrderPaymentReceiptDto> BuildReceiptAsync(
         int guardianId,
         int orderTypeId,
         string orderId,
@@ -47,7 +48,7 @@ public sealed class OrderPaymentSummaryBuilder
             }
         }
 
-        return new OrderPaymentReturnViewModel
+        return new OrderPaymentReceiptDto
         {
             IsSuccess = isSuccess,
             IsPending = isPending,
@@ -232,7 +233,7 @@ public sealed class OrderPaymentSummaryBuilder
             .FirstOrDefault() ?? string.Empty;
     }
 
-    public static string? ResolvePaymentReturnOrderId(string? queryOrderId, ETCS.PaymentGateway.Models.ComtrustCallbackRequest? callback)
+    public static string? ResolvePaymentReturnOrderId(string? queryOrderId, ComtrustCallbackRequest? callback)
     {
         if (!string.IsNullOrWhiteSpace(queryOrderId))
         {

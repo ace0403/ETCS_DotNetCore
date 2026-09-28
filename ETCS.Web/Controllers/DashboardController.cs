@@ -4,6 +4,7 @@ using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Infrastructure.Transaction;
 using ETCS.Web.Infrastructure.Auth;
 using ETCS.Web.Infrastructure.Navigation;
+using ETCS.Shared.Application.History;
 using ETCS.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

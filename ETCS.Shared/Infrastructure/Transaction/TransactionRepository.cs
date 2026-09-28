@@ -697,24 +697,27 @@ public sealed class TransactionRepository : ITransactionRepository
               AND (@ToDateExclusive IS NULL OR a.LogDateTimeServer < @ToDateExclusive)
               AND (
                     @Type = 'all'
-                    OR (@Type = 'topup' AND a.TransactionType IN (23, 1004, 10001, 21004, 1007, 21007))
-                    OR (@Type = 'order' AND a.TransactionType NOT IN (23, 1004, 10001, 21004, 1007, 21007))
+                    OR (@Type = 'topup' AND a.TransactionType IN (23, 10001, 21004, 1007, 21007))
+                    OR (@Type = 'order' AND a.TransactionType NOT IN (23, 10001, 21004, 1007, 21007))
                   );
             """;
 
         const string dataSql = """
             SELECT
                 Id = ISNULL(t.Id, 0),
-                AccessLogId = ISNULL(t.AccessLogId, 0),
+                AccessLogId = COALESCE(NULLIF(t.AccessLogId, 0), a.RcdID),
                 HasMealTransaction = CAST(CASE WHEN t.Id IS NULL THEN 0 ELSE 1 END AS bit),
                 GuardianId = ISNULL(t.GuardianId, sl.GrdId),
                 StudentId = CONVERT(int, sl.UserId),
                 StudentName = CAST('' AS nvarchar(256)),
                 TransactionType = CASE
-                    WHEN a.TransactionType IN (23, 1004, 10001, 21004, 1007, 21007) THEN 'topup'
+                    WHEN a.TransactionType IN (23, 10001, 21004, 1007, 21007) THEN 'topup'
                     ELSE 'order'
                 END,
+                AccessLogTransactionType = a.TransactionType,
                 OrderTypeId = CASE
+                    WHEN a.TransactionType = 9001 THEN 24
+                    WHEN a.TransactionType IN (1004, 2004, 21002) THEN 78
                     WHEN o.OrderTypeId IS NOT NULL THEN o.OrderTypeId
                     WHEN a.TransactionType = 24 THEN 24
                     WHEN a.TransactionType = 42 THEN 42
@@ -766,8 +769,8 @@ public sealed class TransactionRepository : ITransactionRepository
               AND (@ToDateExclusive IS NULL OR a.LogDateTimeServer < @ToDateExclusive)
               AND (
                     @Type = 'all'
-                    OR (@Type = 'topup' AND a.TransactionType IN (23, 1004, 10001, 21004, 1007, 21007))
-                    OR (@Type = 'order' AND a.TransactionType NOT IN (23, 1004, 10001, 21004, 1007, 21007))
+                    OR (@Type = 'topup' AND a.TransactionType IN (23, 10001, 21004, 1007, 21007))
+                    OR (@Type = 'order' AND a.TransactionType NOT IN (23, 10001, 21004, 1007, 21007))
                   )
             ORDER BY a.LogDateTimeServer DESC, a.TransactionID DESC
             OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
@@ -941,6 +944,7 @@ public sealed class TransactionRepository : ITransactionRepository
                     StudentName = studentName,
                     TransactionType = item.TransactionType,
                     OrderTypeId = item.OrderTypeId,
+                    AccessLogTransactionType = item.AccessLogTransactionType,
                     OrderId = item.OrderId,
                     GatewayTransactionId = item.GatewayTransactionId,
                     Amount = item.Amount,
