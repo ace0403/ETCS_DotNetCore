@@ -155,7 +155,8 @@ function initMealOrderReportTable() {
             { targets: 5, width: '110px' },
             { targets: 6, width: '160px', className: 'canteen-branch-cell' },
             { targets: 8, width: '90px', className: 'text-end' },
-            { targets: 9, width: '220px', className: 'canteen-branch-cell' }
+            { targets: 9, width: '220px', className: 'canteen-branch-cell' },
+            { targets: 10, width: '240px', className: 'canteen-branch-cell' }
         ],
         columns: [
             {
@@ -174,7 +175,8 @@ function initMealOrderReportTable() {
             { data: 'TransactionType' },
             { data: 'Package' },
             { data: 'Amount', className: 'text-end', render: function (d) { return formatAmount(d); } },
-            { data: 'SchoolName', render: function (d) { return renderEllipsisCell(d, 48); } }
+            { data: 'SchoolName', render: function (d) { return renderEllipsisCell(d, 48); } },
+            { data: 'AllergenConsentText', render: function (d) { return renderEllipsisCell(d, 64); } }
         ]
     });
 

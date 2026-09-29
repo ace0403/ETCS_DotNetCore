@@ -24,6 +24,12 @@ public sealed class PosCategoryDto
     public string CategoryName { get; init; } = string.Empty;
 }
 
+public sealed class PosDeclaredAllergenDto
+{
+    public string Name { get; init; } = string.Empty;
+    public string? Icon { get; init; }
+}
+
 public sealed class PosCatalogItemDto
 {
     public int Id { get; init; }
@@ -33,6 +39,37 @@ public sealed class PosCatalogItemDto
     public string ImageName { get; init; } = string.Empty;
     public int MealCategoryId { get; init; }
     public string CategoryName { get; init; } = string.Empty;
+    public IReadOnlyList<string> DeclaredAllergens { get; init; } = [];
+    public IReadOnlyList<PosDeclaredAllergenDto> DeclaredAllergenDetails { get; init; } = [];
+}
+
+public sealed class PosAllergenCheckoutEvaluateRequest
+{
+    public string? CustomerId { get; init; }
+    public string? CardSn { get; init; }
+    public string? UidHex { get; init; }
+    public string? UidHexReversed { get; init; }
+    public string? UidDecimal { get; init; }
+    public string? UidDecimalReversed { get; init; }
+    public IReadOnlyList<int> MealItemIds { get; init; } = [];
+}
+
+public sealed class PosAllergenCheckoutConflictDto
+{
+    public int MealItemId { get; init; }
+    public string ItemName { get; init; } = string.Empty;
+    public IReadOnlyList<string> AllergenNames { get; init; } = [];
+}
+
+public sealed class PosAllergenCheckoutEvaluateResponse
+{
+    public string CustomerId { get; init; } = string.Empty;
+    public int? StudentId { get; init; }
+    public string StudentName { get; init; } = string.Empty;
+    public IReadOnlyList<string> RegisteredAllergens { get; init; } = [];
+    public IReadOnlyList<PosAllergenCheckoutConflictDto> Conflicts { get; init; } = [];
+    public bool HasConflict { get; init; }
+    public IReadOnlyList<string> CartAllergenSummary { get; init; } = [];
 }
 
 public sealed class PosSpendInfoDto

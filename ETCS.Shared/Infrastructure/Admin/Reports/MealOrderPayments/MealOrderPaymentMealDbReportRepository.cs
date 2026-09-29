@@ -235,19 +235,32 @@ public sealed class MealOrderPaymentMealDbReportRepository : IMealOrderPaymentMe
         public DateTime? DeliveryDate { get; init; }
         public string? Day { get; init; }
         public string? Items { get; init; }
+        public bool HasAllergenConsent { get; init; }
+        public string? AllergenItemText { get; init; }
 
-        public MealOrderPaymentReportRowDto ToDto(MealOrderPaymentStudentRow? student) =>
-            new()
+        public MealOrderPaymentReportRowDto ToDto(MealOrderPaymentStudentRow? student)
+        {
+            var studentName = student?.StudFullName?.Trim() ?? string.Empty;
+            var hasConsent = HasAllergenConsent;
+            return new MealOrderPaymentReportRowDto
             {
                 OrderDate = FormatDate(OrderDate),
                 StudCode = student?.StudCode?.Trim() ?? string.Empty,
                 StudStd = student?.StudStd?.Trim() ?? string.Empty,
-                StudFullName = student?.StudFullName?.Trim() ?? string.Empty,
+                StudFullName = studentName,
                 TransactionId = TransactionId?.Trim() ?? string.Empty,
                 Amount = Amount,
                 Package = PackageName,
-                SchoolName = student?.SchoolName?.Trim() ?? string.Empty
+                SchoolName = student?.SchoolName?.Trim() ?? string.Empty,
+                HasAllergenConsent = hasConsent,
+                AllergenConsentText = hasConsent
+                    ? ETCS.Shared.Infrastructure.Meals.Menu.AllergenConsentText.FormatStoredConsentDisplay(
+                        studentName,
+                        AllergenItemText,
+                        "meal")
+                    : string.Empty
             };
+        }
 
         private static string FormatDate(DateTime? value) =>
             value.HasValue

@@ -111,7 +111,9 @@ public sealed class OrderPaymentSummaryBuilder
                     MealTypeName = menuItem?.MealTypeName ?? string.Empty,
                     Price = line.ItemPrice,
                     MealDate = line.MealDate,
-                    ImageName = menuItem?.ImageName
+                    ImageName = menuItem?.ImageName,
+                    HasAllergenConsent = line.HasAllergenConsent,
+                    AllergenItemText = line.AllergenItemText
                 };
             })
             .ToList();
@@ -187,7 +189,9 @@ public sealed class OrderPaymentSummaryBuilder
                         Detail = menuItem?.Detail,
                         Price = line.ItemPrice,
                         MealDate = line.MealDate,
-                        ImageName = menuItem?.ImageName
+                        ImageName = menuItem?.ImageName,
+                        HasAllergenConsent = line.HasAllergenConsent,
+                        AllergenItemText = line.AllergenItemText
                     };
                 }
 
@@ -211,7 +215,9 @@ public sealed class OrderPaymentSummaryBuilder
                     Detail = package?.Detail,
                     Price = line.ItemPrice,
                     MealDate = line.MealDate,
-                    ImageName = package?.ImageName
+                    ImageName = package?.ImageName,
+                    HasAllergenConsent = line.HasAllergenConsent,
+                    AllergenItemText = line.AllergenItemText
                 };
             })
             .ToList();

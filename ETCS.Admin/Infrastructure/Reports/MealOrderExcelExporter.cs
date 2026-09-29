@@ -33,6 +33,7 @@ public static class MealOrderExcelExporter
         "Choice",
         "Day",
         "Items",
+        "Allergen Consent",
         "Order Date"
     ];
 
@@ -77,6 +78,11 @@ public static class MealOrderExcelExporter
             worksheet.Cell(excelRow, col++).Value = row.Choice;
             worksheet.Cell(excelRow, col++).Value = row.Day;
             worksheet.Cell(excelRow, col++).Value = row.Items;
+            if (includeMealSession)
+            {
+                worksheet.Cell(excelRow, col++).Value = row.AllergenConsentText;
+            }
+
             worksheet.Cell(excelRow, col).Value = row.OrderDate;
         }
 

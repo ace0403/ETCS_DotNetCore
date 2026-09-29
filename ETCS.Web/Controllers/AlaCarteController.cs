@@ -29,6 +29,7 @@ public class AlaCarteController : Controller
     private readonly IStudentOrderTypeAccessService _orderTypeAccess;
     private readonly ETCS.Web.Infrastructure.Orders.MealOrderBookingWindow _bookingWindow;
     private readonly ISchoolCalendarService _schoolCalendar;
+    private readonly OrderAllergenConsentEnricher _allergenConsentEnricher;
 
     public AlaCarteController(
         IStudentRepository studentRepository,
@@ -39,7 +40,8 @@ public class AlaCarteController : Controller
         IOrderPaymentCompleteService orderPaymentCompleteService,
         IStudentOrderTypeAccessService orderTypeAccess,
         ETCS.Web.Infrastructure.Orders.MealOrderBookingWindow bookingWindow,
-        ISchoolCalendarService schoolCalendar)
+        ISchoolCalendarService schoolCalendar,
+        OrderAllergenConsentEnricher allergenConsentEnricher)
     {
         _studentRepository = studentRepository;
         _mealEnumRepository = mealEnumRepository;
@@ -50,6 +52,7 @@ public class AlaCarteController : Controller
         _orderTypeAccess = orderTypeAccess;
         _bookingWindow = bookingWindow;
         _schoolCalendar = schoolCalendar;
+        _allergenConsentEnricher = allergenConsentEnricher;
     }
 
     public async Task<IActionResult> Index(int? studentId, CancellationToken cancellationToken)
@@ -173,7 +176,8 @@ public class AlaCarteController : Controller
             Price = item.Price,
             Total = item.Price,
             Quantity = 1,
-            Id = item.SelectionId
+            Id = item.SelectionId,
+            HasAllergenConsent = item.HasAllergenConsent
         }).ToList();
 
         var result = await _orderInitiateService.InitiateAsync(
@@ -380,6 +384,11 @@ public class AlaCarteController : Controller
             }
         }
 
+        var allergenTextMap = await ResolveSummaryAllergenTextMapAsync(
+            studentId,
+            selections.Where(s => s.HasAllergenConsent),
+            cancellationToken);
+
         var summaryItems = new List<AlaCarteSummaryItem>();
         foreach (var selection in selections)
         {
@@ -404,7 +413,12 @@ public class AlaCarteController : Controller
                 MealTypeName = menuItem.MealTypeName,
                 Price = menuItem.Price,
                 MealDate = mealDate,
-                ImageName = menuItem.ImageName
+                ImageName = menuItem.ImageName,
+                HasAllergenConsent = selection.HasAllergenConsent,
+                AllergenItemText = selection.HasAllergenConsent
+                    && allergenTextMap.TryGetValue((selection.ItemId, null), out var allergenText)
+                    ? allergenText
+                    : null
             });
         }
 
@@ -413,6 +427,25 @@ public class AlaCarteController : Controller
             OrderAmount = summaryItems.Sum(x => x.Price),
             SelectedMeals = summaryItems
         };
+    }
+
+    private async Task<IReadOnlyDictionary<(int? ItemId, int? PackageId), string>> ResolveSummaryAllergenTextMapAsync(
+        int studentId,
+        IEnumerable<AlaCarteSelectedItemRequest> consentedSelections,
+        CancellationToken cancellationToken)
+    {
+        var lines = consentedSelections
+            .Where(s => s.ItemId > 0)
+            .Select(s => ((int?)s.ItemId, (int?)null))
+            .Distinct()
+            .ToList();
+
+        if (lines.Count == 0)
+        {
+            return new Dictionary<(int? ItemId, int? PackageId), string>();
+        }
+
+        return await _allergenConsentEnricher.ResolveItemTextMapAsync(studentId, lines, cancellationToken);
     }
 
     private static int ParseDurationDays(string? value)

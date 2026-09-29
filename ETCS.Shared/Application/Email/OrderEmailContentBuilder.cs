@@ -3,6 +3,7 @@ using System.Net;
 using System.Text;
 using ETCS.Shared.Enumeration;
 using ETCS.Shared.Infrastructure.Meals;
+using ETCS.Shared.Infrastructure.Meals.Menu;
 using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Students;
 
@@ -48,14 +49,15 @@ public sealed class OrderEmailContentBuilder : IOrderEmailContentBuilder
         var studentClass = BuildClassLabel(student);
 
         var rows = orderTypeId == (int)TransactionTypeEnum.A_La_Carte
-            ? await BuildAlaCarteRowsAsync(order, cancellationToken)
-            : await BuildComboRowsAsync(order, cancellationToken);
+            ? await BuildAlaCarteRowsAsync(order, studentName, cancellationToken)
+            : await BuildComboRowsAsync(order, studentName, cancellationToken);
 
         return BuildLegacyHtml(studentIdLabel, studentName, studentClass, rows, total);
     }
 
     private async Task<IReadOnlyList<OrderEmailRow>> BuildAlaCarteRowsAsync(
         OrderDetailDto order,
+        string studentName,
         CancellationToken cancellationToken)
     {
         var schoolId = await _studentRepository.GetStudentSchoolIdAsync(order.StudentId, cancellationToken);
@@ -101,13 +103,16 @@ public sealed class OrderEmailContentBuilder : IOrderEmailContentBuilder
                     line.MealDate,
                     mealType,
                     menuItemName,
-                    line.ItemPrice);
+                    line.ItemPrice,
+                    line.HasAllergenConsent,
+                    BuildEmailAllergenNamesText(line.HasAllergenConsent, line.AllergenItemText));
             })
             .ToList();
     }
 
     private async Task<IReadOnlyList<OrderEmailRow>> BuildComboRowsAsync(
         OrderDetailDto order,
+        string studentName,
         CancellationToken cancellationToken)
     {
         var schoolId = await _studentRepository.GetStudentSchoolIdAsync(order.StudentId, cancellationToken);
@@ -157,7 +162,13 @@ public sealed class OrderEmailContentBuilder : IOrderEmailContentBuilder
                         mealType = menuItem?.MealSessionName?.Trim() ?? string.Empty;
                     }
 
-                    return new OrderEmailRow(line.MealDate, mealType, itemName, line.ItemPrice);
+                    return new OrderEmailRow(
+                        line.MealDate,
+                        mealType,
+                        itemName,
+                        line.ItemPrice,
+                        line.HasAllergenConsent,
+                        BuildEmailAllergenNamesText(line.HasAllergenConsent, line.AllergenItemText));
                 }
 
                 MealPackageDto? package = null;
@@ -179,7 +190,13 @@ public sealed class OrderEmailContentBuilder : IOrderEmailContentBuilder
                     comboMealType = package?.MealSessionName?.Trim() ?? string.Empty;
                 }
 
-                return new OrderEmailRow(line.MealDate, comboMealType, menuLabel, line.ItemPrice);
+                return new OrderEmailRow(
+                    line.MealDate,
+                    comboMealType,
+                    menuLabel,
+                    line.ItemPrice,
+                    line.HasAllergenConsent,
+                    BuildEmailAllergenNamesText(line.HasAllergenConsent, line.AllergenItemText));
             })
             .ToList();
     }
@@ -208,6 +225,7 @@ public sealed class OrderEmailContentBuilder : IOrderEmailContentBuilder
         sb.Append("<th align=\"left\" style=\"").Append(headerStyle).Append("\">Date</th>");
         sb.Append("<th align=\"left\" style=\"").Append(headerStyle).Append("\">Meal Type</th>");
         sb.Append("<th align=\"left\" style=\"").Append(headerStyle).Append("\">Menu Item</th>");
+        sb.Append("<th align=\"left\" style=\"").Append(headerStyle).Append("\">Allergens</th>");
         sb.Append("<th align=\"right\" style=\"").Append(headerStyle).Append("\">Total Amount</th>");
         sb.Append("</tr></thead><tbody>");
 
@@ -220,17 +238,27 @@ public sealed class OrderEmailContentBuilder : IOrderEmailContentBuilder
                 .Append(HtmlEncode(row.MealType)).Append("</td>");
             sb.Append("<td align=\"left\" style=\"").Append(cellStyle).Append("\">")
                 .Append(HtmlEncode(row.MenuItem)).Append("</td>");
+            sb.Append("<td align=\"left\" style=\"").Append(cellStyle).Append("\">")
+                .Append(HtmlEncode(row.AllergenNamesText)).Append("</td>");
             sb.Append("<td align=\"right\" style=\"").Append(cellStyle).Append("\">AED ")
                 .Append(row.Amount.ToString("F2", CultureInfo.InvariantCulture)).Append("</td>");
             sb.Append("</tr>");
         }
 
         sb.Append("<tr>");
-        sb.Append("<td colspan=\"3\" align=\"left\" style=\"").Append(cellStyle).Append("font-weight:bold;\">Total</td>");
+        sb.Append("<td colspan=\"4\" align=\"left\" style=\"").Append(cellStyle).Append("font-weight:bold;\">Total</td>");
         sb.Append("<td align=\"right\" style=\"").Append(cellStyle).Append("font-weight:bold;\">AED ")
             .Append(amountText).Append("</td>");
         sb.Append("</tr>");
         sb.Append("</tbody></table>");
+
+        if (rows.Any(r => r.HasAllergenConsent))
+        {
+            sb.Append("<p style=\"margin:0 0 14px 0;font-size:14px;line-height:1.6;color:#000000;font-family:Segoe UI,Arial,Helvetica,sans-serif;\">");
+            sb.Append("<strong>Allergen consent:</strong> ");
+            sb.Append(HtmlEncode(AllergenConsentText.FormatOrderEmailConsent(studentName)));
+            sb.Append("</p>");
+        }
 
         sb.Append("<p style=\"margin:0 0 6px 0;font-size:14px;line-height:1.8;color:#000000;font-family:Segoe UI,Arial,Helvetica,sans-serif;\">");
         sb.Append("<strong>Online Paid Amount:</strong> AED ").Append(amountText).Append("<br />");
@@ -367,5 +395,22 @@ public sealed class OrderEmailContentBuilder : IOrderEmailContentBuilder
 
     private static string HtmlEncode(string value) => WebUtility.HtmlEncode(value);
 
-    private sealed record OrderEmailRow(DateTime MealDate, string MealType, string MenuItem, decimal Amount);
+    private static string BuildEmailAllergenNamesText(bool hasConsent, string? allergenItemText)
+    {
+        if (!hasConsent)
+        {
+            return string.Empty;
+        }
+
+        var names = AllergenConsentText.ParseAllergenNameList(allergenItemText);
+        return names.Count > 0 ? string.Join(", ", names) : string.Empty;
+    }
+
+    private sealed record OrderEmailRow(
+        DateTime MealDate,
+        string MealType,
+        string MenuItem,
+        decimal Amount,
+        bool HasAllergenConsent,
+        string AllergenNamesText);
 }

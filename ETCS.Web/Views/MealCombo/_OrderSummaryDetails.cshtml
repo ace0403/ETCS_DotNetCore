@@ -1,4 +1,6 @@
 @model ETCS.Shared.Application.Orders.Summaries.MealComboSummaryViewModel
+@using ETCS.Web.Models
+@using ETCS.Shared.Infrastructure.Meals.Menu
 @using ETCS.Shared.Media
 @inject Microsoft.Extensions.Options.IOptions<ETCS.Web.Options.WebOptions> WebOptions
 @inject MealImageUrlBuilder ImageUrlBuilder
@@ -6,6 +8,7 @@
     var currency = WebOptions.Value.DisplayCurrency;
     var showPaymentNote = ViewData["ShowPaymentNote"] as bool? ?? false;
     var allowRemove = ViewData["AllowSummaryRemove"] as bool? ?? false;
+    var childLabel = string.IsNullOrWhiteSpace(Model.StudentName) ? "your child" : Model.StudentName.Trim();
 }
 @if (Model.SelectedLines.Count > 0)
 {
@@ -93,6 +96,16 @@
                                 @if (!item.IsAddon && !string.IsNullOrWhiteSpace(item.ItemsName))
                                 {
                                     <p class="meal-combo-summary-includes mb-0">Includes: @item.ItemsName</p>
+                                }
+                                @if (item.HasAllergenConsent)
+                                {
+                                    var allergenSummary = new AllergenConsentSummaryModel
+                                    {
+                                        ChildLabel = childLabel,
+                                        ItemKind = item.IsAddon ? "meal" : "combo",
+                                        AllergenItemText = item.AllergenItemText
+                                    };
+                                    <partial name="~/Views/Shared/_AllergenConsentSummary.cshtml" model="allergenSummary" />
                                 }
                             </div>
                         </div>

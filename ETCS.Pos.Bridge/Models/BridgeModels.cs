@@ -34,6 +34,15 @@ public sealed class ReceiptLineItem
     public string Name { get; set; } = string.Empty;
     public decimal Price { get; set; }
     public int Quantity { get; set; } = 1;
+    public string? ContainsText { get; set; }
+}
+
+public sealed class ReceiptAllergenNotice
+{
+    public string StudentName { get; set; } = string.Empty;
+    public string StudentId { get; set; } = string.Empty;
+    public string RegisteredAllergenText { get; set; } = string.Empty;
+    public string NoticeFooter { get; set; } = string.Empty;
 }
 
 public sealed class ReceiptPrintRequest
@@ -50,6 +59,7 @@ public sealed class ReceiptPrintRequest
     public string? LogoBase64 { get; set; }
     public DateTime? PrintedAt { get; set; }
     public bool IsUndo { get; set; }
+    public ReceiptAllergenNotice? AllergenNotice { get; set; }
 }
 
 public sealed class ReceiptPrintResult

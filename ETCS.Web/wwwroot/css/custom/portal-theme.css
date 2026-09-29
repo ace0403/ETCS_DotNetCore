@@ -707,6 +707,41 @@ a.text-primary {
     font-weight: 700;
 }
 
+.etcs-allergen-summary {
+    padding: 0.55rem 0.65rem;
+    border-radius: 10px;
+    background: #fff7ed;
+    border: 1px solid #ffedd5;
+}
+
+.etcs-allergen-summary-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.5rem;
+}
+
+.etcs-allergen-summary .etcs-allergen-summary-label {
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+.etcs-allergen-summary .etcs-allergen-chips {
+    margin-bottom: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.etcs-allergen-summary .etcs-allergen-consent {
+    margin-top: 0.65rem;
+    padding: 0.55rem 0.65rem;
+    background: #f0fdfa;
+    border: 1px solid #ccfbf1;
+    border-radius: 10px;
+    font-size: 0.84rem;
+    line-height: 1.45;
+}
+
 @media (max-width: 480px) {
     .etcs-swal .etcs-swal-actions {
         flex-direction: column-reverse;

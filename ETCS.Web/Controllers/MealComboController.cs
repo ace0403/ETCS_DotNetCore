@@ -29,6 +29,7 @@ public class MealComboController : Controller
     private readonly IStudentOrderTypeAccessService _orderTypeAccess;
     private readonly ETCS.Web.Infrastructure.Orders.MealOrderBookingWindow _bookingWindow;
     private readonly ISchoolCalendarService _schoolCalendar;
+    private readonly OrderAllergenConsentEnricher _allergenConsentEnricher;
 
     public MealComboController(
         IStudentRepository studentRepository,
@@ -37,7 +38,8 @@ public class MealComboController : Controller
         IOrderInitiateService orderInitiateService,
         IStudentOrderTypeAccessService orderTypeAccess,
         ETCS.Web.Infrastructure.Orders.MealOrderBookingWindow bookingWindow,
-        ISchoolCalendarService schoolCalendar)
+        ISchoolCalendarService schoolCalendar,
+        OrderAllergenConsentEnricher allergenConsentEnricher)
     {
         _studentRepository = studentRepository;
         _mealEnumRepository = mealEnumRepository;
@@ -46,6 +48,7 @@ public class MealComboController : Controller
         _orderTypeAccess = orderTypeAccess;
         _bookingWindow = bookingWindow;
         _schoolCalendar = schoolCalendar;
+        _allergenConsentEnricher = allergenConsentEnricher;
     }
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -170,7 +173,8 @@ public class MealComboController : Controller
             Price = item.Price,
             Total = item.Price,
             Quantity = 1,
-            Id = item.SelectionId
+            Id = item.SelectionId,
+            HasAllergenConsent = item.HasAllergenConsent
         }).ToList();
 
         var result = await _orderInitiateService.InitiateAsync(
@@ -437,6 +441,11 @@ public class MealComboController : Controller
             }
         }
 
+        var allergenTextMap = await ResolveSummaryAllergenTextMapAsync(
+            studentId,
+            selections.Where(s => s.HasAllergenConsent),
+            cancellationToken);
+
         var summaryItems = new List<MealComboSummaryItem>();
         foreach (var selection in selections)
         {
@@ -466,7 +475,9 @@ public class MealComboController : Controller
                     Detail = package.Detail,
                     Price = totalPrice,
                     MealDate = mealDate,
-                    ImageName = package.ImageName
+                    ImageName = package.ImageName,
+                    HasAllergenConsent = selection.HasAllergenConsent,
+                    AllergenItemText = ResolveLineAllergenText(allergenTextMap, selection.PackageId, null)
                 });
                 continue;
             }
@@ -484,7 +495,9 @@ public class MealComboController : Controller
                     Detail = menuItem.Detail,
                     Price = menuItem.Price,
                     MealDate = mealDate,
-                    ImageName = menuItem.ImageName
+                    ImageName = menuItem.ImageName,
+                    HasAllergenConsent = selection.HasAllergenConsent,
+                    AllergenItemText = ResolveLineAllergenText(allergenTextMap, null, selection.ItemId)
                 });
             }
         }
@@ -494,6 +507,41 @@ public class MealComboController : Controller
             OrderAmount = summaryItems.Sum(x => x.Price),
             SelectedLines = summaryItems
         };
+    }
+
+    private async Task<IReadOnlyDictionary<(int? ItemId, int? PackageId), string>> ResolveSummaryAllergenTextMapAsync(
+        int studentId,
+        IEnumerable<MealComboSelectedLineRequest> consentedSelections,
+        CancellationToken cancellationToken)
+    {
+        var lines = consentedSelections
+            .Select(s => s.PackageId > 0
+                ? ((int?)null, (int?)s.PackageId)
+                : s.ItemId > 0
+                    ? ((int?)s.ItemId, (int?)null)
+                    : ((int?)null, (int?)null))
+            .Where(l => l.Item1 is > 0 || l.Item2 is > 0)
+            .Distinct()
+            .ToList();
+
+        if (lines.Count == 0)
+        {
+            return new Dictionary<(int? ItemId, int? PackageId), string>();
+        }
+
+        return await _allergenConsentEnricher.ResolveItemTextMapAsync(studentId, lines, cancellationToken);
+    }
+
+    private static string? ResolveLineAllergenText(
+        IReadOnlyDictionary<(int? ItemId, int? PackageId), string> map,
+        int? packageId,
+        int? itemId)
+    {
+        var key = (
+            ItemId: itemId is > 0 ? itemId : null,
+            PackageId: itemId is > 0 ? null : (packageId is > 0 ? packageId : null));
+
+        return map.TryGetValue(key, out var text) ? text : null;
     }
 
     private static int ParseDurationDays(string? value)

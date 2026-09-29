@@ -1,0 +1,23 @@
+@using ETCS.Shared.Infrastructure.Meals.Menu
+@model ETCS.Web.Models.AllergenConsentSummaryModel
+@{
+    var allergenNames = AllergenConsentText.ParseAllergenNameList(Model.AllergenItemText);
+    var itemKind = string.IsNullOrWhiteSpace(Model.ItemKind) ? "meal" : Model.ItemKind.Trim();
+}
+<div class="etcs-allergen-summary mt-2" role="note" aria-label="Allergen consent">
+    @if (allergenNames.Count > 0)
+    {
+        <div class="etcs-allergen-summary-row">
+            <span class="etcs-allergen-section-label etcs-allergen-summary-label">Allergens</span>
+            <div class="etcs-allergen-chips">
+                @foreach (var allergenName in allergenNames)
+                {
+                    <span class="etcs-allergen-chip">@allergenName</span>
+                }
+            </div>
+        </div>
+    }
+    <p class="etcs-allergen-consent mb-0">
+        @Html.Raw(AllergenConsentText.FormatConsentHtml(Model.ChildLabel, itemKind))
+    </p>
+</div>

@@ -94,9 +94,10 @@ public sealed class MealOrderRepository : IMealOrderRepository
 
         const string insertItemSql = """
             INSERT INTO [OrderItem]
-                (OrderId, ItemId, PackageId, ItemPrice, Total, Quantity, MealDate, CreatedOn)
+                (OrderId, ItemId, PackageId, ItemPrice, Total, Quantity, MealDate, CreatedOn, HasAllergenConsent, ConsentedOn, AllergenItemText)
             VALUES
-                (@OrderId, @ItemId, @PackageId, @Price, @Total, @Quantity, @MealDate, GETDATE());
+                (@OrderId, @ItemId, @PackageId, @Price, @Total, @Quantity, @MealDate, GETDATE(), @HasAllergenConsent,
+                 CASE WHEN @HasAllergenConsent = 1 THEN GETDATE() ELSE NULL END, @AllergenItemText);
             """;
 
         using var connection = _connectionFactory.CreateConnection();
@@ -158,7 +159,9 @@ public sealed class MealOrderRepository : IMealOrderRepository
                     MealDate = line.MealDate.Date,
                     Price = line.Price,
                     Total = line.Total,
-                    Quantity = line.Quantity
+                    Quantity = line.Quantity,
+                    HasAllergenConsent = line.HasAllergenConsent,
+                    AllergenItemText = string.IsNullOrWhiteSpace(line.AllergenItemText) ? null : line.AllergenItemText.Trim()
                 });
             }
 
@@ -511,7 +514,9 @@ public sealed class MealOrderRepository : IMealOrderRepository
                 ItemName = ISNULL(COALESCE(mi.ItemName, mp.PackageName), ''),
                 oi.ItemPrice,
                 oi.MealDate,
-                oi.CreatedOn
+                oi.CreatedOn,
+                HasAllergenConsent = CAST(ISNULL(oi.HasAllergenConsent, 0) AS BIT),
+                AllergenItemText = oi.AllergenItemText
             FROM [OrderItem] oi
             INNER JOIN [Order] o ON o.Id = oi.OrderId
             LEFT JOIN [MealItem] mi ON mi.Id = oi.ItemId

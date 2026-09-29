@@ -90,18 +90,32 @@
 
     function buildReceiptPrintPayload(overrides) {
         const totals = getTotals();
-        const sourceItems = (overrides && overrides.items) || state.cart.map(c => ({
-            name: c.name,
-            price: c.price,
-            quantity: c.quantity
-        }));
-        const items = sourceItems.map(item => ({
-            name: normalizeReceiptText(item.name),
-            price: item.price,
-            quantity: item.quantity
-        }));
+        const allergenCtx = state.lastCashlessAllergenContext;
+        const containsMap = allergenCtx && allergenCtx.lineContainsByMealItemId
+            ? allergenCtx.lineContainsByMealItemId
+            : {};
 
-        return {
+        let items;
+        if (overrides && overrides.items) {
+            items = overrides.items.map(item => ({
+                name: normalizeReceiptText(item.name),
+                price: item.price,
+                quantity: item.quantity,
+                containsText: item.containsText ? normalizeReceiptText(item.containsText) : undefined
+            }));
+        } else {
+            items = state.cart.map(c => {
+                const contains = containsMap[c.id] || containsMap[String(c.id)];
+                return {
+                    name: normalizeReceiptText(c.name),
+                    price: c.price,
+                    quantity: c.quantity,
+                    containsText: contains ? normalizeReceiptText(contains) : undefined
+                };
+            });
+        }
+
+        const payload = {
             items,
             total: overrides && overrides.total != null ? overrides.total : totals.afterDiscount,
             vatPercent: totals.vatPercent,
@@ -114,6 +128,20 @@
             logoBase64: App.config.receiptLogoBase64 || '',
             printedAt: new Date().toISOString()
         };
+
+        if (allergenCtx && allergenCtx.hasConflict) {
+            const registered = (allergenCtx.registeredAllergens || []).join(', ');
+            payload.allergenNotice = {
+                studentName: normalizeReceiptText(allergenCtx.studentName),
+                studentId: normalizeReceiptText(String(allergenCtx.studentId || allergenCtx.customerId || '')),
+                registeredAllergenText: normalizeReceiptText(registered),
+                noticeFooter: normalizeReceiptText(
+                    (App.allergen && App.allergen.receiptNoticeFooter) || ''
+                )
+            };
+        }
+
+        return payload;
     }
 
     function updateTotalsDisplay() {
@@ -250,7 +278,8 @@
                     name: item.name,
                     price: item.price,
                     image: item.image || '',
-                    quantity: 1
+                    quantity: 1,
+                    declaredAllergens: Array.isArray(item.declaredAllergens) ? item.declaredAllergens : []
                 });
             }
             state.selectedCartItemId = item.id;
@@ -314,6 +343,9 @@
                 state.lastNfcCardSn = '';
                 state.lastNfcPayableAmount = 0;
                 state.lastNfcItemCount = 0;
+            }
+            if (App.allergen && typeof App.allergen.clearCashlessContext === 'function') {
+                App.allergen.clearCashlessContext();
             }
             updateReturnCash();
             syncDiscountButton();

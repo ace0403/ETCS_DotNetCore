@@ -231,16 +231,23 @@ public sealed class MealOrderMealDbReportRepository : IMealOrderMealDbReportRepo
         public DateTime? DeliveryDate { get; init; }
         public string? Day { get; init; }
         public string? Items { get; init; }
+        public bool HasAllergenConsent { get; init; }
+        public string? AllergenItemText { get; init; }
+        public bool IsComboLine { get; init; }
         public decimal? Amount { get; init; }
 
-        public MealOrderReportRowDto ToDto(MealOrderStudentRow? student) =>
-            new()
+        public MealOrderReportRowDto ToDto(MealOrderStudentRow? student)
+        {
+            var studentName = student?.StudFullName?.Trim() ?? string.Empty;
+            var hasConsent = HasAllergenConsent;
+            var consentKind = IsComboLine ? "combo" : "meal";
+            return new MealOrderReportRowDto
             {
                 OrderDate = FormatDate(OrderDate),
                 StudCode = student?.StudCode?.Trim() ?? string.Empty,
                 StudStd = student?.StudStd?.Trim() ?? string.Empty,
                 StudDiv = student?.StudDiv?.Trim() ?? string.Empty,
-                StudFullName = student?.StudFullName?.Trim() ?? string.Empty,
+                StudFullName = studentName,
                 PaymentStatus = PaymentStatus?.Trim() ?? string.Empty,
                 Amount = Amount ?? 0,
                 MealSession = MealSession?.Trim() ?? string.Empty,
@@ -248,8 +255,16 @@ public sealed class MealOrderMealDbReportRepository : IMealOrderMealDbReportRepo
                 Choice = Choice?.Trim() ?? string.Empty,
                 DeliveryDate = FormatDate(DeliveryDate),
                 Day = Day?.Trim() ?? string.Empty,
-                Items = Items?.Trim() ?? string.Empty
+                Items = Items?.Trim() ?? string.Empty,
+                HasAllergenConsent = hasConsent,
+                AllergenConsentText = hasConsent
+                    ? ETCS.Shared.Infrastructure.Meals.Menu.AllergenConsentText.FormatStoredConsentDisplay(
+                        studentName,
+                        AllergenItemText,
+                        consentKind)
+                    : string.Empty
             };
+        }
 
         private static string FormatDate(DateTime? value) =>
             value.HasValue

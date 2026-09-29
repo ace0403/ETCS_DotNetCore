@@ -1,4 +1,6 @@
 @model ETCS.Shared.Application.Orders.Summaries.AlaCarteSummaryViewModel
+@using ETCS.Web.Models
+@using ETCS.Shared.Infrastructure.Meals.Menu
 @using ETCS.Shared.Media
 @inject Microsoft.Extensions.Options.IOptions<ETCS.Web.Options.WebOptions> WebOptions
 @inject MealImageUrlBuilder ImageUrlBuilder
@@ -6,6 +8,7 @@
     var currency = WebOptions.Value.DisplayCurrency;
     var showPaymentNote = ViewData["ShowPaymentNote"] as bool? ?? false;
     var allowRemove = ViewData["AllowSummaryRemove"] as bool? ?? false;
+    var childLabel = string.IsNullOrWhiteSpace(Model.StudentName) ? "your child" : Model.StudentName.Trim();
 }
 @if (Model.SelectedMeals.Count > 0)
 {
@@ -76,6 +79,16 @@
                                     </div>
                                 </div>
                                 <span class="ala-carte-summary-meal-type">@mealType</span>
+                                @if (item.HasAllergenConsent)
+                                {
+                                    var allergenSummary = new AllergenConsentSummaryModel
+                                    {
+                                        ChildLabel = childLabel,
+                                        ItemKind = "meal",
+                                        AllergenItemText = item.AllergenItemText
+                                    };
+                                    <partial name="~/Views/Shared/_AllergenConsentSummary.cshtml" model="allergenSummary" />
+                                }
                             </div>
                         </div>
                     }

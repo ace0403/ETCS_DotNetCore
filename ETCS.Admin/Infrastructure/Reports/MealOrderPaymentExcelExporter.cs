@@ -28,7 +28,8 @@ public static class MealOrderPaymentExcelExporter
         "Transaction Type",
         "Package",
         "Amount",
-        "School Name"
+        "School Name",
+        "Allergen Consent"
     ];
 
     public static byte[] ExportOld(IReadOnlyList<MealOrderPaymentReportRowDto> rows)
@@ -80,7 +81,8 @@ public static class MealOrderPaymentExcelExporter
             var amountCell = worksheet.Cell(excelRow, col++);
             amountCell.Value = row.Amount;
             amountCell.Style.NumberFormat.Format = "0.00";
-            worksheet.Cell(excelRow, col).Value = row.SchoolName;
+            worksheet.Cell(excelRow, col++).Value = row.SchoolName;
+            worksheet.Cell(excelRow, col).Value = row.AllergenConsentText;
         }
 
         worksheet.Columns().AdjustToContents();

@@ -43,6 +43,8 @@ public sealed class MealOrderReportRowDto
     public string DeliveryDate { get; init; } = string.Empty;
     public string Day { get; init; } = string.Empty;
     public string Items { get; init; } = string.Empty;
+    public bool HasAllergenConsent { get; init; }
+    public string AllergenConsentText { get; init; } = string.Empty;
     public decimal? Amount { get; init; }
 }
 

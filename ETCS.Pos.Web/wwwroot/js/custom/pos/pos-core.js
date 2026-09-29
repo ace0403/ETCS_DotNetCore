@@ -26,7 +26,8 @@ window.PosApp = window.PosApp || {};
         bridgeOnline: null,
         bridgeChecking: true,
         apiOnline: App.config.apiOnline !== false,
-        schoolSwitchResolver: null
+        schoolSwitchResolver: null,
+        lastCashlessAllergenContext: null
     };
 
     App.constants = {
@@ -231,6 +232,67 @@ window.PosApp = window.PosApp || {};
                 timerProgressBar: true,
                 showConfirmButton: false
             });
+        },
+        escapeHtmlText(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        },
+        async successPurchase(message, allergenNames) {
+            if (typeof Swal.isVisible === 'function' && Swal.isVisible()) {
+                Swal.close();
+            }
+
+            var names = (allergenNames || [])
+                .map(function (n) { return String(n || '').trim(); })
+                .filter(function (n) { return n.length > 0; });
+            var seen = {};
+            names = names.filter(function (n) {
+                var key = n.toLowerCase();
+                if (seen[key]) return false;
+                seen[key] = true;
+                return true;
+            });
+
+            if (names.length === 0) {
+                await this.success(message);
+                return;
+            }
+
+            var renderChip = App.allergen && App.allergen.renderAllergenChipHtml
+                ? function (name) { return App.allergen.renderAllergenChipHtml(name, false); }
+                : function (name) {
+                    return '<span class="pos-ingredient-chip">' + App.ui.escapeHtmlText(name) + '</span>';
+                };
+            var chips = names.map(renderChip).join('');
+            var safeMessage = this.escapeHtmlText(message);
+
+            var html = ''
+                + '<p class="pos-success-message">' + safeMessage + '</p>'
+                + '<div class="pos-success-allergen-box" role="note">'
+                +   '<div class="pos-success-allergen-header">'
+                +     '<span class="pos-success-allergen-icon" aria-hidden="true"><i class="ti ti-info-circle"></i></span>'
+                +     '<p class="pos-success-allergen-lead">This purchase includes item(s) containing the following allergens:</p>'
+                +   '</div>'
+                +   '<div class="pos-ingredient-chips pos-success-allergen-chips">' + chips + '</div>'
+                + '</div>';
+
+            await Swal.fire({
+                ...this.swalBase(),
+                icon: 'success',
+                title: 'Success',
+                html: html,
+                showConfirmButton: true,
+                confirmButtonText: 'OK',
+                customClass: {
+                    popup: 'pos-swal pos-swal--success-allergen',
+                    confirmButton: 'pos-swal-btn-confirm'
+                }
+            });
+        },
+        async successCashlessPurchase(message, allergenNames) {
+            await this.successPurchase(message, allergenNames);
         },
         async warning(message, title = 'Attention') {
             if (typeof Swal.isVisible === 'function' && Swal.isVisible()) {

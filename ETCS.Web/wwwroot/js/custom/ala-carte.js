@@ -52,12 +52,18 @@ $(function () {
             if (!consent.isConfirmed) {
                 return;
             }
+            selectedIds = excludeSelection(selectedIds, itemId, mealDate);
+            selectedIds.push({ ItemId: itemId, MealDate: mealDate, Id: GUID(), HasAllergenConsent: true });
+            $checkbox.prop('checked', true);
+            $item.addClass('selected').attr('aria-pressed', 'true');
+            updateSelectionBar();
+            return;
         }
 
         $checkbox.prop('checked', true);
         $item.addClass('selected').attr('aria-pressed', 'true');
         selectedIds = excludeSelection(selectedIds, itemId, mealDate);
-        selectedIds.push({ ItemId: itemId, MealDate: mealDate, Id: GUID() });
+        selectedIds.push({ ItemId: itemId, MealDate: mealDate, Id: GUID(), HasAllergenConsent: false });
         updateSelectionBar();
     });
 
@@ -242,6 +248,7 @@ function serializeOrderItems(mealItemList, listKey) {
         payload[listKey + '[' + index + '].ItemId'] = parseInt(item.ItemId, 10);
         payload[listKey + '[' + index + '].MealDate'] = item.MealDate;
         payload[listKey + '[' + index + '].Id'] = item.Id;
+        payload[listKey + '[' + index + '].HasAllergenConsent'] = item.HasAllergenConsent === true;
     });
 
     return payload;

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ETCS.Shared.Infrastructure.Meals.Menu;
 
 namespace ETCS.Web.Infrastructure.AlaCarte;
 
@@ -63,53 +64,14 @@ public static class AlaCarteAllergenHelper
         return $"Contains {joined}.";
     }
 
-    public static string ResolveIcon(string allergenName)
-    {
-        var name = allergenName ?? string.Empty;
-        if (Contains(name, "milk")) return "ti ti-bottle";
-        if (Contains(name, "butter")) return "ti ti-droplet";
-        if (Contains(name, "cheese") || Contains(name, "dairy")) return "ti ti-cheese";
-        if (Contains(name, "nut") || Contains(name, "peanut") || Contains(name, "almond")) return "ti ti-nut";
-        if (Contains(name, "egg")) return "ti ti-egg";
-        if (Contains(name, "wheat") || Contains(name, "gluten") || Contains(name, "bread")) return "ti ti-bread";
-        if (Contains(name, "fish") || Contains(name, "seafood") || Contains(name, "shellfish")) return "ti ti-fish";
-        if (Contains(name, "soy") || Contains(name, "soya")) return "ti ti-leaf";
-        if (Contains(name, "sesame")) return "ti ti-grain";
-        return "ti ti-alert-circle";
-    }
+    public static string ResolveIcon(string allergenName) =>
+        DeclaredAllergenDisplayHelper.ResolveTablerIconClass(allergenName);
 
-    public static string ResolveTone(string allergenName)
-    {
-        var name = allergenName ?? string.Empty;
-        if (Contains(name, "milk")) return "is-milk";
-        if (Contains(name, "butter")) return "is-butter";
-        if (Contains(name, "cheese") || Contains(name, "dairy")) return "is-dairy";
-        if (Contains(name, "nut") || Contains(name, "peanut") || Contains(name, "almond")) return "is-nut";
-        if (Contains(name, "egg")) return "is-egg";
-        if (Contains(name, "wheat") || Contains(name, "gluten") || Contains(name, "bread")) return "is-gluten";
-        if (Contains(name, "fish") || Contains(name, "seafood") || Contains(name, "shellfish")) return "is-fish";
-        if (Contains(name, "soy") || Contains(name, "soya")) return "is-soy";
-        return "is-default";
-    }
+    public static string ResolveTone(string allergenName) =>
+        DeclaredAllergenDisplayHelper.ResolveToneClass(allergenName);
 
-    public static string? NormalizeIconFileName(string? icon)
-    {
-        if (string.IsNullOrWhiteSpace(icon))
-        {
-            return null;
-        }
-
-        var fileName = Path.GetFileName(icon.Trim());
-        if (string.IsNullOrWhiteSpace(fileName) || fileName.Contains("..", StringComparison.Ordinal))
-        {
-            return null;
-        }
-
-        return fileName;
-    }
-
-    private static bool Contains(string haystack, string needle) =>
-        haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
+    public static string? NormalizeIconFileName(string? icon) =>
+        DeclaredAllergenDisplayHelper.NormalizeIconFileName(icon);
 
     private sealed class AllergyJsonRow
     {

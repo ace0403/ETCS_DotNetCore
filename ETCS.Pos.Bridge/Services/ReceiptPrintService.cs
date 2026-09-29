@@ -208,6 +208,13 @@ public sealed class ReceiptPrintService
             DrawDashedRule(graphics);
 
             DrawTotal(graphics, total);
+
+            if (_request.AllergenNotice is not null)
+            {
+                DrawDashedRule(graphics);
+                DrawAllergenNotice(graphics);
+            }
+
             DrawDashedRule(graphics);
 
             DrawVatSummary(graphics, total);
@@ -300,6 +307,19 @@ public sealed class ReceiptPrintService
                 priceColumnWidth);
 
             var rowHeight = Math.Max(nameHeight, _regular!.GetHeight(graphics));
+
+            if (!string.IsNullOrWhiteSpace(item.ContainsText))
+            {
+                var containsHeight = DrawWrappedText(
+                    graphics,
+                    item.ContainsText.Trim(),
+                    _regular!,
+                    _left,
+                    _y + rowHeight + LineSpacing,
+                    nameColumnWidth);
+                rowHeight += containsHeight + LineSpacing;
+            }
+
             _y += rowHeight + LineSpacing;
             total += lineTotal;
         }
@@ -322,6 +342,45 @@ public sealed class ReceiptPrintService
         graphics.DrawString("Item Name", _bold!, Brushes.Black, _left, _y);
         DrawRightAlignedText(graphics, "Price", _bold!, _right - 52f, _y, 52f);
         _y += _bold!.GetHeight(graphics) + LineSpacing;
+    }
+
+    private void DrawAllergenNotice(Graphics graphics)
+    {
+        var notice = _request!.AllergenNotice;
+        if (notice is null)
+        {
+            return;
+        }
+
+        DrawCenteredLine(graphics, "ALLERGEN NOTICE", _bold!);
+
+        if (!string.IsNullOrWhiteSpace(notice.StudentName))
+        {
+            DrawLeftLine(graphics, "Student: " + notice.StudentName.Trim(), _regular!);
+        }
+
+        if (!string.IsNullOrWhiteSpace(notice.StudentId))
+        {
+            DrawLeftLine(graphics, "Card/ID: " + notice.StudentId.Trim(), _regular!);
+        }
+
+        if (!string.IsNullOrWhiteSpace(notice.RegisteredAllergenText))
+        {
+            DrawLeftLine(graphics, "Registered allergens: " + notice.RegisteredAllergenText.Trim(), _regular!);
+        }
+
+        if (!string.IsNullOrWhiteSpace(notice.NoticeFooter))
+        {
+            _y += LineSpacing;
+            var footerHeight = DrawWrappedText(
+                graphics,
+                notice.NoticeFooter.Trim(),
+                _regular!,
+                _left,
+                _y,
+                _contentWidth);
+            _y += footerHeight + SectionSpacing;
+        }
     }
 
     private void DrawTotal(Graphics graphics, decimal total)
@@ -430,6 +489,19 @@ public sealed class ReceiptPrintService
         foreach (var item in request.Items)
         {
             item.Name = ReceiptTextNormalizer.Normalize(item.Name);
+            if (!string.IsNullOrWhiteSpace(item.ContainsText))
+            {
+                item.ContainsText = ReceiptTextNormalizer.Normalize(item.ContainsText);
+            }
+        }
+
+        if (request.AllergenNotice is not null)
+        {
+            request.AllergenNotice.StudentName = ReceiptTextNormalizer.Normalize(request.AllergenNotice.StudentName);
+            request.AllergenNotice.StudentId = ReceiptTextNormalizer.Normalize(request.AllergenNotice.StudentId);
+            request.AllergenNotice.RegisteredAllergenText =
+                ReceiptTextNormalizer.Normalize(request.AllergenNotice.RegisteredAllergenText);
+            request.AllergenNotice.NoticeFooter = ReceiptTextNormalizer.Normalize(request.AllergenNotice.NoticeFooter);
         }
 
         return request;

@@ -690,6 +690,240 @@ body.pos-api-offline .pos-line-select {
     min-width: 0;
 }
 
+/* Menu-aligned declared allergen chips (portal ala-carte) */
+.pos-ingredient-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.28rem 0.35rem;
+    margin-top: 0.35rem;
+    min-width: 0;
+}
+
+.pos-ingredient-label {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #64748b;
+    flex-shrink: 0;
+}
+
+.pos-ingredient-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    max-width: 100%;
+    padding: 0.16rem 0.48rem;
+    border-radius: 999px;
+    background: #eef2ff;
+    border: 1px solid transparent;
+    color: #334155;
+    font-size: 0.62rem;
+    font-weight: 600;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pos-ingredient-chip i {
+    flex-shrink: 0;
+    font-size: 0.78rem;
+}
+
+.pos-ingredient-icon {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    object-fit: contain;
+}
+
+.pos-ingredient-chip.is-milk { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+.pos-ingredient-chip.is-milk i { color: #2563eb; }
+.pos-ingredient-chip.is-butter { background: #fffbeb; border-color: #fde68a; color: #a16207; }
+.pos-ingredient-chip.is-butter i { color: #eab308; }
+.pos-ingredient-chip.is-dairy { background: #fdf2f8; border-color: #fbcfe8; color: #9d174d; }
+.pos-ingredient-chip.is-dairy i { color: #db2777; }
+.pos-ingredient-chip.is-nut { background: #fff7ed; border-color: #fdba74; color: #c2410c; }
+.pos-ingredient-chip.is-nut i { color: #ea580c; }
+.pos-ingredient-chip.is-egg { background: #fffbeb; border-color: #fcd34d; color: #b45309; }
+.pos-ingredient-chip.is-egg i { color: #d97706; }
+.pos-ingredient-chip.is-gluten { background: #fff7ed; border-color: #e7d5c5; color: #9a3412; }
+.pos-ingredient-chip.is-gluten i { color: #c2410c; }
+.pos-ingredient-chip.is-fish { background: #f0fdfa; border-color: #99f6e4; color: #0f766e; }
+.pos-ingredient-chip.is-fish i { color: #14b8a6; }
+.pos-ingredient-chip.is-soy { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+.pos-ingredient-chip.is-soy i { color: #16a34a; }
+
+.pos-ingredient-chip.is-alert,
+.etcs-allergen-chip.is-alert {
+    background: #fff1f2;
+    border-color: #fecdd3;
+    color: #be123c;
+}
+
+.pos-tile-allergen-empty {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.62rem;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* Portal-aligned consent / success allergen blocks */
+.etcs-allergen-dialog { text-align: left; }
+
+.etcs-allergen-lead {
+    margin: 0 0 0.9rem;
+    color: #475569;
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+.etcs-allergen-lead strong {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.etcs-allergen-section {
+    margin: 0 0 0.95rem;
+    padding: 0.75rem 0.85rem;
+    border-radius: 12px;
+    background: #fff7ed;
+    border: 1px solid #ffedd5;
+}
+
+.etcs-allergen-section-label {
+    margin-bottom: 0.45rem;
+    color: #9a3412;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.etcs-allergen-summary-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.5rem;
+}
+
+.etcs-allergen-summary-row .etcs-allergen-section-label {
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+.etcs-allergen-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.etcs-allergen-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.22rem;
+    padding: 0.28rem 0.65rem;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid #fed7aa;
+    color: #9a3412;
+    font-size: 0.8rem;
+    font-weight: 650;
+}
+
+.etcs-allergen-chip i {
+    font-size: 0.85rem;
+}
+
+.etcs-allergen-consent {
+    margin: 0;
+    padding: 0.7rem 0.8rem;
+    border-radius: 12px;
+    background: #f0fdfa;
+    border: 1px solid #ccfbf1;
+    color: #334155;
+    font-size: 0.86rem;
+    line-height: 1.45;
+}
+
+.etcs-allergen-consent strong {
+    color: #3498db;
+    font-weight: 700;
+}
+
+.pos-swal--success-allergen .swal2-html-container {
+    margin: 0.35rem 0 0;
+    padding: 0 0.25rem;
+}
+
+.pos-success-message {
+    margin: 0 0 0.85rem;
+    color: #64748b;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    text-align: center;
+}
+
+.pos-success-allergen-box {
+    margin-top: 0;
+    padding: 0.75rem 0.8rem;
+    border-radius: 12px;
+    background: #fff7ed;
+    border: 1px solid #ffedd5;
+    text-align: left;
+}
+
+.pos-success-allergen-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    margin-bottom: 0.55rem;
+}
+
+.pos-success-allergen-icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    margin-top: 0.05rem;
+    color: #ea580c;
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.pos-success-allergen-lead {
+    margin: 0;
+    flex: 1 1 auto;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #9a3412;
+    line-height: 1.4;
+}
+
+.pos-success-allergen-chips {
+    margin-top: 0;
+    gap: 0.35rem 0.4rem;
+}
+
+.pos-swal--success-allergen .pos-ingredient-chip {
+    font-size: 0.72rem;
+    padding: 0.2rem 0.55rem;
+}
+
+.pos-swal--success-allergen .pos-swal-btn-confirm,
+.pos-swal--success-allergen .swal2-confirm {
+    min-width: 7rem;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+}
+
 .pos-tile-add {
     flex-shrink: 0;
     width: 36px;

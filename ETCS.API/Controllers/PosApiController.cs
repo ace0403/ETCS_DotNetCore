@@ -20,6 +20,7 @@ public sealed class PosApiController : ControllerBase
     private readonly IPosLegacyTransactionRepository _legacyRepository;
     private readonly IPosNfcPurchaseService _nfcPurchaseService;
     private readonly IManualTopupService _manualTopupService;
+    private readonly IPosAllergenCheckoutService _allergenCheckoutService;
     private readonly PosOptions _posOptions;
 
     public PosApiController(
@@ -29,6 +30,7 @@ public sealed class PosApiController : ControllerBase
         IPosLegacyTransactionRepository legacyRepository,
         IPosNfcPurchaseService nfcPurchaseService,
         IManualTopupService manualTopupService,
+        IPosAllergenCheckoutService allergenCheckoutService,
         IOptions<PosOptions> posOptions)
     {
         _terminalRepository = terminalRepository;
@@ -37,6 +39,7 @@ public sealed class PosApiController : ControllerBase
         _legacyRepository = legacyRepository;
         _nfcPurchaseService = nfcPurchaseService;
         _manualTopupService = manualTopupService;
+        _allergenCheckoutService = allergenCheckoutService;
         _posOptions = posOptions.Value;
     }
 
@@ -125,6 +128,33 @@ public sealed class PosApiController : ControllerBase
             legacyIsDailyLimitExceeded = legacy?.IsDailyLimitExceeded ?? false,
             legacyIsWeeklyLimitExceeded = legacy?.IsWeeklyLimitExceeded ?? false
         });
+    }
+
+    [HttpPost("allergen-checkout/evaluate")]
+    public async Task<IActionResult> EvaluateAllergenCheckout(
+        [FromBody] PosAllergenCheckoutEvaluateRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.MealItemIds is null || request.MealItemIds.Count == 0)
+        {
+            return BadRequest(new { message = "At least one meal item is required." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.CustomerId)
+            && string.IsNullOrWhiteSpace(request.CardSn)
+            && string.IsNullOrWhiteSpace(request.UidHex)
+            && string.IsNullOrWhiteSpace(request.UidDecimal))
+        {
+            return BadRequest(new { message = "CustomerId or card identifier is required." });
+        }
+
+        var result = await _allergenCheckoutService.EvaluateAsync(request, cancellationToken);
+        if (result is null)
+        {
+            return NotFound(new { message = "Student not found for the provided card or customer ID." });
+        }
+
+        return Ok(result);
     }
 
     [HttpPost("spend-limit/rollback")]

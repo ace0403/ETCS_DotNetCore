@@ -31,6 +31,14 @@ public sealed class PosApiProxyController : ControllerBase
         return ProxyPostAsync("api/pos/spend-limit/rollback", request, cancellationToken);
     }
 
+    [HttpPost("AllergenCheckout/Evaluate")]
+    public Task<IActionResult> EvaluateAllergenCheckout(
+        [FromBody] PosAllergenCheckoutEvaluateRequest request,
+        CancellationToken cancellationToken)
+    {
+        return ProxyPostAsync("api/pos/allergen-checkout/evaluate", request, cancellationToken);
+    }
+
     [HttpPost("Purchases/PostLines")]
     public Task<IActionResult> PostPurchaseLines(
         [FromBody] PosPostPurchaseRequest request,

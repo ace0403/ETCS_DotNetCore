@@ -124,11 +124,18 @@ public sealed class PosCatalogRepository : IPosCatalogRepository
             rows.Select(r => r.Id).ToList(),
             cancellationToken);
 
+        var allergenMap = await PosMealItemAllergenCatalog.GetDeclaredAllergensByMealItemIdsAsync(
+            _connectionFactory,
+            rows.Select(r => r.Id).ToList(),
+            cancellationToken);
+
         return rows.Select(row =>
         {
             var itemCode = codeMap.TryGetValue(row.Id, out var code) && !string.IsNullOrWhiteSpace(code)
                 ? code
                 : row.Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            allergenMap.TryGetValue(row.Id, out var declaredAllergenDetails);
+            var details = declaredAllergenDetails ?? [];
             return new PosCatalogItemDto
             {
                 Id = row.Id,
@@ -137,7 +144,9 @@ public sealed class PosCatalogRepository : IPosCatalogRepository
                 Price = row.Price,
                 ImageName = row.ImageName,
                 MealCategoryId = row.MealCategoryId,
-                CategoryName = row.CategoryName
+                CategoryName = row.CategoryName,
+                DeclaredAllergens = details.Select(d => d.Name).ToList(),
+                DeclaredAllergenDetails = details
             };
         }).ToList();
     }

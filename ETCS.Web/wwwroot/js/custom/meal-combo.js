@@ -84,12 +84,18 @@ $(function () {
             if (!consent.isConfirmed) {
                 return;
             }
+            $checkbox.prop('checked', true);
+            $item.addClass('selected').attr('aria-pressed', 'true');
+            selectedIds = excludeSelection(selectedIds, lineType, lineId, mealDate);
+            selectedIds.push(buildSelection(lineType, lineId, mealDate, true));
+            updateSelectionBar();
+            return;
         }
 
         $checkbox.prop('checked', true);
         $item.addClass('selected').attr('aria-pressed', 'true');
         selectedIds = excludeSelection(selectedIds, lineType, lineId, mealDate);
-        selectedIds.push(buildSelection(lineType, lineId, mealDate));
+        selectedIds.push(buildSelection(lineType, lineId, mealDate, false));
         updateSelectionBar();
     });
 
@@ -132,12 +138,13 @@ $(function () {
     initDates();
 });
 
-function buildSelection(lineType, lineId, mealDate) {
+function buildSelection(lineType, lineId, mealDate, hasAllergenConsent) {
     var selection = {
         MealDate: mealDate,
         Id: GUID(),
         PackageId: 0,
-        ItemId: 0
+        ItemId: 0,
+        HasAllergenConsent: hasAllergenConsent === true
     };
 
     if (lineType === 'addon') {
@@ -346,6 +353,7 @@ function serializeOrderItems(lineList, listKey) {
         payload[listKey + '[' + index + '].ItemId'] = parseInt(item.ItemId, 10) || 0;
         payload[listKey + '[' + index + '].MealDate'] = item.MealDate;
         payload[listKey + '[' + index + '].Id'] = item.Id;
+        payload[listKey + '[' + index + '].HasAllergenConsent'] = item.HasAllergenConsent === true;
     });
 
     return payload;

@@ -129,6 +129,14 @@
                 const res = await fetch('/Pos/Api/Students/' + encodeURIComponent(customerId) + '/SpendInfo');
                 return parseApiResponse(res);
             },
+            async evaluateAllergenCheckout(body) {
+                const res = await fetch('/Pos/Api/AllergenCheckout/Evaluate', {
+                    method: 'POST',
+                    headers: this.jsonHeaders(),
+                    body: JSON.stringify(body)
+                });
+                return parseApiResponse(res);
+            },
             async nfcPurchase(body) {
                 const res = await fetch('/Pos/Api/Purchases/Nfc', {
                     method: 'POST',

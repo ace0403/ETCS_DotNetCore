@@ -115,12 +115,17 @@
 
         document.querySelectorAll('.pos-tile').forEach(tile => {
             tile.addEventListener('click', function () {
+                var declaredRaw = String(tile.dataset.declaredAllergens || '').trim();
+                var declaredAllergens = declaredRaw
+                    ? declaredRaw.split(',').map(function (p) { return p.trim(); }).filter(Boolean)
+                    : [];
                 App.catalog.tryAddToCart({
                     id: Number(tile.dataset.itemId),
                     itemCode: tile.dataset.itemCode || '',
                     name: tile.dataset.itemName,
                     price: Number(tile.dataset.itemPrice),
-                    image: tile.dataset.itemImage || ''
+                    image: tile.dataset.itemImage || '',
+                    declaredAllergens: declaredAllergens
                 });
             });
         });

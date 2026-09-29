@@ -7,4 +7,6 @@ public sealed class AlaCarteSelectedItemRequest
     public string MealDate { get; set; } = string.Empty;
 
     public Guid Id { get; set; }
+
+    public bool HasAllergenConsent { get; set; }
 }

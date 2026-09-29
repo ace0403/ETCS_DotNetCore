@@ -76,6 +76,8 @@ public sealed class MealOrderPaymentReportRowDto
     public string SchoolName { get; init; } = string.Empty;
     public string Package { get; init; } = "PACKAGE UNKNOWN";
     public string TransactionType { get; init; } = "Meal Plan";
+    public bool HasAllergenConsent { get; init; }
+    public string AllergenConsentText { get; init; } = string.Empty;
 }
 
 public sealed class MealOrderPaymentReportPagedResult

@@ -9,4 +9,7 @@ public sealed class OrderMealLineItemRequest
     public decimal Price { get; init; }
     public decimal Total { get; init; }
     public int Quantity { get; init; }
+    public bool HasAllergenConsent { get; init; }
+
+    public string? AllergenItemText { get; init; }
 }

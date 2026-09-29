@@ -15,4 +15,8 @@ public sealed class OrderDetailLineItemDto
     public DateTime MealDate { get; init; }
 
     public DateTime CreatedOn { get; init; }
+
+    public bool HasAllergenConsent { get; init; }
+
+    public string? AllergenItemText { get; init; }
 }

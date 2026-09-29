@@ -22,6 +22,7 @@ public sealed class OrderInitiateService : IOrderInitiateService
     private readonly IPaymentBackgroundQueue _paymentBackgroundQueue;
     private readonly IStudentOrderTypeAccessService _orderTypeAccess;
     private readonly ISchoolCalendarService _schoolCalendar;
+    private readonly OrderAllergenConsentEnricher _allergenConsentEnricher;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -35,7 +36,8 @@ public sealed class OrderInitiateService : IOrderInitiateService
         ITransactionRepository transactionRepository,
         IPaymentBackgroundQueue paymentBackgroundQueue,
         IStudentOrderTypeAccessService orderTypeAccess,
-        ISchoolCalendarService schoolCalendar)
+        ISchoolCalendarService schoolCalendar,
+        OrderAllergenConsentEnricher allergenConsentEnricher)
     {
         _mealOrderRepository = mealOrderRepository;
         _studentRepository = studentRepository;
@@ -44,6 +46,7 @@ public sealed class OrderInitiateService : IOrderInitiateService
         _paymentBackgroundQueue = paymentBackgroundQueue;
         _orderTypeAccess = orderTypeAccess;
         _schoolCalendar = schoolCalendar;
+        _allergenConsentEnricher = allergenConsentEnricher;
     }
 
     public async Task<OrderInitiateResponse> InitiateAsync(OrderInitiateRequest request, CancellationToken cancellationToken)
@@ -86,6 +89,19 @@ public sealed class OrderInitiateService : IOrderInitiateService
             }
         }
 
+        var (enrichedMealList, allergenError) = await _allergenConsentEnricher.EnrichMealListAsync(
+            request.StudentId,
+            request.MealList,
+            cancellationToken);
+        if (allergenError is not null)
+        {
+            return new OrderInitiateResponse
+            {
+                IsSuccess = false,
+                Message = allergenError
+            };
+        }
+
         var guardianDetail = await _studentRepository.GetGuardianBasicDetailByStudentIdAsync(
             request.StudentId.ToString(CultureInfo.InvariantCulture),
             cancellationToken);
@@ -108,7 +124,7 @@ public sealed class OrderInitiateService : IOrderInitiateService
                 OrderTypeId = request.OrderTypeId,
                 Total = request.Total,
                 Notes = request.Notes,
-                MealList = request.MealList
+                MealList = enrichedMealList
             },
             (int)TransactionStatusEnum.Initiated,
             cancellationToken);
@@ -195,4 +211,5 @@ public sealed class OrderInitiateService : IOrderInitiateService
             GatewayTransactionId = sessionResult.TransactionId
         };
     }
+
 }

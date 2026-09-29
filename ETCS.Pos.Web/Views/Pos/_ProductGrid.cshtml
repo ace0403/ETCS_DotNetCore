@@ -1,40 +1,71 @@
-@model IReadOnlyList<PosCatalogItemDto>
-@using ETCS.Shared.Media
-@inject MealImageUrlBuilder ImageUrlBuilder
-@if (Model.Count == 0)
-{
-    <p class="pos-placeholder">No products in this category.</p>
-}
-else
-{
-    <div class="pos-grid">
-        @foreach (var item in Model)
-        {
-            var defaultImage = Url.Content("~/images/meal-default.png");
-            var imageUrl = ImageUrlBuilder.GetThumbnailPath(MealImageKind.MealItem, item.ImageName, forPos: true);
-            <button type="button"
-                    class="pos-tile"
-                    data-item-id="@item.Id"
-                    data-item-code="@item.ItemCode"
-                    data-item-name="@item.ItemName"
-                    data-item-price="@item.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)"
-                    data-item-image="@imageUrl"
-                    data-search="@($"{item.ItemName} {item.CategoryName}".ToLowerInvariant())"
-                    aria-label="Add @item.ItemName">
-                <div class="pos-tile-media">
-                    <img src="@imageUrl"
-                         data-default-src="@defaultImage"
-                         alt=""
-                         class="pos-tile-img"
-                         loading="lazy"
-                         onerror="posImageFallback(this)" />
-                </div>
-                <div class="pos-tile-info">
-                    <span class="pos-tile-name">@item.ItemName</span>
-                    <span class="pos-tile-price">AED @item.Price.ToString("N2")</span>
-                </div>
-                <span class="pos-tile-add" aria-hidden="true">+</span>
-            </button>
-        }
-    </div>
-}
+@model IReadOnlyList<PosCatalogItemDto>
+@using ETCS.Shared.Infrastructure.Meals.Menu
+@using ETCS.Shared.Media
+@inject MealImageUrlBuilder ImageUrlBuilder
+@if (Model.Count == 0)
+{
+    <p class="pos-placeholder">No products in this category.</p>
+}
+else
+{
+    <div class="pos-grid">
+        @foreach (var item in Model)
+        {
+            var defaultImage = Url.Content("~/images/meal-default.png");
+            var imageUrl = ImageUrlBuilder.GetThumbnailPath(MealImageKind.MealItem, item.ImageName, forPos: true);
+            var declaredAllergens = item.DeclaredAllergenDetails ?? [];
+            var declaredAllergenText = string.Join(", ", declaredAllergens.Select(a => a.Name));
+            <button type="button"
+                    class="pos-tile"
+                    data-item-id="@item.Id"
+                    data-item-code="@item.ItemCode"
+                    data-item-name="@item.ItemName"
+                    data-item-price="@item.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                    data-item-image="@imageUrl"
+                    data-declared-allergens="@declaredAllergenText"
+                    data-search="@($"{item.ItemName} {item.CategoryName} {declaredAllergenText}".ToLowerInvariant())"
+                    aria-label="Add @item.ItemName">
+                <div class="pos-tile-media">
+                    <img src="@imageUrl"
+                         data-default-src="@defaultImage"
+                         alt=""
+                         class="pos-tile-img"
+                         loading="lazy"
+                         onerror="posImageFallback(this)" />
+                </div>
+                <div class="pos-tile-info">
+                    <span class="pos-tile-name">@item.ItemName</span>
+                    <span class="pos-tile-price">AED @item.Price.ToString("N2")</span>
+                    @if (declaredAllergens.Count > 0)
+                    {
+                        <div class="pos-ingredient-chips" aria-label="Declared allergens">
+                            <div class="pos-ingredient-label mb-0">Allergen</div>
+                            @foreach (var allergen in declaredAllergens)
+                            {
+                                var tone = DeclaredAllergenDisplayHelper.ResolveToneClass(allergen.Name);
+                                var iconFile = DeclaredAllergenDisplayHelper.NormalizeIconFileName(allergen.Icon);
+                                <span class="pos-ingredient-chip @tone">
+                                    @if (!string.IsNullOrEmpty(iconFile))
+                                    {
+                                        <img class="pos-ingredient-icon" src="@Url.Content($"~/images/icons/{iconFile}")" alt="" />
+                                    }
+                                    else
+                                    {
+                                        <i class="@DeclaredAllergenDisplayHelper.ResolveTablerIconClass(allergen.Name)" aria-hidden="true"></i>
+                                    }
+                                    @allergen.Name
+                                </span>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <span class="pos-tile-allergen-empty">No declared allergens</span>
+                    }
+                </div>
+                <span class="pos-tile-add" aria-hidden="true">+</span>
+            </button>
+        }
+    </div>
+}
+

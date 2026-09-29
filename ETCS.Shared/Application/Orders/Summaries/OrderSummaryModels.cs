@@ -45,6 +45,12 @@ public sealed class AlaCarteSummaryItem
     public DateTime MealDate { get; init; }
 
     public string? ImageName { get; init; }
+
+    public bool HasAllergenConsent { get; init; }
+
+    public string? AllergenItemText { get; init; }
+
+    public bool HasAllergens => HasAllergenConsent;
 }
 
 public sealed class MealComboSummaryViewModel
@@ -87,4 +93,10 @@ public sealed class MealComboSummaryItem
     public DateTime MealDate { get; init; }
 
     public string? ImageName { get; init; }
+
+    public bool HasAllergenConsent { get; init; }
+
+    public string? AllergenItemText { get; init; }
+
+    public bool HasAllergens => HasAllergenConsent;
 }

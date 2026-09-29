@@ -92,7 +92,7 @@ public sealed class OrdersController : Controller
             },
             cancellationToken);
 
-        var model = await _summaryBuilder.BuildReceiptAsync(
+        var receipt = await _summaryBuilder.BuildReceiptAsync(
             guardianId,
             paymentState.OrderTypeId,
             resolvedOrderId,
@@ -101,6 +101,6 @@ public sealed class OrdersController : Controller
             completeResult.Message,
             cancellationToken);
 
-        return View(model);
+        return View(OrderPaymentReturnViewModel.FromReceipt(receipt));
     }
 }

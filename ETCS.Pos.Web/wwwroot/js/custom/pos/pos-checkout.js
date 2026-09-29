@@ -80,6 +80,23 @@
                     return;
                 }
 
+                if (typeof Swal.isLoading === 'function' && Swal.isLoading()) {
+                    Swal.close();
+                }
+
+                const allergenCtx = await App.allergen.requireCashlessConsent({ customerId });
+                if (!allergenCtx) {
+                    const undoResult = await BridgeClient.undo(payable, transactionId, itemCount);
+                    await PosApiClient.rollbackSpendLimit({ customerId, amount: payable });
+                    if (!undoResult.ok || !apiIsSuccess(undoResult.data)) {
+                        await App.ui.warning('Allergen consent was declined. If the card was charged, use Undo Cashless or contact support.');
+                    }
+                    App.cart.clear(false);
+                    return;
+                }
+
+                App.allergen.applyCashlessContext(allergenCtx);
+
                 const postResult = await PosApiClient.postPurchaseLines({
                     customerId,
                     transactionId,
@@ -99,7 +116,9 @@
                 state.lastPayableAmount = payable;
                 state.lastItemCount = itemCount;
 
-                await App.ui.success(apiMessage(postResult.data, 'Cashless transaction successful.'));
+                await App.ui.successPurchase(
+                    apiMessage(postResult.data, 'Cashless transaction successful.'),
+                    App.allergen.getCartDeclaredAllergenNames());
                 try {
                     await App.cart.printCurrentReceipt();
                 } catch (printError) {
@@ -192,6 +211,17 @@
                     return;
                 }
 
+                if (typeof Swal.isLoading === 'function' && Swal.isLoading()) {
+                    Swal.close();
+                }
+
+                const allergenCtx = await App.allergen.requireCashlessConsent({ cardResult: cardResult.data });
+                if (!allergenCtx) {
+                    return;
+                }
+
+                App.allergen.applyCashlessContext(allergenCtx);
+
                 const postResult = await PosApiClient.nfcPurchase({
                     cardSn,
                     uidHex: getJsonProp(cardResult.data, 'uidHex') || '',
@@ -214,7 +244,9 @@
                 state.lastNfcItemCount = itemCount;
                 state.lastCustomerId = getJsonProp(postResult.data, 'customerId') || '';
 
-                await App.ui.success(apiMessage(postResult.data, 'NFC cashless transaction successful.'));
+                await App.ui.successPurchase(
+                    apiMessage(postResult.data, 'NFC cashless transaction successful.'),
+                    App.allergen.getCartDeclaredAllergenNames());
                 try {
                     await App.cart.printCurrentReceipt();
                 } catch (printError) {
@@ -312,7 +344,9 @@
                     await App.ui.error(apiMessage(result.data, 'Cash transaction failed.'));
                     return;
                 }
-                await App.ui.success(apiMessage(result.data, 'Cash transaction successful.'));
+                await App.ui.successPurchase(
+                    apiMessage(result.data, 'Cash transaction successful.'),
+                    App.allergen.getCartDeclaredAllergenNames());
                 try {
                     await App.cart.printCurrentReceipt();
                 } catch (printError) {
@@ -384,7 +418,9 @@
                     await App.ui.error(apiMessage(result.data, 'Card purchase failed.'));
                     return;
                 }
-                await App.ui.success(apiMessage(result.data, 'Card transaction successful.'));
+                await App.ui.successPurchase(
+                    apiMessage(result.data, 'Card transaction successful.'),
+                    App.allergen.getCartDeclaredAllergenNames());
                 try {
                     await App.cart.printCurrentReceipt();
                 } catch (printError) {

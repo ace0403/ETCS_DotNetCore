@@ -158,7 +158,8 @@ function initMealOrderReportTable() {
             { targets: 6, width: '110px' },
             { targets: [7, 8, 9,10], width: '100px' },
             { targets: 11, width: '100px' },
-            { targets: 13, width: '220px', className: 'canteen-branch-cell' }
+            { targets: 13, width: '220px', className: 'canteen-branch-cell' },
+            { targets: 14, width: '100px' }
         ],
         columns: [
             {
@@ -181,6 +182,7 @@ function initMealOrderReportTable() {
             { data: 'Choice', render: function (d) { return renderEllipsisCell(d, 16); } },
             { data: 'Day' },
             { data: 'Items', render: function (d) { return renderEllipsisCell(d, 48); } },
+            { data: 'AllergenConsentText', render: function (d) { return renderEllipsisCell(d, 64); } },
             { data: 'OrderDate' }
         ]
     });

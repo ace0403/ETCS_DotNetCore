@@ -1,3 +1,5 @@
+using ETCS.Shared.Application.Orders;
+using ETCS.Shared.Infrastructure.Meals.Menu;
 using ETCS.Shared.Infrastructure.Pos;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -16,6 +18,8 @@ public static class PosServiceCollectionExtensions
         services.AddScoped<IPosNfcPurchaseService, PosNfcPurchaseService>();
         services.AddScoped<IPosOrderInitiateService, PosOrderInitiateService>();
         services.AddScoped<IPosOrderCompleteService, PosOrderCompleteService>();
+        services.AddScoped<IOrderItemAllergenResolver, OrderItemAllergenResolver>();
+        services.AddScoped<IPosAllergenCheckoutService, PosAllergenCheckoutService>();
         return services;
     }
 }
