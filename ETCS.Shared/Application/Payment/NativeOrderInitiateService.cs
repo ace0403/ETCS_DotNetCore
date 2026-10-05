@@ -99,6 +99,7 @@ public sealed class NativeOrderInitiateService : INativeOrderInitiateService
             OrderTypeId = request.OrderTypeId,
             Total = request.Total,
             Notes = request.Notes,
+            SourceChannel = request.SourceChannel,
             MealList = request.MealList
         };
 

@@ -2,6 +2,7 @@ using ETCS.API.Features.Payment;
 using ETCS.API.Infrastructure.Auth;
 using ETCS.Shared.Application.History;
 using ETCS.Shared.Application.Topup;
+using ETCS.Shared.Enumeration;
 using ETCS.PaymentGateway.Models;
 using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Students;
@@ -106,7 +107,8 @@ public sealed class PaymentController : ControllerBase
             {
                 GuardianId = guardianId,
                 StudentId = request.StudentId,
-                Amount = request.Amount
+                Amount = request.Amount,
+                SourceChannel = TransactionSourceChannel.Api.ToDbValue()
             },
             cancellationToken);
 

@@ -124,6 +124,7 @@ public sealed class OrderInitiateService : IOrderInitiateService
                 OrderTypeId = request.OrderTypeId,
                 Total = request.Total,
                 Notes = request.Notes,
+                SourceChannel = request.SourceChannel,
                 MealList = enrichedMealList
             },
             (int)TransactionStatusEnum.Initiated,

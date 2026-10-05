@@ -108,7 +108,8 @@ public sealed class NativeTopupInitiateService : INativeTopupInitiateService
                 Remarks = orderId,
                 StatusId = (int)TransactionStatusEnum.Pending,
                 CreatedBy = parentDetails.GuardianId,
-                PaymentMethod = (int)paymentMethod
+                PaymentMethod = (int)paymentMethod,
+                SourceChannel = request.SourceChannel
             },
             cancellationToken);
 

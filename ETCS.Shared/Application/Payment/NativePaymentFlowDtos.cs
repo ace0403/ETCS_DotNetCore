@@ -11,6 +11,9 @@ public sealed class NativeTopupInitiateRequest
     public string PaymentMethod { get; init; } = "Card";
 
     public string? ReturnUrl { get; init; }
+
+    /// <summary>Server-set placement source (Api / Web / Pos). Not accepted from clients.</summary>
+    public string? SourceChannel { get; init; }
 }
 
 public sealed class NativeTopupInitiateResponse
@@ -65,6 +68,9 @@ public sealed class NativeOrderInitiateRequest
     public string PaymentMethod { get; init; } = "Card";
 
     public string? ReturnUrl { get; init; }
+
+    /// <summary>Server-set placement source (Api / Web / Pos). Not accepted from clients.</summary>
+    public string? SourceChannel { get; init; }
 
     public IReadOnlyList<ETCS.Shared.Infrastructure.Orders.OrderMealLineItemRequest> MealList { get; init; } =
         Array.Empty<ETCS.Shared.Infrastructure.Orders.OrderMealLineItemRequest>();

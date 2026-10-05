@@ -78,9 +78,9 @@ public sealed class POSOrderRepository : IPOSOrderRepository
     {
         const string insertTransactionSql = """
             INSERT INTO [Transaction]
-                (GuardianId, StudentId, TransactionType, Amount, Remarks, IsTransactionCompleted, IsDebit, StatusId, CreatedOn, CreatedBy)
+                (GuardianId, StudentId, TransactionType, Amount, Remarks, IsTransactionCompleted, IsDebit, StatusId, CreatedOn, CreatedBy, SourceChannel)
             VALUES
-                (@GuardianId, @StudentId, NULL, @Amount, @Remarks, 0, 1, @StatusId, GETDATE(), @CreatedBy);
+                (@GuardianId, @StudentId, NULL, @Amount, @Remarks, 0, 1, @StatusId, GETDATE(), @CreatedBy, @SourceChannel);
             SELECT CAST(SCOPE_IDENTITY() AS int);
             """;
 
@@ -116,7 +116,8 @@ public sealed class POSOrderRepository : IPOSOrderRepository
                     Amount = request.Total,
                     Remarks = request.OrderId,
                     StatusId = transactionStatusId,
-                    CreatedBy = request.GuardianId
+                    CreatedBy = request.GuardianId,
+                    request.SourceChannel
                 },
                 transaction: transaction,
                 cancellationToken: cancellationToken));

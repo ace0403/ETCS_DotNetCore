@@ -78,9 +78,9 @@ public sealed class MealOrderRepository : IMealOrderRepository
     {
         const string insertTransactionSql = """
             INSERT INTO [Transaction]
-                (GuardianId, StudentId, TransactionType, Amount, Remarks, IsTransactionCompleted, IsDebit, StatusId, CreatedOn, CreatedBy, PaymentMethod)
+                (GuardianId, StudentId, TransactionType, Amount, Remarks, IsTransactionCompleted, IsDebit, StatusId, CreatedOn, CreatedBy, PaymentMethod, SourceChannel)
             VALUES
-                (@GuardianId, @StudentId, NULL, @Amount, @Remarks, 0, 1, @StatusId, GETDATE(), @CreatedBy, @PaymentMethod);
+                (@GuardianId, @StudentId, NULL, @Amount, @Remarks, 0, 1, @StatusId, GETDATE(), @CreatedBy, @PaymentMethod, @SourceChannel);
             SELECT CAST(SCOPE_IDENTITY() AS int);
             """;
 
@@ -118,7 +118,8 @@ public sealed class MealOrderRepository : IMealOrderRepository
                     Remarks = request.OrderId,
                     StatusId = transactionStatusId,
                     CreatedBy = request.GuardianId,
-                    PaymentMethod = paymentMethod
+                    PaymentMethod = paymentMethod,
+                    request.SourceChannel
                 },
                 transaction: transaction,
                 cancellationToken: cancellationToken));

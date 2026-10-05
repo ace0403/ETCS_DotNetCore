@@ -12,6 +12,7 @@ namespace ETCS.Pos.Bridge.Services;
 public sealed class NfcReaderService
 {
     private const string PreferredPiccReader = "ACS ACR1552 1S CL Reader PICC 0";
+    //private const string PreferredPiccReader = "ACR1552 1S CL Reader PICC";
 
     public NfcStatusResult GetStatus()
     {

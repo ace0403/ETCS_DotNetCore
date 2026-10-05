@@ -116,7 +116,8 @@ public sealed class ManualTopupService : IManualTopupService
                     Amount = request.Amount,
                     Remarks = orderId,
                     StatusId = (int)TransactionStatusEnum.Pending,
-                    CreatedBy = student.GuardianId
+                    CreatedBy = student.GuardianId,
+                    SourceChannel = TransactionSourceChannel.Pos.ToDbValue()
                 },
                 cancellationToken);
 

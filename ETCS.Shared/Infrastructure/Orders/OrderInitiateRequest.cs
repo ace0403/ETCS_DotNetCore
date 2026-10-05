@@ -16,5 +16,8 @@ public sealed class OrderInitiateRequest
 
     public string Notes { get; init; } = string.Empty;
 
+    /// <summary>Server-set placement source (Api / Web / Pos). Not accepted from clients.</summary>
+    public string? SourceChannel { get; init; }
+
     public IReadOnlyList<OrderMealLineItemRequest> MealList { get; init; } = [];
 }

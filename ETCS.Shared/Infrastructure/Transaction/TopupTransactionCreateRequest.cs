@@ -15,4 +15,7 @@ public sealed class TopupTransactionCreateRequest
     public int CreatedBy { get; init; }
 
     public int? PaymentMethod { get; init; }
+
+    /// <summary>Server-set placement source (Api / Web / Pos). Not accepted from clients.</summary>
+    public string? SourceChannel { get; init; }
 }

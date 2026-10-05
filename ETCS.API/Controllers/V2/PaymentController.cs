@@ -4,6 +4,7 @@ using ETCS.PaymentGateway.Models;
 using ETCS.PaymentGateway.Options;
 using ETCS.Shared.Application.Payment;
 using ETCS.Shared.Application.Topup;
+using ETCS.Shared.Enumeration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -61,7 +62,8 @@ public sealed class PaymentController : ControllerBase
                 StudentId = request.StudentId,
                 Amount = request.Amount,
                 PaymentMethod = request.PaymentMethod,
-                ReturnUrl = request.ReturnUrl
+                ReturnUrl = request.ReturnUrl,
+                SourceChannel = TransactionSourceChannel.Api.ToDbValue()
             },
             cancellationToken);
 

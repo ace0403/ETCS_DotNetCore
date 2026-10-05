@@ -239,9 +239,9 @@ public sealed class TransactionRepository : ITransactionRepository
     {
         const string sql = """
             INSERT INTO [Transaction]
-                (GuardianId, StudentId, TransactionType, Amount, Remarks, IsTransactionCompleted, IsDebit, StatusId, CreatedOn, CreatedBy, ReconcileAttemptCount, PaymentMethod)
+                (GuardianId, StudentId, TransactionType, Amount, Remarks, IsTransactionCompleted, IsDebit, StatusId, CreatedOn, CreatedBy, ReconcileAttemptCount, PaymentMethod, SourceChannel)
             VALUES
-                (@GuardianId, @StudentId, NULL, @Amount, @Remarks, 0, 1, @StatusId, GETDATE(), @CreatedBy, 0, @PaymentMethod);
+                (@GuardianId, @StudentId, NULL, @Amount, @Remarks, 0, 1, @StatusId, GETDATE(), @CreatedBy, 0, @PaymentMethod, @SourceChannel);
             SELECT CAST(SCOPE_IDENTITY() AS int);
             """;
 
@@ -256,7 +256,8 @@ public sealed class TransactionRepository : ITransactionRepository
                 request.Remarks,
                 request.StatusId,
                 request.CreatedBy,
-                PaymentMethod = request.PaymentMethod
+                PaymentMethod = request.PaymentMethod,
+                request.SourceChannel
             },
             commandType: System.Data.CommandType.Text,
             commandTimeout: DefaultCommandTimeoutSeconds,

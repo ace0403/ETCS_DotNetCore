@@ -188,6 +188,7 @@ public class AlaCarteController : Controller
                 OrderTypeId = (int)TransactionTypeEnum.A_La_Carte,
                 Total = summary.OrderAmount,
                 Notes = "A La Carte Order",
+                SourceChannel = TransactionSourceChannel.Web.ToDbValue(),
                 MealList = mealLines
             },
             cancellationToken);

@@ -185,6 +185,7 @@ public class MealComboController : Controller
                 OrderTypeId = (int)TransactionTypeEnum.MealOrder,
                 Total = summary.OrderAmount,
                 Notes = "Meal Combo Order",
+                SourceChannel = TransactionSourceChannel.Web.ToDbValue(),
                 MealList = mealLines
             },
             cancellationToken);

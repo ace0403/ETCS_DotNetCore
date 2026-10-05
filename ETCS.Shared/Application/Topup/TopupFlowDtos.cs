@@ -10,6 +10,9 @@ public sealed class TopupInitiateRequest
 
     /// <summary>Optional gateway return URL template with {0} for orderId.</summary>
     public string? ReturnUrl { get; init; }
+
+    /// <summary>Server-set placement source (Api / Web / Pos). Not accepted from clients.</summary>
+    public string? SourceChannel { get; init; }
 }
 
 public sealed class TopupInitiateResponse

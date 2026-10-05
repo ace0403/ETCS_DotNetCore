@@ -111,6 +111,7 @@ public sealed class PosOrderInitiateService : IPosOrderInitiateService
                 OrderTypeId = _posOptions.OrderTypeId,
                 Total = request.Total,
                 Notes = notes,
+                SourceChannel = TransactionSourceChannel.Pos.ToDbValue(),
                 MealList = request.MealList
             },
             (int)TransactionStatusEnum.Initiated,

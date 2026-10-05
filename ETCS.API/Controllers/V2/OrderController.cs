@@ -64,6 +64,7 @@ public sealed class OrderController : ControllerBase
                 Notes = request.Notes,
                 PaymentMethod = request.PaymentMethod,
                 ReturnUrl = request.ReturnUrl,
+                SourceChannel = TransactionSourceChannel.Api.ToDbValue(),
                 MealList = request.MealList
             },
             cancellationToken);

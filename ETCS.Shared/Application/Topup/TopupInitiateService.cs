@@ -101,7 +101,8 @@ public sealed class TopupInitiateService : ITopupInitiateService
                 Amount = request.Amount,
                 Remarks = orderId,
                 StatusId = (int)TransactionStatusEnum.Pending,
-                CreatedBy = parentDetails.GuardianId
+                CreatedBy = parentDetails.GuardianId,
+                SourceChannel = request.SourceChannel
             },
             cancellationToken);
 

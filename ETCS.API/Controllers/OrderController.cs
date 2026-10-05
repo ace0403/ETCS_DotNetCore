@@ -67,6 +67,7 @@ public sealed class OrderController : ControllerBase
             OrderTypeId = request.OrderTypeId,
             Total = request.Total,
             Notes = request.Notes,
+            SourceChannel = TransactionSourceChannel.Api.ToDbValue(),
             MealList = request.MealList
         };
 

@@ -379,9 +379,6 @@ ETCS.API/Database/backfill-transaction-accesslogid.sql
 ETCS.API/Database/AdminStoredProcedures/spRptAdmineTransaction_New.sql
 ETCS.API/Database/AdminStoredProcedures/spMealOrderPaymentSummary_New.sql
 ETCS.API/Database/accesslog-backfill-branchcode.sql
-*.sql
-/ETCS.API/Database
-!ETCS.API/Database/
 !ETCS.API/Database/AdminModule_Report_StudentConsumption.sql
 !ETCS.API/Database/StudentConsumption_AccessLog_Index.sql
 *.ps1
@@ -389,4 +386,12 @@ ETCS.API/Database/accesslog-backfill-branchcode.sql
 /ETCS.Admin/wwwroot/meal-image
 /ETCS.Pos.Bridge/Installer/README.md
 /ETCS.Pos.Web/E2E_VERIFICATION.md
-/ETCS.API/Database/MealStoredProcedures/spMealOrderSummary_MealDB_New.sql
+/ETCS.API/Database/order-email-setup.sql
+/ETCS.API/Database/registration-otp-email.sql
+/ETCS.API/Database/registration-success-email.sql
+/ETCS.API/Database/replace-card-email.sql
+/ETCS.API/Database/replace-requests-reason.sql
+/_sp-db-export
+/ETCS.API/Database/MealStoredProcedures/LoginAccountAssignmentsBackfill.sql
+/ETCS.API/Database/MealStoredProcedures/OrderItem_BackfillAllergenConsent.sql
+/ETCS.API/Database/MealStoredProcedures/OrderItem_BackfillAllergenItemText.sql

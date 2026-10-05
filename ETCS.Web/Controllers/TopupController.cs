@@ -112,7 +112,8 @@ public sealed class TopupController : Controller
                 GuardianId = guardianId,
                 StudentId = model.StudentId.ToString(CultureInfo.InvariantCulture),
                 Amount = model.Amount,
-                ReturnUrl = returnUrl
+                ReturnUrl = returnUrl,
+                SourceChannel = TransactionSourceChannel.Web.ToDbValue()
             },
             cancellationToken);
 
