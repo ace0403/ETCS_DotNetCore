@@ -167,20 +167,21 @@
             var evalResult = await App.allergen.evaluateCheckout(options);
             if (!evalResult.ok) {
                 await App.ui.error('Unable to check allergen information for this student.');
-                return null;
+                return { status: 'error' };
             }
 
             var data = evalResult.data;
             if (!data || App.helpers.getJsonProp(data, 'hasConflict') !== true) {
-                return buildContextFromEvaluate(data);
+                return { status: 'ok', context: buildContextFromEvaluate(data) };
             }
 
+            App.ui.prepareForModal();
             var agreed = await App.allergen.showConsentModal(data);
             if (!agreed) {
-                return null;
+                return { status: 'declined' };
             }
 
-            return buildContextFromEvaluate(data);
+            return { status: 'ok', context: buildContextFromEvaluate(data) };
         },
 
         applyCashlessContext(context) {

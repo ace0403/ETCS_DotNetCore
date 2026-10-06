@@ -88,6 +88,45 @@ window.PosApp = window.PosApp || {};
             return Number(value || 0).toFixed(2);
         },
 
+        parseBalanceAed(value) {
+            if (value === undefined || value === null || value === '') {
+                return null;
+            }
+            const n = Number(value);
+            return Number.isFinite(n) && n >= 0 ? n : null;
+        },
+
+        parseIbonusBalanceAed(bridgeData) {
+            if (!bridgeData) {
+                return null;
+            }
+            const raw = App.helpers.getJsonProp(bridgeData, 'balPrepaidCn');
+            if (raw === undefined || raw === null || raw === '') {
+                return null;
+            }
+            const n = Number(raw);
+            if (!Number.isFinite(n)) {
+                return null;
+            }
+            return n / 100;
+        },
+
+        formatCardBalanceLine(balance) {
+            if (!Number.isFinite(balance) || balance < 0) {
+                return '';
+            }
+            return 'Remaining balance: AED ' + App.helpers.formatMoney(balance);
+        },
+
+        appendBalanceToMessage(message, balance) {
+            const line = App.helpers.formatCardBalanceLine(balance);
+            if (!line) {
+                return String(message || '').trim();
+            }
+            const base = String(message || '').trim();
+            return base ? base + '\n' + line : line;
+        },
+
         getTerminalIp() {
             return document.getElementById('txtTerminalIp')?.value?.trim() || '';
         },
@@ -294,6 +333,19 @@ window.PosApp = window.PosApp || {};
         async successCashlessPurchase(message, allergenNames) {
             await this.successPurchase(message, allergenNames);
         },
+        async successUndo(message, title = 'Success') {
+            if (typeof Swal.isVisible === 'function' && Swal.isVisible()) {
+                Swal.close();
+            }
+            await Swal.fire({
+                ...this.swalBase(),
+                icon: 'success',
+                title,
+                text: message,
+                showConfirmButton: true,
+                confirmButtonText: 'OK'
+            });
+        },
         async warning(message, title = 'Attention') {
             if (typeof Swal.isVisible === 'function' && Swal.isVisible()) {
                 Swal.close();
@@ -338,6 +390,20 @@ window.PosApp = window.PosApp || {};
             if (typeof Swal.isLoading === 'function' && Swal.isLoading()) {
                 Swal.close();
             }
+        },
+        updateLoading(title, text) {
+            if (typeof Swal.isVisible === 'function' && Swal.isVisible()
+                && typeof Swal.isLoading === 'function' && Swal.isLoading()) {
+                Swal.update({ title, text });
+                return;
+            }
+            this.showLoading(title, text);
+        },
+        resumeLoadingAfterModal(title, text) {
+            this.showLoading(title, text);
+        },
+        prepareForModal() {
+            this.hideLoading();
         },
 
         setActionButtonsDisabled(disabled) {

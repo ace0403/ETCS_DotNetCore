@@ -23,6 +23,26 @@
         return candidates.some(value => normalizeCardSn(value) === last);
     }
 
+    const TRANSACTION_NOT_ADDED_MSG = 'Transaction has not been added.';
+
+    async function finishAllergenDeclinedCashless(payable, transactionId, itemCount, customerId) {
+        App.ui.resumeLoadingAfterModal('Processing', 'Reversing card charge…');
+        const undoResult = await BridgeClient.undo(payable, transactionId, itemCount);
+        await PosApiClient.rollbackSpendLimit({ customerId, amount: payable });
+        if (!undoResult.ok || !apiIsSuccess(undoResult.data)) {
+            await App.ui.warning('Allergen consent was declined. If the card was charged, use Undo Cashless or contact support.');
+        }
+        App.allergen.clearCashlessContext();
+        await App.ui.warning(TRANSACTION_NOT_ADDED_MSG, 'Notice');
+        App.cart.clear(false);
+    }
+
+    async function finishAllergenDeclinedNfc() {
+        App.allergen.clearCashlessContext();
+        await App.ui.warning(TRANSACTION_NOT_ADDED_MSG, 'Notice');
+        App.cart.clear(false);
+    }
+
     App.checkout = {
         async checkout() {
             if (state.posBusy) return;
@@ -80,22 +100,22 @@
                     return;
                 }
 
-                if (typeof Swal.isLoading === 'function' && Swal.isLoading()) {
-                    Swal.close();
-                }
+                App.ui.updateLoading('Processing payment', 'Verifying student and completing sale…');
 
-                const allergenCtx = await App.allergen.requireCashlessConsent({ customerId });
-                if (!allergenCtx) {
-                    const undoResult = await BridgeClient.undo(payable, transactionId, itemCount);
+                const consent = await App.allergen.requireCashlessConsent({ customerId });
+                if (consent.status === 'error') {
+                    App.ui.resumeLoadingAfterModal('Processing', 'Reversing card charge…');
+                    await BridgeClient.undo(payable, transactionId, itemCount);
                     await PosApiClient.rollbackSpendLimit({ customerId, amount: payable });
-                    if (!undoResult.ok || !apiIsSuccess(undoResult.data)) {
-                        await App.ui.warning('Allergen consent was declined. If the card was charged, use Undo Cashless or contact support.');
-                    }
-                    App.cart.clear(false);
+                    return;
+                }
+                if (consent.status === 'declined') {
+                    await finishAllergenDeclinedCashless(payable, transactionId, itemCount, customerId);
                     return;
                 }
 
-                App.allergen.applyCashlessContext(allergenCtx);
+                App.allergen.applyCashlessContext(consent.context);
+                App.ui.resumeLoadingAfterModal('Processing payment', 'Completing sale…');
 
                 const postResult = await PosApiClient.postPurchaseLines({
                     customerId,
@@ -116,8 +136,12 @@
                 state.lastPayableAmount = payable;
                 state.lastItemCount = itemCount;
 
-                await App.ui.successPurchase(
+                const cashlessSuccessMessage = App.helpers.appendBalanceToMessage(
                     apiMessage(postResult.data, 'Cashless transaction successful.'),
+                    App.helpers.parseIbonusBalanceAed(bridgeResult.data));
+
+                await App.ui.successPurchase(
+                    cashlessSuccessMessage,
                     App.allergen.getCartDeclaredAllergenNames());
                 try {
                     await App.cart.printCurrentReceipt();
@@ -153,22 +177,28 @@
                     return;
                 }
 
-                await App.cart.dispatchReceiptPrint({
-                    isUndo: true,
-                    overrides: {
-                        items: state.cart.length > 0
-                            ? state.cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity }))
-                            : [],
-                        total: payable
-                    }
-                });
+                const undoReceiptOverrides = {
+                    items: state.cart.length > 0
+                        ? state.cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity }))
+                        : [],
+                    total: payable
+                };
+
+                const undoCashlessMessage = App.helpers.appendBalanceToMessage(
+                    apiMessage(bridgeResult.data, 'Undo cashless transaction successful.'),
+                    App.helpers.parseIbonusBalanceAed(bridgeResult.data));
 
                 state.lastTransactionId = '';
                 state.lastCustomerId = '';
                 state.lastPayableAmount = 0;
                 state.lastItemCount = 0;
-                await App.ui.success('Undo cashless transaction successful.');
+                await App.ui.successUndo(undoCashlessMessage);
                 App.cart.clear(false);
+
+                await App.cart.dispatchReceiptPrint({
+                    isUndo: true,
+                    overrides: undoReceiptOverrides
+                });
             });
         },
 
@@ -211,16 +241,19 @@
                     return;
                 }
 
-                if (typeof Swal.isLoading === 'function' && Swal.isLoading()) {
-                    Swal.close();
-                }
+                App.ui.updateLoading('Processing payment', 'Checking allergens and completing sale…');
 
-                const allergenCtx = await App.allergen.requireCashlessConsent({ cardResult: cardResult.data });
-                if (!allergenCtx) {
+                const consent = await App.allergen.requireCashlessConsent({ cardResult: cardResult.data });
+                if (consent.status === 'error') {
+                    return;
+                }
+                if (consent.status === 'declined') {
+                    await finishAllergenDeclinedNfc();
                     return;
                 }
 
-                App.allergen.applyCashlessContext(allergenCtx);
+                App.allergen.applyCashlessContext(consent.context);
+                App.ui.resumeLoadingAfterModal('Processing payment', 'Completing sale…');
 
                 const postResult = await PosApiClient.nfcPurchase({
                     cardSn,
@@ -244,8 +277,12 @@
                 state.lastNfcItemCount = itemCount;
                 state.lastCustomerId = getJsonProp(postResult.data, 'customerId') || '';
 
-                await App.ui.successPurchase(
+                const nfcSuccessMessage = App.helpers.appendBalanceToMessage(
                     apiMessage(postResult.data, 'NFC cashless transaction successful.'),
+                    App.helpers.parseBalanceAed(getJsonProp(postResult.data, 'balance')));
+
+                await App.ui.successPurchase(
+                    nfcSuccessMessage,
                     App.allergen.getCartDeclaredAllergenNames());
                 try {
                     await App.cart.printCurrentReceipt();
@@ -285,6 +322,8 @@
                     return;
                 }
 
+                App.ui.updateLoading('Processing undo', 'Updating balance…');
+
                 const undoResult = await PosApiClient.nfcUndo({
                     cardSn: getJsonProp(cardResult.data, 'cardSn') || '',
                     uidHex: getJsonProp(cardResult.data, 'uidHex') || '',
@@ -299,22 +338,28 @@
                     return;
                 }
 
-                await App.cart.dispatchReceiptPrint({
-                    isUndo: true,
-                    overrides: {
-                        items: state.cart.length > 0
-                            ? state.cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity }))
-                            : [],
-                        total: payable
-                    }
-                });
+                const undoNfcReceiptOverrides = {
+                    items: state.cart.length > 0
+                        ? state.cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity }))
+                        : [],
+                    total: payable
+                };
+
+                const undoNfcMessage = App.helpers.appendBalanceToMessage(
+                    apiMessage(undoResult.data, 'Undo NFC cashless transaction successful.'),
+                    App.helpers.parseBalanceAed(getJsonProp(undoResult.data, 'balance')));
 
                 state.lastNfcTransactionId = '';
                 state.lastNfcCardSn = '';
                 state.lastNfcPayableAmount = 0;
                 state.lastNfcItemCount = 0;
-                await App.ui.success(apiMessage(undoResult.data, 'Undo NFC cashless transaction successful.'));
+                await App.ui.successUndo(undoNfcMessage);
                 App.cart.clear(false);
+
+                await App.cart.dispatchReceiptPrint({
+                    isUndo: true,
+                    overrides: undoNfcReceiptOverrides
+                });
             });
         },
 

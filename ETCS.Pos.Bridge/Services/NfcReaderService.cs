@@ -12,7 +12,6 @@ namespace ETCS.Pos.Bridge.Services;
 public sealed class NfcReaderService
 {
     private const string PreferredPiccReader = "ACS ACR1552 1S CL Reader PICC 0";
-    //private const string PreferredPiccReader = "ACR1552 1S CL Reader PICC";
 
     public NfcStatusResult GetStatus()
     {
@@ -141,34 +140,49 @@ public sealed class NfcReaderService
         var states = new[] { readerState };
 
         var status = context.GetStatusChange(IntPtr.Zero, states);
-        if (status == SCardError.Success && IsPresent(readerState.EventState))
+        if (status != SCardError.Success)
+        {
+            error = "Unable to read NFC reader status (" + status + ").";
+            return false;
+        }
+
+        if (IsPresent(readerState.EventState))
         {
             error = string.Empty;
             return true;
         }
 
-        readerState.CurrentState = readerState.EventState;
-        status = context.GetStatusChange((IntPtr)(timeoutSeconds * 1000), states);
-        if (status == SCardError.Timeout)
+        var deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds);
+        while (DateTime.UtcNow < deadline)
         {
-            error = "Waiting for card timed out.";
-            return false;
+            var remainingMs = (int)Math.Ceiling((deadline - DateTime.UtcNow).TotalMilliseconds);
+            if (remainingMs <= 0)
+            {
+                break;
+            }
+
+            readerState.CurrentState = readerState.EventState;
+            status = context.GetStatusChange((IntPtr)remainingMs, states);
+            if (status == SCardError.Timeout)
+            {
+                break;
+            }
+
+            if (status != SCardError.Success)
+            {
+                error = "Unable to wait for an NFC card (" + status + ").";
+                return false;
+            }
+
+            if (IsPresent(readerState.EventState))
+            {
+                error = string.Empty;
+                return true;
+            }
         }
 
-        if (status != SCardError.Success)
-        {
-            error = "Unable to wait for an NFC card (" + status + ").";
-            return false;
-        }
-
-        if (!IsPresent(readerState.EventState))
-        {
-            error = "Waiting for card timed out.";
-            return false;
-        }
-
-        error = string.Empty;
-        return true;
+        error = "Waiting for card timed out.";
+        return false;
     }
 
     private static bool TryReadUid(ISCardContext context, string readerName, out byte[] uid, out string error)
