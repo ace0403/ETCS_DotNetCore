@@ -27,6 +27,7 @@ using ETCS.Shared.Infrastructure.Admin.Reports.StudentConsumption;
 using ETCS.Shared.Infrastructure.Admin.Reports.TerminalSalesSummary;
 using ETCS.Shared.Infrastructure.Admin.Master.Staff;
 using ETCS.Shared.Infrastructure.Admin.Master.Students;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Infrastructure.Transaction;
@@ -46,6 +47,7 @@ builder.Services.ConfigureMediaOptions(builder.Configuration, AdminOptions.Secti
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<IDbConnectionFactory, SqlConnectionFactory>();
 builder.Services.AddSingleton<IMealDbConnectionFactory, SqlMealConnectionFactory>();
+builder.Services.AddAuditLog();
 
 builder.Services.AddScoped<IAdminLoginRepository, AdminLoginRepository>();
 builder.Services.AddScoped<IStaffLoginAssignmentRepository, StaffLoginAssignmentRepository>();
@@ -111,6 +113,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddControllersWithViews(options =>
     {
         options.Filters.Add<AdminPermissionAuthorizationFilter>();
+        options.Filters.Add<AuditMutationFilter>();
     })
     .AddJsonOptions(options =>
     {
@@ -151,6 +154,7 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
+app.UseAuditContext(AuditSourceApps.Admin, AuditActorTypes.LoginAccount);
 app.UseAuthorization();
 
 app.MapStaticAssets();

@@ -111,7 +111,8 @@ USING (
         (N'Report.MealOrderPaymentsMealDb', N'Meal Order Payment Report (NEW)', N'Reports', N'Report',     N'MealOrderPaymentsMealDb', 155),
         (N'Report.MealOrders',           N'Meal Order Report (OLD)',    N'Reports',   N'Report',            N'MealOrders',           160),
         (N'Report.MealOrderPayments',    N'Meal Order Payment Report (OLD)', N'Reports', N'Report',        N'MealOrderPayments',    165),
-        (N'Role',                        N'Manage Roles',               N'Settings',  N'Role',              N'Index',                170)
+        (N'Role',                        N'Manage Roles',               N'Settings',  N'Role',              N'Index',                170),
+        (N'AuditLog',                    N'Audit Log',                  N'Settings',  N'AuditLog',          N'Index',                180)
 ) AS s (ModuleKey, DisplayName, GroupName, ControllerName, ActionName, SortOrder)
 ON t.ModuleKey = s.ModuleKey
 WHEN MATCHED THEN

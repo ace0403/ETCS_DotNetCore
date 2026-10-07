@@ -1,6 +1,7 @@
 using ETCS.Shared.Application.Orders;
 using ETCS.Shared.Application.Topup;
 using ETCS.Shared.Enumeration;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Transaction;
 using ETCS.Shared.Options;
@@ -21,23 +22,29 @@ public sealed class PendingPaymentReconcileService : IPendingPaymentReconcileSer
     private readonly IOrderPaymentCompleteService _orderPaymentCompleteService;
     private readonly PendingPaymentReconcileOptions _options;
     private readonly ILogger<PendingPaymentReconcileService> _logger;
+    private readonly IAuditLogWriter _auditLogWriter;
 
     public PendingPaymentReconcileService(
         ITransactionRepository transactionRepository,
         ITopupPaymentCompleteService topupPaymentCompleteService,
         IOrderPaymentCompleteService orderPaymentCompleteService,
         IOptions<PendingPaymentReconcileOptions> options,
-        ILogger<PendingPaymentReconcileService> logger)
+        ILogger<PendingPaymentReconcileService> logger,
+        IAuditLogWriter auditLogWriter)
     {
         _transactionRepository = transactionRepository;
         _topupPaymentCompleteService = topupPaymentCompleteService;
         _orderPaymentCompleteService = orderPaymentCompleteService;
         _options = options.Value;
         _logger = logger;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task ProcessBatchAsync(CancellationToken cancellationToken)
     {
+        using var systemScope = AuditAmbientContext.Current is null
+            ? AuditAmbientContext.Begin(AuditRequestScope.ForSystem())
+            : null;
         var lookbackHours = Math.Max(1, _options.LookbackHours);
         var maxAttempts = Math.Max(1, _options.MaxAttempts);
         var batchSize = Math.Max(1, _options.BatchSize);
@@ -73,6 +80,16 @@ public sealed class PendingPaymentReconcileService : IPendingPaymentReconcileSer
                     item.Kind,
                     item.OrderId,
                     item.TransactionPkId);
+
+                await _auditLogWriter.WriteOutcomeAsync(
+                    AuditActions.PaymentReconcile,
+                    item.Kind.ToString(),
+                    item.OrderId,
+                    false,
+                    ex.Message,
+                    null,
+                    new { item.TransactionPkId, item.Kind, item.OrderId },
+                    cancellationToken);
 
                 try
                 {

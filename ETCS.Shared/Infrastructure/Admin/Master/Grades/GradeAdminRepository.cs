@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Dapper;
 using ETCS.Shared.Infrastructure.Admin.Models;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 
 using static ETCS.Shared.Infrastructure.Admin.DataTablePagingHelper;
@@ -10,10 +11,12 @@ namespace ETCS.Shared.Infrastructure.Admin.Master.Grades;
 public sealed class GradeAdminRepository : IGradeAdminRepository
 {
     private readonly IDbConnectionFactory _connectionFactory;
+    private readonly IAuditLogWriter _auditLogWriter;
 
-    public GradeAdminRepository(IDbConnectionFactory connectionFactory)
+    public GradeAdminRepository(IDbConnectionFactory connectionFactory, IAuditLogWriter auditLogWriter)
     {
         _connectionFactory = connectionFactory;
+        _auditLogWriter = auditLogWriter;
     }
 
     private const string SelectSql = """
@@ -91,6 +94,7 @@ public sealed class GradeAdminRepository : IGradeAdminRepository
 
         if (request.Id > 0)
         {
+            var before = await GetAsync(request.Id, cancellationToken);
             var rows = await dbConnection.ExecuteAsync(
                 new CommandDefinition(
                     """
@@ -105,9 +109,16 @@ public sealed class GradeAdminRepository : IGradeAdminRepository
                     },
                     cancellationToken: cancellationToken));
 
-            return rows > 0
-                ? AdminOperationResult.Ok("Grade updated successfully.")
-                : AdminOperationResult.Fail("Grade was not updated.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Grade",
+                AuditActions.Update,
+                request.Id.ToString(),
+                rows > 0
+                    ? AdminOperationResult.Ok("Grade updated successfully.")
+                    : AdminOperationResult.Fail("Grade was not updated."),
+                before,
+                request,
+                cancellationToken);
         }
 
         var inserted = await dbConnection.ExecuteAsync(
@@ -119,9 +130,16 @@ public sealed class GradeAdminRepository : IGradeAdminRepository
                 new { Grade = grade },
                 cancellationToken: cancellationToken));
 
-        return inserted > 0
-            ? AdminOperationResult.Ok("Grade added successfully.")
-            : AdminOperationResult.Fail("Grade was not added.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "Grade",
+            AuditActions.Create,
+            null,
+            inserted > 0
+                ? AdminOperationResult.Ok("Grade added successfully.")
+                : AdminOperationResult.Fail("Grade was not added."),
+            null,
+            request,
+            cancellationToken);
     }
 
     public async Task<AdminOperationResult> DeleteAsync(int id, CancellationToken cancellationToken = default)
@@ -131,6 +149,7 @@ public sealed class GradeAdminRepository : IGradeAdminRepository
             return AdminOperationResult.Fail("Id is required.");
         }
 
+        var before = await GetAsync(id, cancellationToken);
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
@@ -143,13 +162,27 @@ public sealed class GradeAdminRepository : IGradeAdminRepository
                     new { Id = id },
                     cancellationToken: cancellationToken));
 
-            return rows > 0
-                ? AdminOperationResult.Ok("Record deleted successfully.")
-                : AdminOperationResult.Fail("Record was not deleted.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Grade",
+                AuditActions.Delete,
+                id.ToString(),
+                rows > 0
+                    ? AdminOperationResult.Ok("Record deleted successfully.")
+                    : AdminOperationResult.Fail("Record was not deleted."),
+                before,
+                null,
+                cancellationToken);
         }
         catch
         {
-            return AdminOperationResult.Fail("Record could not be deleted. It may be in use.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Grade",
+                AuditActions.Delete,
+                id.ToString(),
+                AdminOperationResult.Fail("Record could not be deleted. It may be in use."),
+                before,
+                null,
+                cancellationToken);
         }
     }
 

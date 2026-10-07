@@ -2,6 +2,7 @@ using ETCS.Admin.Infrastructure.Auth;
 using ETCS.Shared.Helpers;
 using ETCS.Shared.Infrastructure.Admin.Auth;
 using ETCS.Shared.Infrastructure.Admin.Models.Requests;
+using ETCS.Shared.Infrastructure.Audit;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -16,13 +17,16 @@ public class HomeController : Controller
 
     private readonly IAdminLoginRepository _adminLoginRepository;
     private readonly IAdminNavigationService _navigationService;
+    private readonly IAuditLogWriter _auditLogWriter;
 
     public HomeController(
         IAdminLoginRepository adminLoginRepository,
-        IAdminNavigationService navigationService)
+        IAdminNavigationService navigationService,
+        IAuditLogWriter auditLogWriter)
     {
         _adminLoginRepository = adminLoginRepository;
         _navigationService = navigationService;
+        _auditLogWriter = auditLogWriter;
     }
 
     [AllowAnonymous]
@@ -64,12 +68,14 @@ public class HomeController : Controller
         var account = await _adminLoginRepository.GetByLoginNameAsync(model.Username, cancellationToken);
         if (account is null)
         {
+            await RecordLoginFailureAsync(model.Username, cancellationToken);
             return RedirectToAction(nameof(Index), new { msg = "login-failed" });
         }
 
         var hashed = SecurityHelper.GetMd5Hash(model.Password);
         if (!PasswordMatches(account.StoredPasswordHash, hashed, model.Password))
         {
+            await RecordLoginFailureAsync(model.Username, cancellationToken);
             return RedirectToAction(nameof(Index), new { msg = "login-failed" });
         }
 
@@ -114,6 +120,7 @@ public class HomeController : Controller
             cancellationToken);
         if (account is null || account.Id != pendingId || account.ActiveRoleId <= 0)
         {
+            await RecordLoginFailureAsync(pendingUsername, cancellationToken);
             return RedirectToAction(nameof(Index), new { msg = "login-failed" });
         }
 
@@ -125,6 +132,14 @@ public class HomeController : Controller
     [Authorize]
     public async Task<IActionResult> Logout()
     {
+        await _auditLogWriter.WriteOutcomeAsync(
+            AuditActions.Logout,
+            "LoginAccount",
+            null,
+            true,
+            "Signed out.",
+            null,
+            null);
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToAction(nameof(Index), new { msg = "logout-success" });
     }
@@ -182,6 +197,20 @@ public class HomeController : Controller
         }
 
         var principal = AdminClaimsFactory.CreatePrincipal(account);
+        var displayName = $"{account.FirstName} {account.LastName}".Trim();
+        await _auditLogWriter.WriteOutcomeAsync(
+            AuditActions.Login,
+            "LoginAccount",
+            account.Id.ToString(),
+            true,
+            "Signed in.",
+            null,
+            new { account.Username, account.RoleName },
+            cancellationToken,
+            AuditActorTypes.LoginAccount,
+            account.Id,
+            string.IsNullOrWhiteSpace(displayName) ? account.Username : displayName,
+            overrideActor: true);
         await HttpContext.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
             principal,
@@ -203,4 +232,19 @@ public class HomeController : Controller
     private static bool PasswordMatches(string stored, string md5Hash, string plainPassword) =>
         string.Equals(stored, md5Hash, StringComparison.OrdinalIgnoreCase)
         || string.Equals(stored, plainPassword, StringComparison.Ordinal);
+
+    private Task RecordLoginFailureAsync(string? username, CancellationToken cancellationToken) =>
+        _auditLogWriter.WriteOutcomeAsync(
+            AuditActions.LoginFailed,
+            "LoginAccount",
+            null,
+            false,
+            "Invalid login.",
+            null,
+            new { Username = username },
+            cancellationToken,
+            AuditActorTypes.Anonymous,
+            null,
+            username,
+            overrideActor: true);
 }

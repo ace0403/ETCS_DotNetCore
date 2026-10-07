@@ -4,6 +4,7 @@ using ETCS.Shared.Enumeration;
 using ETCS.Shared.Helpers;
 using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Pos;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Infrastructure.Transaction;
 
@@ -19,15 +20,18 @@ public sealed class ManualTopupService : IManualTopupService
     private readonly IStudentRepository _studentRepository;
     private readonly ITransactionRepository _transactionRepository;
     private readonly IMainOrderRepository _mainOrderRepository;
+    private readonly IAuditLogWriter _auditLogWriter;
 
     public ManualTopupService(
         IStudentRepository studentRepository,
         ITransactionRepository transactionRepository,
-        IMainOrderRepository mainOrderRepository)
+        IMainOrderRepository mainOrderRepository,
+        IAuditLogWriter auditLogWriter)
     {
         _studentRepository = studentRepository;
         _transactionRepository = transactionRepository;
         _mainOrderRepository = mainOrderRepository;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<PosCardCheckResponse> CheckCardAsync(
@@ -71,6 +75,23 @@ public sealed class ManualTopupService : IManualTopupService
     }
 
     public async Task<PosManualTopupResponse> ProcessAsync(
+        PosManualTopupRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await ProcessCoreAsync(request, cancellationToken);
+        await _auditLogWriter.WriteOutcomeAsync(
+            AuditActions.ManualTopup,
+            "Topup",
+            string.IsNullOrWhiteSpace(response.OrderId) ? null : response.OrderId,
+            response.IsSuccess,
+            response.Message,
+            null,
+            new { request.CardNumber, request.Amount, response.OrderId, response.CustomerId, response.Balance },
+            cancellationToken);
+        return response;
+    }
+
+    private async Task<PosManualTopupResponse> ProcessCoreAsync(
         PosManualTopupRequest request,
         CancellationToken cancellationToken)
     {

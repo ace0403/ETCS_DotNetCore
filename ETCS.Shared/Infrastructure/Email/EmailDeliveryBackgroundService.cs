@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Mail;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -72,6 +73,7 @@ public sealed class EmailDeliveryBackgroundService : BackgroundService
     {
         using var scope = _serviceProvider.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<IEmailNotificationRepository>();
+        var auditLogWriter = scope.ServiceProvider.GetRequiredService<IAuditLogWriter>();
         var smtpSettings = await repository.GetSmtpSettingsAsync(cancellationToken);
 
         if (!IsSmtpConfigured(smtpSettings))
@@ -127,6 +129,7 @@ public sealed class EmailDeliveryBackgroundService : BackgroundService
             {
                 await SendAsync(smtpSettings, item.ToEmail, item.Subject, item.BodyHtml, cancellationToken);
                 await TryMarkStatusAsync(repository, item.Id, "Sent", null, cancellationToken);
+                await RecordEmailOutcomeAsync(auditLogWriter, item, true, null, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -138,8 +141,30 @@ public sealed class EmailDeliveryBackgroundService : BackgroundService
                 var message = ex.Message.Length > 2000 ? ex.Message[..2000] : ex.Message;
                 _logger.LogWarning(ex, "Failed to send email notification {Id} to {ToEmail}.", item.Id, item.ToEmail);
                 await TryMarkStatusAsync(repository, item.Id, "Failed", message, cancellationToken);
+                await RecordEmailOutcomeAsync(auditLogWriter, item, false, message, cancellationToken);
             }
         }
+    }
+
+    private static async Task RecordEmailOutcomeAsync(
+        IAuditLogWriter auditLogWriter,
+        PendingEmailNotificationDto item,
+        bool sent,
+        string? errorMessage,
+        CancellationToken cancellationToken)
+    {
+        using var systemScope = AuditAmbientContext.Current is null
+            ? AuditAmbientContext.Begin(AuditRequestScope.ForSystem())
+            : null;
+        await auditLogWriter.WriteOutcomeAsync(
+            AuditActions.EmailSend,
+            "EmailNotification",
+            item.Id.ToString(),
+            sent,
+            sent ? "Email sent." : errorMessage,
+            null,
+            new { item.Id, item.ToEmail, item.Subject },
+            cancellationToken);
     }
 
     private async Task TryMarkStatusAsync(

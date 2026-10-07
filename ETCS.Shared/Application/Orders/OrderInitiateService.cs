@@ -4,6 +4,7 @@ using ETCS.Shared.Application.Background;
 using ETCS.Shared.Application.Students;
 using ETCS.Shared.Enumeration;
 using ETCS.Shared.Helpers;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Schools.Calendar;
 using ETCS.Shared.Infrastructure.Students;
@@ -23,6 +24,7 @@ public sealed class OrderInitiateService : IOrderInitiateService
     private readonly IStudentOrderTypeAccessService _orderTypeAccess;
     private readonly ISchoolCalendarService _schoolCalendar;
     private readonly OrderAllergenConsentEnricher _allergenConsentEnricher;
+    private readonly IAuditLogWriter _auditLogWriter;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -37,7 +39,8 @@ public sealed class OrderInitiateService : IOrderInitiateService
         IPaymentBackgroundQueue paymentBackgroundQueue,
         IStudentOrderTypeAccessService orderTypeAccess,
         ISchoolCalendarService schoolCalendar,
-        OrderAllergenConsentEnricher allergenConsentEnricher)
+        OrderAllergenConsentEnricher allergenConsentEnricher,
+        IAuditLogWriter auditLogWriter)
     {
         _mealOrderRepository = mealOrderRepository;
         _studentRepository = studentRepository;
@@ -47,9 +50,33 @@ public sealed class OrderInitiateService : IOrderInitiateService
         _orderTypeAccess = orderTypeAccess;
         _schoolCalendar = schoolCalendar;
         _allergenConsentEnricher = allergenConsentEnricher;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<OrderInitiateResponse> InitiateAsync(OrderInitiateRequest request, CancellationToken cancellationToken)
+    {
+        var response = await InitiateCoreAsync(request, cancellationToken);
+        await _auditLogWriter.WriteOutcomeAsync(
+            AuditActions.OrderInitiate,
+            "Order",
+            string.IsNullOrWhiteSpace(response.OrderId) ? null : response.OrderId,
+            response.IsSuccess,
+            response.Message,
+            null,
+            new
+            {
+                request.StudentId,
+                request.GuardianId,
+                request.OrderTypeId,
+                request.Total,
+                response.OrderId,
+                response.MealTransactionId
+            },
+            cancellationToken);
+        return response;
+    }
+
+    private async Task<OrderInitiateResponse> InitiateCoreAsync(OrderInitiateRequest request, CancellationToken cancellationToken)
     {
         if (!await _orderTypeAccess.IsAllowedAsync(request.StudentId, request.OrderTypeId, cancellationToken))
         {

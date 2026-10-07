@@ -1022,6 +1022,40 @@ div.dt-search {
     margin-bottom: 1rem;
 }
 
+.audit-log-filters .row + .row {
+    margin-top: 0.5rem;
+}
+
+.audit-log-filters .form-label {
+    margin-bottom: 0.25rem;
+}
+
+#audit_table td.audit-message {
+    max-width: 280px;
+}
+
+.audit-message-text {
+    display: inline-block;
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+}
+
+.audit-value-table > tbody > tr > td,
+.audit-value-table > thead > tr > th {
+    vertical-align: top;
+}
+
+.audit-value-table tr.audit-value-changed > td {
+    background-color: #fff6dd;
+}
+
+.audit-nested-table {
+    background: #fff;
+}
+
 .admin-grid-toolbar {
     display: flex;
     flex-wrap: wrap;

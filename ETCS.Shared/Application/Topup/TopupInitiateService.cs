@@ -4,6 +4,7 @@ using ETCS.Shared.Application.Background;
 using ETCS.Shared.Application.Students;
 using ETCS.Shared.Enumeration;
 using ETCS.Shared.Helpers;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Infrastructure.Transaction;
 using System.Globalization;
@@ -23,22 +24,42 @@ public sealed class TopupInitiateService : ITopupInitiateService
     private readonly IPaymentGatewayRepository _paymentGatewayRepository;
     private readonly IPaymentBackgroundQueue _paymentBackgroundQueue;
     private readonly IStudentOrderTypeAccessService _orderTypeAccess;
+    private readonly IAuditLogWriter _auditLogWriter;
 
     public TopupInitiateService(
         IStudentRepository studentRepository,
         ITransactionRepository transactionRepository,
         IPaymentGatewayRepository paymentGatewayRepository,
         IPaymentBackgroundQueue paymentBackgroundQueue,
-        IStudentOrderTypeAccessService orderTypeAccess)
+        IStudentOrderTypeAccessService orderTypeAccess,
+        IAuditLogWriter auditLogWriter)
     {
         _studentRepository = studentRepository;
         _transactionRepository = transactionRepository;
         _paymentGatewayRepository = paymentGatewayRepository;
         _paymentBackgroundQueue = paymentBackgroundQueue;
         _orderTypeAccess = orderTypeAccess;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<TopupInitiateResponse> InitiateAsync(
+        TopupInitiateRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await InitiateCoreAsync(request, cancellationToken);
+        await _auditLogWriter.WriteOutcomeAsync(
+            AuditActions.TopupInitiate,
+            "Topup",
+            string.IsNullOrWhiteSpace(response.OrderId) ? null : response.OrderId,
+            response.IsSuccess,
+            response.Message,
+            null,
+            new { request.GuardianId, request.StudentId, request.Amount, response.OrderId },
+            cancellationToken);
+        return response;
+    }
+
+    private async Task<TopupInitiateResponse> InitiateCoreAsync(
         TopupInitiateRequest request,
         CancellationToken cancellationToken)
     {

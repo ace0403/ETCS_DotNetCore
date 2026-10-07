@@ -7,6 +7,7 @@ using ETCS.Shared.Application.Email;
 using ETCS.Shared.Auth;
 using ETCS.Shared.Helpers;
 using ETCS.Shared.Infrastructure.Auth;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Auth.Models;
 using ETCS.Shared.Options;
 using Asp.Versioning;
@@ -32,6 +33,7 @@ public sealed class AuthController : ControllerBase
     private readonly IDeleteAccountOtpService _deleteAccountOtpService;
     private readonly IGuardianEmailNotificationService _emailNotificationService;
     private readonly ILogger<AuthController> _logger;
+    private readonly IAuditLogWriter _auditLogWriter;
 
     public AuthController(
         IOptions<JwtOptions> jwtOptions,
@@ -41,7 +43,8 @@ public sealed class AuthController : ControllerBase
         IRegistrationOtpService registrationOtpService,
         IDeleteAccountOtpService deleteAccountOtpService,
         IGuardianEmailNotificationService emailNotificationService,
-        ILogger<AuthController> logger)
+        ILogger<AuthController> logger,
+        IAuditLogWriter auditLogWriter)
     {
         _jwtOptions = jwtOptions.Value;
         _parentPortalOptions = parentPortalOptions.Value;
@@ -51,6 +54,7 @@ public sealed class AuthController : ControllerBase
         _deleteAccountOtpService = deleteAccountOtpService;
         _emailNotificationService = emailNotificationService;
         _logger = logger;
+        _auditLogWriter = auditLogWriter;
     }
 
     [EnableRateLimiting("AuthPolicy")]
@@ -183,22 +187,26 @@ public sealed class AuthController : ControllerBase
         var loginRow = await _parentLoginRepository.GetLoginAsync(loginName, cancellationToken);
         if (!loginRow.SpIndicatesSuccess)
         {
+            await RecordLoginFailureAsync(loginName, cancellationToken);
             return Unauthorized(new { message = "Invalid login." });
         }
 
         if (string.IsNullOrEmpty(loginRow.StoredPasswordOrHash))
         {
+            await RecordLoginFailureAsync(loginName, cancellationToken);
             return Unauthorized(new { message = "Invalid login." });
         }
 
         var hashedInput = SecurityHelper.GetMd5Hash(request.Password);
         if (!string.Equals(hashedInput, loginRow.StoredPasswordOrHash, StringComparison.OrdinalIgnoreCase))
         {
+            await RecordLoginFailureAsync(loginName, cancellationToken);
             return Unauthorized(new { message = "Invalid login." });
         }
 
         if (await _parentLoginRepository.IsAccountDeletedAsync(loginRow.id, cancellationToken))
         {
+            await RecordLoginFailureAsync(loginName, cancellationToken);
             return Unauthorized(new { message = "This account has been deleted." });
         }
 
@@ -212,6 +220,20 @@ public sealed class AuthController : ControllerBase
             Username = loginName,
             ExpiresAtUtc = refreshExpiresAtUtc
         }, cancellationToken);
+
+        await _auditLogWriter.WriteOutcomeAsync(
+            AuditActions.Login,
+            "Guardian",
+            loginRow.id.ToString(),
+            true,
+            "Signed in.",
+            null,
+            new { Username = loginName },
+            cancellationToken,
+            AuditActorTypes.Guardian,
+            loginRow.id,
+            loginName,
+            overrideActor: true);
 
         return Ok(new AuthTokenResponse(accessToken, "Bearer", expiresAtUtc, refreshToken, refreshExpiresAtUtc, loginRow.User));
     }
@@ -252,7 +274,21 @@ public sealed class AuthController : ControllerBase
     [HttpPost("revoke")]
     public async Task<IActionResult> RevokeToken([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
     {
+        var record = await _refreshTokenStore.GetAsync(request.RefreshToken, cancellationToken);
         await _refreshTokenStore.RevokeAsync(request.RefreshToken, cancellationToken);
+        await _auditLogWriter.WriteOutcomeAsync(
+            AuditActions.Logout,
+            "Guardian",
+            record?.Id.ToString(),
+            record is not null,
+            record is null ? "Refresh token was not active." : "Signed out.",
+            null,
+            null,
+            cancellationToken,
+            record is null ? AuditActorTypes.Anonymous : AuditActorTypes.Guardian,
+            record?.Id,
+            record?.Username,
+            overrideActor: true);
         return Ok(new { message = "Refresh token revoked." });
     }
 
@@ -353,4 +389,19 @@ public sealed class AuthController : ControllerBase
     {
         return Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
     }
+
+    private Task RecordLoginFailureAsync(string username, CancellationToken cancellationToken) =>
+        _auditLogWriter.WriteOutcomeAsync(
+            AuditActions.LoginFailed,
+            "Guardian",
+            null,
+            false,
+            "Invalid login.",
+            null,
+            new { Username = username },
+            cancellationToken,
+            AuditActorTypes.Anonymous,
+            null,
+            username,
+            overrideActor: true);
 }

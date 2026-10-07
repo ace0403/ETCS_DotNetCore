@@ -4,6 +4,7 @@ using ETCS.Shared.Application.Students;
 using ETCS.Shared.Helpers;
 using ETCS.Shared.Infrastructure.Admin.Models;
 using ETCS.Shared.Infrastructure.Admin.Master.Schools;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 using ETCS.Shared.Infrastructure.Students;
 
@@ -87,23 +88,29 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
         """;
 
     private readonly IDbConnectionFactory _connectionFactory;
+    private readonly IMealDbConnectionFactory _mealConnectionFactory;
     private readonly IStudentRepository _studentRepository;
     private readonly IStudentAllergyAdminRepository _allergyRepository;
     private readonly IStudentOrderTypeAdminRepository _orderTypeRepository;
     private readonly ISchoolOrderTypeAdminRepository _schoolOrderTypeRepository;
+    private readonly IAuditLogWriter _auditLogWriter;
 
     public StudentAdminRepository(
         IDbConnectionFactory connectionFactory,
+        IMealDbConnectionFactory mealConnectionFactory,
         IStudentRepository studentRepository,
         IStudentAllergyAdminRepository allergyRepository,
         IStudentOrderTypeAdminRepository orderTypeRepository,
-        ISchoolOrderTypeAdminRepository schoolOrderTypeRepository)
+        ISchoolOrderTypeAdminRepository schoolOrderTypeRepository,
+        IAuditLogWriter auditLogWriter)
     {
         _connectionFactory = connectionFactory;
+        _mealConnectionFactory = mealConnectionFactory;
         _studentRepository = studentRepository;
         _allergyRepository = allergyRepository;
         _orderTypeRepository = orderTypeRepository;
         _schoolOrderTypeRepository = schoolOrderTypeRepository;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<DataTableResponse<StudentAdminListItemDto>> GetDataAsync(
@@ -286,6 +293,8 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
             if (await StudentCardNumber.IsTakenAsync(dbConnection, studCode, request.UserId, cancellationToken))
                 return AdminOperationResult.Fail(StudentCardNumber.DuplicateMessage);
 
+            var before = await GetAsync(request.UserId, cancellationToken);
+            var entityId = request.UserId.ToString(System.Globalization.CultureInfo.InvariantCulture);
             var oldCustomerId = linkedStudent.CustomerId;
             var blackList = request.IsActive ? 0 : 1;
 
@@ -337,7 +346,14 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
                 if (rows <= 0)
                 {
                     await transaction.RollbackAsync(cancellationToken);
-                    return AdminOperationResult.Fail("Student was not updated.");
+                    return await _auditLogWriter.RecordAdminAsync(
+                        "Student",
+                        AuditActions.Update,
+                        entityId,
+                        AdminOperationResult.Fail("Student was not updated."),
+                        await SnapshotAsync(before, cancellationToken),
+                        await SnapshotAsync(request, cancellationToken),
+                        cancellationToken);
                 }
 
                 await StudentIdMemberCustomerIdSync.UpdateCustomerIdAsync(
@@ -414,7 +430,14 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
 
             await _allergyRepository.SaveAllergiesAsync(request.UserId, request.AllergyItemIds ?? [], cancellationToken);
             await _orderTypeRepository.SaveOrderTypesAsync(request.UserId, request.OrderTypeIds ?? [], cancellationToken);
-            return AdminOperationResult.Ok("Student updated successfully.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Student",
+                AuditActions.Update,
+                entityId,
+                AdminOperationResult.Ok("Student updated successfully."),
+                await SnapshotAsync(before, cancellationToken),
+                await SnapshotAsync(request, cancellationToken),
+                cancellationToken);
         }
 
         if (await StudentCardNumber.IsTakenAsync(dbConnection, studCode, excludeUserId: null, cancellationToken))
@@ -427,7 +450,14 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
         }
         catch (Exception ex)
         {
-            return AdminOperationResult.Fail(StudentCardNumber.MessageOrDuplicate(ex));
+            return await _auditLogWriter.RecordAdminAsync(
+                "Student",
+                AuditActions.Create,
+                null,
+                AdminOperationResult.Fail(StudentCardNumber.MessageOrDuplicate(ex)),
+                null,
+                await SnapshotAsync(request, cancellationToken),
+                cancellationToken);
         }
 
         var userId = await dbConnection.ExecuteScalarAsync<decimal?>(
@@ -442,7 +472,16 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
                 new { StudCode = studCode },
                 cancellationToken: cancellationToken));
         if (!userId.HasValue)
-            return AdminOperationResult.Fail("Student was created but could not be loaded.");
+        {
+            return await _auditLogWriter.RecordAdminAsync(
+                "Student",
+                AuditActions.Create,
+                null,
+                AdminOperationResult.Fail("Student was created but could not be loaded."),
+                null,
+                await SnapshotAsync(request, cancellationToken),
+                cancellationToken);
+        }
 
         await dbConnection.ExecuteAsync(
             new CommandDefinition(
@@ -495,12 +534,22 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
             }
         }
 
-        return AdminOperationResult.Ok("Student added successfully.");
+        var createdId = userId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return await _auditLogWriter.RecordAdminAsync(
+            "Student",
+            AuditActions.Create,
+            createdId,
+            AdminOperationResult.Ok("Student added successfully."),
+            null,
+            await SnapshotAsync(request, cancellationToken),
+            cancellationToken);
     }
 
     public async Task<AdminOperationResult> DeleteAsync(decimal userId, CancellationToken cancellationToken = default)
     {
         if (userId <= 0) return AdminOperationResult.Fail("Id is required.");
+        var before = await GetAsync(userId, cancellationToken);
+        var entityId = userId.ToString(System.Globalization.CultureInfo.InvariantCulture);
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
@@ -513,15 +562,32 @@ public sealed class StudentAdminRepository : IStudentAdminRepository
                     "DELETE FROM StudentLogin WHERE UserId = @UserId;",
                     new { UserId = userId },
                     cancellationToken: cancellationToken));
-            return rows > 0
-                ? AdminOperationResult.Ok("Record deleted successfully.")
-                : AdminOperationResult.Fail("Record was not deleted.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Student",
+                AuditActions.Delete,
+                entityId,
+                rows > 0
+                    ? AdminOperationResult.Ok("Record deleted successfully.")
+                    : AdminOperationResult.Fail("Record was not deleted."),
+                await SnapshotAsync(before, cancellationToken),
+                null,
+                cancellationToken);
         }
         catch
         {
-            return AdminOperationResult.Fail("Record could not be deleted. It may be in use.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Student",
+                AuditActions.Delete,
+                entityId,
+                AdminOperationResult.Fail("Record could not be deleted. It may be in use."),
+                await SnapshotAsync(before, cancellationToken),
+                null,
+                cancellationToken);
         }
     }
+
+    private Task<StudentAuditValues?> SnapshotAsync(StudentAdminSaveRequest? request, CancellationToken cancellationToken) =>
+        StudentAuditSnapshot.CaptureAsync(_connectionFactory, _mealConnectionFactory, request, cancellationToken);
 
     private static UpsertStudentRequest BuildUpsertRequest(
         StudentAdminSaveRequest request,

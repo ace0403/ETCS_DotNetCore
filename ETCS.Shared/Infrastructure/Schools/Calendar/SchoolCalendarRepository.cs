@@ -3,6 +3,7 @@ using System.Data.Common;
 using Dapper;
 using ETCS.Shared.Enumeration;
 using ETCS.Shared.Infrastructure.Admin.Models;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 
 using static ETCS.Shared.Infrastructure.Admin.DataTablePagingHelper;
@@ -24,10 +25,12 @@ public sealed class SchoolCalendarRepository : ISchoolCalendarRepository
     ];
 
     private readonly IMealDbConnectionFactory _connectionFactory;
+    private readonly IAuditLogWriter _auditLogWriter;
 
-    public SchoolCalendarRepository(IMealDbConnectionFactory connectionFactory)
+    public SchoolCalendarRepository(IMealDbConnectionFactory connectionFactory, IAuditLogWriter auditLogWriter)
     {
         _connectionFactory = connectionFactory;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task EnsureWeeklyDefaultsAsync(int schoolId, CancellationToken cancellationToken = default)
@@ -137,6 +140,13 @@ public sealed class SchoolCalendarRepository : ISchoolCalendarRepository
             }
         }
 
+        const string beforeSql = """
+            SELECT DayOfWeek, DayStatus
+            FROM [SchoolWeeklySchedule]
+            WHERE SchoolId = @SchoolId
+            ORDER BY DayOfWeek;
+            """;
+
         const string sql = """
             MERGE [SchoolWeeklySchedule] AS t
             USING (VALUES
@@ -157,6 +167,12 @@ public sealed class SchoolCalendarRepository : ISchoolCalendarRepository
             """;
 
         using var connection = _connectionFactory.CreateConnection();
+        var before = (await connection.QueryAsync<SchoolWeeklyDayDto>(new CommandDefinition(
+            beforeSql,
+            new { SchoolId = schoolId },
+            commandType: CommandType.Text,
+            cancellationToken: cancellationToken))).ToList();
+
         await connection.ExecuteAsync(new CommandDefinition(
             sql,
             new
@@ -180,7 +196,14 @@ public sealed class SchoolCalendarRepository : ISchoolCalendarRepository
             commandType: CommandType.Text,
             cancellationToken: cancellationToken));
 
-        return AdminOperationResult.Ok("Weekly schedule saved.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "SchoolCalendar",
+            "SaveWeekly",
+            schoolId.ToString(),
+            AdminOperationResult.Ok("Weekly schedule saved."),
+            before,
+            days,
+            cancellationToken);
     }
 
     public async Task<IReadOnlyList<SchoolCalendarExceptionDto>> GetExceptionsAsync(
@@ -351,6 +374,7 @@ public sealed class SchoolCalendarRepository : ISchoolCalendarRepository
 
         if (request.Id > 0)
         {
+            var before = await GetExceptionByIdAsync(request.Id, cancellationToken);
             var updated = await connection.ExecuteAsync(new CommandDefinition(
                 """
                 UPDATE [SchoolCalendarExceptions]
@@ -373,9 +397,16 @@ public sealed class SchoolCalendarRepository : ISchoolCalendarRepository
                 commandType: CommandType.Text,
                 cancellationToken: cancellationToken));
 
-            return updated > 0
-                ? AdminOperationResult.Ok("Holiday saved.")
-                : AdminOperationResult.Fail("Holiday not found.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "SchoolCalendar",
+                "SaveException",
+                request.Id.ToString(),
+                updated > 0
+                    ? AdminOperationResult.Ok("Holiday saved.")
+                    : AdminOperationResult.Fail("Holiday not found."),
+                before,
+                request,
+                cancellationToken);
         }
 
         await connection.ExecuteAsync(new CommandDefinition(
@@ -396,7 +427,14 @@ public sealed class SchoolCalendarRepository : ISchoolCalendarRepository
             commandType: CommandType.Text,
             cancellationToken: cancellationToken));
 
-        return AdminOperationResult.Ok("Holiday saved.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "SchoolCalendar",
+            "SaveException",
+            null,
+            AdminOperationResult.Ok("Holiday saved."),
+            null,
+            request,
+            cancellationToken);
     }
 
     public async Task<AdminOperationResult> DeleteExceptionAsync(
@@ -408,6 +446,7 @@ public sealed class SchoolCalendarRepository : ISchoolCalendarRepository
             return AdminOperationResult.Fail("Invalid holiday.");
         }
 
+        var before = await GetExceptionByIdAsync(id, cancellationToken);
         using var connection = _connectionFactory.CreateConnection();
         var deleted = await connection.ExecuteAsync(new CommandDefinition(
             "DELETE FROM [SchoolCalendarExceptions] WHERE Id = @Id;",
@@ -415,9 +454,16 @@ public sealed class SchoolCalendarRepository : ISchoolCalendarRepository
             commandType: CommandType.Text,
             cancellationToken: cancellationToken));
 
-        return deleted > 0
-            ? AdminOperationResult.Ok("Holiday deleted.")
-            : AdminOperationResult.Fail("Holiday not found.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "SchoolCalendar",
+            AuditActions.Delete,
+            id.ToString(),
+            deleted > 0
+                ? AdminOperationResult.Ok("Holiday deleted.")
+                : AdminOperationResult.Fail("Holiday not found."),
+            before,
+            null,
+            cancellationToken);
     }
 
     public async Task<IReadOnlyList<SchoolDayInfo>> ResolveRangeAsync(

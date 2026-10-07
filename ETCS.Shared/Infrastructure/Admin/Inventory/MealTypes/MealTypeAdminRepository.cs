@@ -2,6 +2,7 @@ using System.Data.Common;
 using Dapper;
 using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
 using ETCS.Shared.Infrastructure.Admin.Models;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 
 using static ETCS.Shared.Infrastructure.Admin.DataTablePagingHelper;
@@ -13,10 +14,12 @@ public sealed class MealTypeAdminRepository : IMealTypeAdminRepository
     private const int MealTypeEnumTypeId = MealEnumTypeIds.MealType;
 
     private readonly IMealDbConnectionFactory _connectionFactory;
+    private readonly IAuditLogWriter _auditLogWriter;
 
-    public MealTypeAdminRepository(IMealDbConnectionFactory connectionFactory)
+    public MealTypeAdminRepository(IMealDbConnectionFactory connectionFactory, IAuditLogWriter auditLogWriter)
     {
         _connectionFactory = connectionFactory;
+        _auditLogWriter = auditLogWriter;
     }
 
     private const string SessionSelectSql = """
@@ -257,6 +260,8 @@ public sealed class MealTypeAdminRepository : IMealTypeAdminRepository
             return AdminOperationResult.Fail("This meal type is used by meal items or combos.");
         }
 
+        var before = await GetAsync(id, kind, cancellationToken);
+
         try
         {
             var parentFilter = isType ? "ParentId IS NOT NULL" : "ParentId IS NULL";
@@ -270,13 +275,27 @@ public sealed class MealTypeAdminRepository : IMealTypeAdminRepository
                     """,
                     new { Id = id, EnumTypeId = MealTypeEnumTypeId },
                     cancellationToken: cancellationToken));
-            return rows > 0
-                ? AdminOperationResult.Ok("Record deleted successfully.")
-                : AdminOperationResult.Fail("Record was not deleted.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "MealType",
+                AuditActions.Delete,
+                id.ToString(),
+                rows > 0
+                    ? AdminOperationResult.Ok("Record deleted successfully.")
+                    : AdminOperationResult.Fail("Record was not deleted."),
+                before,
+                null,
+                cancellationToken);
         }
         catch
         {
-            return AdminOperationResult.Fail("Record could not be deleted. It may be in use.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "MealType",
+                AuditActions.Delete,
+                id.ToString(),
+                AdminOperationResult.Fail("Record could not be deleted. It may be in use."),
+                before,
+                null,
+                cancellationToken);
         }
     }
 
@@ -347,9 +366,16 @@ public sealed class MealTypeAdminRepository : IMealTypeAdminRepository
                 cancellationToken: cancellationToken));
 
         var label = isType ? "Meal type" : "Meal session";
-        return inserted > 0
-            ? AdminOperationResult.Ok($"{label} added successfully.")
-            : AdminOperationResult.Fail($"{label} was not added.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "MealType",
+            AuditActions.Create,
+            nextId.ToString(),
+            inserted > 0
+                ? AdminOperationResult.Ok($"{label} added successfully.")
+                : AdminOperationResult.Fail($"{label} was not added."),
+            null,
+            request,
+            cancellationToken);
     }
 
     private async Task<AdminOperationResult> UpdateAsync(
@@ -364,6 +390,8 @@ public sealed class MealTypeAdminRepository : IMealTypeAdminRepository
         {
             return AdminOperationResult.Fail("Record was not found.");
         }
+
+        var before = await GetAsync(request.Id, request.Kind, cancellationToken);
 
         using var tx = await dbConnection.BeginTransactionAsync(cancellationToken);
         try
@@ -413,7 +441,14 @@ public sealed class MealTypeAdminRepository : IMealTypeAdminRepository
             {
                 await tx.RollbackAsync(cancellationToken);
                 var label = isType ? "Meal type" : "Meal session";
-                return AdminOperationResult.Fail($"{label} was not updated.");
+                return await _auditLogWriter.RecordAdminAsync(
+                    "MealType",
+                    AuditActions.Update,
+                    request.Id.ToString(),
+                    AdminOperationResult.Fail($"{label} was not updated."),
+                    before,
+                    request,
+                    cancellationToken);
             }
 
             if (isType && parentId is > 0 && previousParentId != parentId)
@@ -434,13 +469,27 @@ public sealed class MealTypeAdminRepository : IMealTypeAdminRepository
 
             await tx.CommitAsync(cancellationToken);
             var successLabel = isType ? "Meal type" : "Meal session";
-            return AdminOperationResult.Ok($"{successLabel} updated successfully.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "MealType",
+                AuditActions.Update,
+                request.Id.ToString(),
+                AdminOperationResult.Ok($"{successLabel} updated successfully."),
+                before,
+                request,
+                cancellationToken);
         }
         catch
         {
             await tx.RollbackAsync(cancellationToken);
             var label = isType ? "Meal type" : "Meal session";
-            return AdminOperationResult.Fail($"{label} was not updated.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "MealType",
+                AuditActions.Update,
+                request.Id.ToString(),
+                AdminOperationResult.Fail($"{label} was not updated."),
+                before,
+                request,
+                cancellationToken);
         }
     }
 

@@ -1,8 +1,10 @@
 using System.Data.Common;
 using Dapper;
+using ETCS.Shared.Infrastructure.Admin.Inventory;
 using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
 using ETCS.Shared.Infrastructure.Admin.Inventory.MealItems;
 using ETCS.Shared.Infrastructure.Admin.Models;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 
 using static ETCS.Shared.Infrastructure.Admin.DataTablePagingHelper;
@@ -12,14 +14,20 @@ namespace ETCS.Shared.Infrastructure.Admin.Inventory.MealCombos;
 public sealed class MealComboAdminRepository : IMealComboAdminRepository
 {
     private readonly IMealDbConnectionFactory _connectionFactory;
+    private readonly IDbConnectionFactory _schoolConnectionFactory;
     private readonly IMealEnumAdminRepository _mealEnumAdminRepository;
+    private readonly IAuditLogWriter _auditLogWriter;
 
     public MealComboAdminRepository(
         IMealDbConnectionFactory connectionFactory,
-        IMealEnumAdminRepository mealEnumAdminRepository)
+        IDbConnectionFactory schoolConnectionFactory,
+        IMealEnumAdminRepository mealEnumAdminRepository,
+        IAuditLogWriter auditLogWriter)
     {
         _connectionFactory = connectionFactory;
+        _schoolConnectionFactory = schoolConnectionFactory;
         _mealEnumAdminRepository = mealEnumAdminRepository;
+        _auditLogWriter = auditLogWriter;
     }
 
     private const string SelectSql = """
@@ -180,14 +188,17 @@ public sealed class MealComboAdminRepository : IMealComboAdminRepository
             .Where(n => n.NutritionId > 0 && n.MeasureTypeId > 0)
             .ToList() ?? [];
 
+        var before = request.Id > 0 ? await GetAsync(request.Id, cancellationToken) : null;
+        var action = request.Id > 0 ? AuditActions.Update : AuditActions.Create;
+
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
         using var tx = await dbConnection.BeginTransactionAsync(cancellationToken);
 
+        var packageId = request.Id;
         try
         {
-            int packageId = request.Id;
             if (request.Id > 0)
             {
                 await dbConnection.ExecuteAsync(
@@ -284,18 +295,33 @@ public sealed class MealComboAdminRepository : IMealComboAdminRepository
             }
 
             await tx.CommitAsync(cancellationToken);
-            return AdminOperationResult.Ok(request.Id > 0 ? "Combo updated successfully." : "Combo added successfully.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "MealCombo",
+                action,
+                packageId > 0 ? packageId.ToString() : null,
+                AdminOperationResult.Ok(request.Id > 0 ? "Combo updated successfully." : "Combo added successfully."),
+                await SnapshotComboAsync(before, cancellationToken),
+                await SnapshotComboAsync(request, cancellationToken, packageId),
+                cancellationToken);
         }
         catch
         {
             await tx.RollbackAsync(cancellationToken);
-            return AdminOperationResult.Fail("Combo could not be saved.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "MealCombo",
+                action,
+                packageId > 0 ? packageId.ToString() : null,
+                AdminOperationResult.Fail("Combo could not be saved."),
+                await SnapshotComboAsync(before, cancellationToken),
+                await SnapshotComboAsync(request, cancellationToken, packageId),
+                cancellationToken);
         }
     }
 
     public async Task<AdminOperationResult> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
         if (id <= 0) return AdminOperationResult.Fail("Id is required.");
+        var before = await GetAsync(id, cancellationToken);
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
@@ -304,8 +330,34 @@ public sealed class MealComboAdminRepository : IMealComboAdminRepository
                 "UPDATE MealPackages SET IsDeleted = 1, IsActive = 0 WHERE Id = @Id;",
                 new { Id = id },
                 cancellationToken: cancellationToken));
-        return rows > 0
-            ? AdminOperationResult.Ok("Record deleted successfully.")
-            : AdminOperationResult.Fail("Record was not deleted.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "MealCombo",
+            AuditActions.Delete,
+            id.ToString(),
+            rows > 0
+                ? AdminOperationResult.Ok("Record deleted successfully.")
+                : AdminOperationResult.Fail("Record was not deleted."),
+            await SnapshotComboAsync(before, cancellationToken),
+            null,
+            cancellationToken);
+    }
+
+    private async Task<MealComboAuditSnapshot?> SnapshotComboAsync(
+        MealComboSaveRequest? request,
+        CancellationToken cancellationToken,
+        int? idOverride = null)
+    {
+        var snapshot = await MealCatalogAuditSnapshot.ForComboAsync(
+            _connectionFactory,
+            _schoolConnectionFactory,
+            request,
+            cancellationToken);
+        if (snapshot is null || idOverride is not > 0)
+        {
+            return snapshot;
+        }
+
+        snapshot.Id = idOverride.Value;
+        return snapshot;
     }
 }

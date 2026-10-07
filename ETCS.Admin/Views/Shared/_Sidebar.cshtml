@@ -258,13 +258,26 @@
                         </a>
                     </li>
                 }
-                @if (AdminPermissionViewHelper.CanView(User, "Role"))
+                @if (AdminPermissionViewHelper.CanView(User, "Role")
+                    || AdminPermissionViewHelper.CanView(User, "AuditLog"))
                 {
                     <li class="pc-item pc-caption"><label>Settings</label></li>
-                    <li class="pc-item mb-5">
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Role"))
+                {
+                    <li class="pc-item">
                         <a asp-controller="Role" asp-action="Index" class="pc-link">
                             <span class="pc-micon"><i class="ti ti-shield-lock"></i></span>
                             <span class="pc-mtext">Manage Roles</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "AuditLog"))
+                {
+                    <li class="pc-item mb-5">
+                        <a asp-controller="AuditLog" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-history"></i></span>
+                            <span class="pc-mtext">Audit Log</span>
                         </a>
                     </li>
                 }

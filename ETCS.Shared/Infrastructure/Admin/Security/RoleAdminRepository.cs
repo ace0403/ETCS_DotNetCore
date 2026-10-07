@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Dapper;
 using ETCS.Shared.Infrastructure.Admin.Models;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 
 using static ETCS.Shared.Infrastructure.Admin.DataTablePagingHelper;
@@ -35,13 +36,16 @@ public sealed class RoleAdminRepository : IRoleAdminRepository
 
     private readonly IMealDbConnectionFactory _mealDbConnectionFactory;
     private readonly IDbConnectionFactory _connectionFactory;
+    private readonly IAuditLogWriter _auditLogWriter;
 
     public RoleAdminRepository(
         IMealDbConnectionFactory mealDbConnectionFactory,
-        IDbConnectionFactory connectionFactory)
+        IDbConnectionFactory connectionFactory,
+        IAuditLogWriter auditLogWriter)
     {
         _mealDbConnectionFactory = mealDbConnectionFactory;
         _connectionFactory = connectionFactory;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<DataTableResponse<AdminRoleListItemDto>> GetDataAsync(
@@ -237,6 +241,8 @@ public sealed class RoleAdminRepository : IRoleAdminRepository
                 return AdminOperationResult.Fail("Role not found.");
             }
 
+            var before = await GetAsync(request.RoleId, cancellationToken);
+
             if (existing.IsSuperAdmin)
             {
                 await mealDb.ExecuteAsync(
@@ -249,7 +255,14 @@ public sealed class RoleAdminRepository : IRoleAdminRepository
                         new { request.RoleId, request.IsActive },
                         cancellationToken: cancellationToken));
 
-                return AdminOperationResult.Ok("Admin role updated.");
+                return await _auditLogWriter.RecordAdminAsync(
+                    "Role",
+                    AuditActions.Update,
+                    request.RoleId.ToString(),
+                    AdminOperationResult.Ok("Admin role updated."),
+                    before,
+                    request,
+                    cancellationToken);
             }
 
             var duplicate = await mealDb.ExecuteScalarAsync<int>(
@@ -281,7 +294,14 @@ public sealed class RoleAdminRepository : IRoleAdminRepository
             await SyncRoleInfoAsync(roleName, request.RoleId, cancellationToken);
             await SavePermissionsAsync(mealDb, request.RoleId, request.Permissions, cancellationToken);
 
-            return AdminOperationResult.Ok("Role updated successfully.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Role",
+                AuditActions.Update,
+                request.RoleId.ToString(),
+                AdminOperationResult.Ok("Role updated successfully."),
+                before,
+                request,
+                cancellationToken);
         }
 
         var newRoleId = await AllocateRoleIdAsync(cancellationToken);
@@ -313,7 +333,14 @@ public sealed class RoleAdminRepository : IRoleAdminRepository
         await SyncRoleInfoAsync(roleName, newRoleId, cancellationToken);
         await SavePermissionsAsync(mealDb, newRoleId, request.Permissions, cancellationToken);
 
-        return AdminOperationResult.Ok("Role added successfully.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "Role",
+            AuditActions.Create,
+            newRoleId.ToString(),
+            AdminOperationResult.Ok("Role added successfully."),
+            null,
+            request,
+            cancellationToken);
     }
 
     public async Task<AdminOperationResult> DeleteAsync(int roleId, CancellationToken cancellationToken = default)
@@ -356,6 +383,8 @@ public sealed class RoleAdminRepository : IRoleAdminRepository
             return AdminOperationResult.Fail("Role is assigned to staff and cannot be deleted.");
         }
 
+        var before = await GetAsync(roleId, cancellationToken);
+
         await mealDb.ExecuteAsync(
             new CommandDefinition(
                 "DELETE FROM AdminRolePermission WHERE RoleId = @RoleId;",
@@ -374,7 +403,14 @@ public sealed class RoleAdminRepository : IRoleAdminRepository
                 new { RoleId = roleId },
                 cancellationToken: cancellationToken));
 
-        return AdminOperationResult.Ok("Role deleted successfully.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "Role",
+            AuditActions.Delete,
+            roleId.ToString(),
+            AdminOperationResult.Ok("Role deleted successfully."),
+            before,
+            null,
+            cancellationToken);
     }
 
     public async Task<IReadOnlyList<AdminRoleLookupDto>> RoleLookupsAsync(CancellationToken cancellationToken = default)

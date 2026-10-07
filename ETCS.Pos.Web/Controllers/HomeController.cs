@@ -7,6 +7,7 @@ using ETCS.Pos.Web.Services;
 using ETCS.Shared.Helpers;
 
 using ETCS.Shared.Infrastructure.Admin.Auth;
+using ETCS.Shared.Infrastructure.Audit;
 
 using Microsoft.AspNetCore.Authentication;
 
@@ -30,19 +31,25 @@ public sealed class HomeController : Controller
 
     private readonly IBridgeSetupFileResolver _bridgeSetupResolver;
 
+    private readonly IAuditLogWriter _auditLogWriter;
+
 
 
     public HomeController(
 
         IAdminLoginRepository loginRepository,
 
-        IBridgeSetupFileResolver bridgeSetupResolver)
+        IBridgeSetupFileResolver bridgeSetupResolver,
+
+        IAuditLogWriter auditLogWriter)
 
     {
 
         _loginRepository = loginRepository;
 
         _bridgeSetupResolver = bridgeSetupResolver;
+
+        _auditLogWriter = auditLogWriter;
 
     }
 
@@ -98,6 +105,8 @@ public sealed class HomeController : Controller
 
         {
 
+            await RecordLoginFailureAsync(model.Username, cancellationToken);
+
             return RedirectToAction(nameof(Index), new { msg = "login-failed" });
 
         }
@@ -109,6 +118,8 @@ public sealed class HomeController : Controller
         if (!PasswordMatches(account.StoredPasswordHash, hashed, model.Password))
 
         {
+
+            await RecordLoginFailureAsync(model.Username, cancellationToken);
 
             return RedirectToAction(nameof(Index), new { msg = "login-failed" });
 
@@ -123,6 +134,8 @@ public sealed class HomeController : Controller
         if (posRole is null)
 
         {
+
+            await RecordLoginFailureAsync(model.Username, cancellationToken);
 
             return RedirectToAction(nameof(Index), new { msg = "unauthorized-role" });
 
@@ -146,6 +159,8 @@ public sealed class HomeController : Controller
 
             {
 
+                await RecordLoginFailureAsync(model.Username, cancellationToken);
+
                 return RedirectToAction(nameof(Index), new { msg = "unauthorized-role" });
 
             }
@@ -155,6 +170,34 @@ public sealed class HomeController : Controller
 
 
         var principal = PosClaimsFactory.CreatePrincipal(account);
+
+        var displayName = $"{account.FirstName} {account.LastName}".Trim();
+
+        await _auditLogWriter.WriteOutcomeAsync(
+
+            AuditActions.Login,
+
+            "LoginAccount",
+
+            account.Id.ToString(),
+
+            true,
+
+            "Signed in.",
+
+            null,
+
+            new { account.Username, account.RoleName },
+
+            cancellationToken,
+
+            AuditActorTypes.LoginAccount,
+
+            account.Id,
+
+            string.IsNullOrWhiteSpace(displayName) ? account.Username : displayName,
+
+            overrideActor: true);
 
         await HttpContext.SignInAsync(
 
@@ -216,6 +259,22 @@ public sealed class HomeController : Controller
 
     {
 
+        await _auditLogWriter.WriteOutcomeAsync(
+
+            AuditActions.Logout,
+
+            "LoginAccount",
+
+            null,
+
+            true,
+
+            "Signed out.",
+
+            null,
+
+            null);
+
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
         return RedirectToAction(nameof(Index), new { msg = "logout-success" });
@@ -257,6 +316,21 @@ public sealed class HomeController : Controller
         string.Equals(stored, md5Hash, StringComparison.OrdinalIgnoreCase)
 
         || string.Equals(stored, plainPassword, StringComparison.Ordinal);
+
+    private Task RecordLoginFailureAsync(string? username, CancellationToken cancellationToken) =>
+        _auditLogWriter.WriteOutcomeAsync(
+            AuditActions.LoginFailed,
+            "LoginAccount",
+            null,
+            false,
+            "Invalid login.",
+            null,
+            new { Username = username },
+            cancellationToken,
+            AuditActorTypes.Anonymous,
+            null,
+            username,
+            overrideActor: true);
 
 }
 

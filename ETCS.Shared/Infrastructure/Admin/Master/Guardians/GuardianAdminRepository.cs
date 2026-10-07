@@ -5,6 +5,7 @@ using ETCS.Shared.Application.Students;
 using ETCS.Shared.Helpers;
 using ETCS.Shared.Infrastructure.Admin.Models;
 using ETCS.Shared.Infrastructure.Admin.Master.Schools;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Infrastructure.Admin.Master.Students;
@@ -65,23 +66,29 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
     private const int DefaultCountryId = 1;
 
     private readonly IDbConnectionFactory _connectionFactory;
+    private readonly IMealDbConnectionFactory _mealConnectionFactory;
     private readonly IStudentRepository _studentRepository;
     private readonly IStudentAllergyAdminRepository _allergyRepository;
     private readonly IStudentOrderTypeAdminRepository _orderTypeRepository;
     private readonly ISchoolOrderTypeAdminRepository _schoolOrderTypeRepository;
+    private readonly IAuditLogWriter _auditLogWriter;
 
     public GuardianAdminRepository(
         IDbConnectionFactory connectionFactory,
+        IMealDbConnectionFactory mealConnectionFactory,
         IStudentRepository studentRepository,
         IStudentAllergyAdminRepository allergyRepository,
         IStudentOrderTypeAdminRepository orderTypeRepository,
-        ISchoolOrderTypeAdminRepository schoolOrderTypeRepository)
+        ISchoolOrderTypeAdminRepository schoolOrderTypeRepository,
+        IAuditLogWriter auditLogWriter)
     {
         _connectionFactory = connectionFactory;
+        _mealConnectionFactory = mealConnectionFactory;
         _studentRepository = studentRepository;
         _allergyRepository = allergyRepository;
         _orderTypeRepository = orderTypeRepository;
         _schoolOrderTypeRepository = schoolOrderTypeRepository;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<DataTableResponse<GuardianListItemDto>> GetDataAsync(
@@ -149,6 +156,7 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
 
         if (request.Id > 0)
         {
+            var before = await GetAsync(request.Id, cancellationToken);
             const string updateSql = """
                 UPDATE GuardianInfo
                 SET FirstName = @FirstName,
@@ -179,9 +187,16 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
                         request.IsActive
                     },
                     cancellationToken: cancellationToken));
-            return rows > 0
-                ? AdminOperationResult.Ok("Parent updated successfully.")
-                : AdminOperationResult.Fail("Parent was not updated.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Guardian",
+                AuditActions.Update,
+                request.Id.ToString(),
+                rows > 0
+                    ? AdminOperationResult.Ok("Parent updated successfully.")
+                    : AdminOperationResult.Fail("Parent was not updated."),
+                before,
+                request,
+                cancellationToken);
         }
 
         const string existsSql = """
@@ -216,14 +231,22 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
                     PasswordHash = hash
                 },
                 cancellationToken: cancellationToken));
-        return inserted > 0
-            ? AdminOperationResult.Ok("Parent added successfully.")
-            : AdminOperationResult.Fail("Parent was not added.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "Guardian",
+            AuditActions.Create,
+            null,
+            inserted > 0
+                ? AdminOperationResult.Ok("Parent added successfully.")
+                : AdminOperationResult.Fail("Parent was not added."),
+            null,
+            request,
+            cancellationToken);
     }
 
     public async Task<AdminOperationResult> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
         if (id <= 0) return AdminOperationResult.Fail("Id is required.");
+        var before = await GetAsync(id, cancellationToken);
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
@@ -234,13 +257,27 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
                     "DELETE FROM GuardianInfo WHERE GrdID = @Id;",
                     new { Id = id },
                     cancellationToken: cancellationToken));
-            return rows > 0
-                ? AdminOperationResult.Ok("Record deleted successfully.")
-                : AdminOperationResult.Fail("Record was not deleted.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Guardian",
+                AuditActions.Delete,
+                id.ToString(),
+                rows > 0
+                    ? AdminOperationResult.Ok("Record deleted successfully.")
+                    : AdminOperationResult.Fail("Record was not deleted."),
+                before,
+                null,
+                cancellationToken);
         }
         catch
         {
-            return AdminOperationResult.Fail("Record could not be deleted. It may be in use.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Guardian",
+                AuditActions.Delete,
+                id.ToString(),
+                AdminOperationResult.Fail("Record could not be deleted. It may be in use."),
+                before,
+                null,
+                cancellationToken);
         }
     }
 
@@ -379,14 +416,18 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
                 cancellationToken: cancellationToken));
 
         var message = parameters.Get<string>("@Message")?.Trim();
-        if (!string.IsNullOrEmpty(message)
-            && message.Contains("successful", StringComparison.OrdinalIgnoreCase))
-        {
-            return AdminOperationResult.Ok(message);
-        }
-
-        return AdminOperationResult.Fail(
-            string.IsNullOrWhiteSpace(message) ? "Balance transfer failed." : message);
+        var succeeded = !string.IsNullOrEmpty(message)
+            && message.Contains("successful", StringComparison.OrdinalIgnoreCase);
+        return await _auditLogWriter.RecordAdminAsync(
+            "Guardian",
+            "TransferBalance",
+            request.GuardianId.ToString(),
+            succeeded
+                ? AdminOperationResult.Ok(message!)
+                : AdminOperationResult.Fail(string.IsNullOrWhiteSpace(message) ? "Balance transfer failed." : message),
+            null,
+            request,
+            cancellationToken);
     }
 
     private static async Task<IReadOnlyList<GuardianChildTransferItemDto>> GetChildrenForTransferAsync(
@@ -621,7 +662,14 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
         }
         catch (Exception ex)
         {
-            return AdminOperationResult.Fail(StudentCardNumber.MessageOrDuplicate(ex));
+            return await _auditLogWriter.RecordAdminAsync(
+                "Student",
+                "AddStudent",
+                null,
+                AdminOperationResult.Fail(StudentCardNumber.MessageOrDuplicate(ex)),
+                null,
+                await SnapshotStudentAsync(request, cancellationToken),
+                cancellationToken);
         }
 
         var userId = await dbConnection.ExecuteScalarAsync<decimal?>(
@@ -636,7 +684,16 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
                 new { CardNo = cardNo },
                 cancellationToken: cancellationToken));
         if (!userId.HasValue)
-            return AdminOperationResult.Fail("Student was created but could not be loaded.");
+        {
+            return await _auditLogWriter.RecordAdminAsync(
+                "Student",
+                "AddStudent",
+                null,
+                AdminOperationResult.Fail("Student was created but could not be loaded."),
+                null,
+                await SnapshotStudentAsync(request, cancellationToken),
+                cancellationToken);
+        }
 
         await dbConnection.ExecuteAsync(
             new CommandDefinition(
@@ -686,7 +743,14 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
                     cancellationToken: cancellationToken));
         }
 
-        return AdminOperationResult.Ok("Student added successfully.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "Student",
+            "AddStudent",
+            userId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            AdminOperationResult.Ok("Student added successfully."),
+            null,
+            await SnapshotStudentAsync(request, cancellationToken, userId.Value),
+            cancellationToken);
     }
 
     public async Task<GuardianEditStudentViewModel?> GetEditStudentViewAsync(
@@ -799,6 +863,8 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
         if (request.SchoolId <= 0)
             return AdminOperationResult.Fail("School is required.");
 
+        var previousStudent = (await GetEditStudentViewAsync(request.GuardianId, request.UserId, cancellationToken))?.Student;
+
         var cardError = StudentCardNumber.ValidateForEdit(request.StudentCardNo, out var cardNo);
         if (cardError is not null)
             return AdminOperationResult.Fail(cardError);
@@ -899,7 +965,14 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
             if (rows <= 0)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                return AdminOperationResult.Fail("Student was not updated.");
+                return await _auditLogWriter.RecordAdminAsync(
+                    "Student",
+                    AuditActions.Update,
+                    request.UserId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    AdminOperationResult.Fail("Student was not updated."),
+                    await SnapshotStudentAsync(previousStudent, cancellationToken),
+                    await SnapshotStudentAsync(request, cancellationToken),
+                    cancellationToken);
             }
 
             var newCustomerId = await dbConnection.ExecuteScalarAsync<string>(
@@ -947,8 +1020,21 @@ public sealed class GuardianAdminRepository : IGuardianAdminRepository
         await _allergyRepository.SaveAllergiesAsync(request.UserId, request.AllergyItemIds ?? [], cancellationToken);
         await _orderTypeRepository.SaveOrderTypesAsync(request.UserId, request.OrderTypeIds ?? [], cancellationToken);
 
-        return AdminOperationResult.Ok("Student updated successfully.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "Student",
+            AuditActions.Update,
+            request.UserId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            AdminOperationResult.Ok("Student updated successfully."),
+            await SnapshotStudentAsync(previousStudent, cancellationToken),
+            await SnapshotStudentAsync(request, cancellationToken),
+            cancellationToken);
     }
+
+    private Task<StudentAuditValues?> SnapshotStudentAsync(
+        GuardianAddStudentRequest? request,
+        CancellationToken cancellationToken,
+        decimal? userId = null) =>
+        StudentAuditSnapshot.CaptureAsync(_connectionFactory, _mealConnectionFactory, request, cancellationToken, userId);
 
     private sealed class EditStudentRow
     {

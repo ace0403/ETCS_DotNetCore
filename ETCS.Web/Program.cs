@@ -10,6 +10,7 @@ using ETCS.Shared.Infrastructure.Admin.Master.Guardians;
 using ETCS.Shared.Infrastructure.Admin.Master.Schools;
 using ETCS.Shared.Infrastructure.Admin.Master.Students;
 using ETCS.Shared.Infrastructure.Auth;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 using ETCS.Shared.Infrastructure.Enums;
 using ETCS.Shared.Infrastructure.Legal;
@@ -45,6 +46,7 @@ builder.Services.AddMemoryCache();
 builder.Services.Configure<LegalContentCacheClearOptions>(builder.Configuration.GetSection(LegalContentCacheClearOptions.SectionName));
 builder.Services.AddSingleton<IDbConnectionFactory, SqlConnectionFactory>();
 builder.Services.AddSingleton<IMealDbConnectionFactory, SqlMealConnectionFactory>();
+builder.Services.AddAuditLog();
 builder.Services.AddScoped<IGuardianPasswordResetTokenStore, SqlGuardianPasswordResetTokenStore>();
 builder.Services.AddScoped<IGuardianOtpStore, SqlGuardianOtpStore>();
 builder.Services.AddScoped<IRegistrationOtpService, RegistrationOtpService>();
@@ -85,7 +87,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     });
 
 builder.Services.AddAuthorization();
-builder.Services.AddControllersWithViews()
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add<AuditMutationFilter>();
+})
     .AddJsonOptions(options =>
     {
         // Match Admin / existing custom JS (Success, Message, etc.).
@@ -127,6 +132,7 @@ app.UseRewriter(new RewriteOptions()
 
 app.UseRouting();
 app.UseAuthentication();
+app.UseAuditContext(AuditSourceApps.Web, AuditActorTypes.Guardian);
 app.UseAuthorization();
 app.UseStatusCodePagesWithReExecute("/Home/PageNotFound", "?code={0}");
 app.MapStaticAssets();
