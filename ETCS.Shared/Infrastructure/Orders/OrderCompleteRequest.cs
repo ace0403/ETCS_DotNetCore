@@ -9,4 +9,7 @@ public sealed class OrderCompleteRequest
     public string OrderId { get; init; } = string.Empty;
 
     public string TransactionId { get; init; } = string.Empty;
+
+    /// <summary>When true, Finalization uses PaymentGateway:Mobile credentials.</summary>
+    public bool UseNativeCredentials { get; init; }
 }

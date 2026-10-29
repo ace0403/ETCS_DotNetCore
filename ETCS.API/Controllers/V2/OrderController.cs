@@ -132,7 +132,8 @@ public sealed class OrderController : ControllerBase
             StudentId = request.StudentId,
             GuardianId = guardianId,
             OrderId = request.OrderId,
-            TransactionId = request.TransactionId
+            TransactionId = request.TransactionId,
+            UseNativeCredentials = true
         };
 
         var result = await _orderPaymentCompleteService.CompleteAsync(scopedRequest, cancellationToken);

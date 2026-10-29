@@ -23,4 +23,6 @@ public sealed class PendingPaymentReconcileItem
     public int StatusId { get; init; }
 
     public int ReconcileAttemptCount { get; init; }
+
+    public int PaymentMethod { get; init; }
 }

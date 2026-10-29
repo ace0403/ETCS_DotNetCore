@@ -117,7 +117,8 @@ public sealed class TopupPaymentCompleteService : ITopupPaymentCompleteService
         var captureRequest = new PaymentCaptureRequest(
             transactionId,
             request.OrderId,
-            request.StudentId > 0 ? request.StudentId : topupState?.StudentId ?? 0);
+            request.StudentId > 0 ? request.StudentId : topupState?.StudentId ?? 0,
+            request.UseNativeCredentials);
 
         var result = await _paymentGatewayRepository.CapturePaymentAsync(
             captureRequest,

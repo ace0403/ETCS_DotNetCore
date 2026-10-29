@@ -112,7 +112,11 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
         }
 
         var captureResult = await _paymentGatewayRepository.CapturePaymentAsync(
-            new PaymentCaptureRequest(request.TransactionId, request.OrderId, request.StudentId),
+            new PaymentCaptureRequest(
+                request.TransactionId,
+                request.OrderId,
+                request.StudentId,
+                request.UseNativeCredentials),
             cancellationToken);
 
         var pgResponse = JsonSerializer.Serialize(captureResult, JsonOptions);

@@ -77,14 +77,25 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             };
         }
 
+        if (request.UseNativeCredentials && !TryGetMobileMerchant(out _))
+        {
+            return new PaymentCaptureResult
+            {
+                IsSuccess = false,
+                Message = "Payment gateway mobile credentials are not configured.",
+                TransactionId = request.TransactionId
+            };
+        }
+
+        var merchant = ResolveMerchant(request.UseNativeCredentials);
         var finalization = new ComtrustFinalizationRequest
         {
             Finalization = new ComtrustFinalizationPayload
             {
                 TransactionId = request.TransactionId,
-                Customer = _options.CustomerName,
-                UserName = _options.UserName,
-                Password = _options.Password
+                Customer = merchant.CustomerName,
+                UserName = merchant.UserName,
+                Password = merchant.Password
             }
         };
 
@@ -199,7 +210,12 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
         }
     }
 
-    public async Task<GenerateTokenResult> GenerateTokenAsync(CancellationToken cancellationToken)
+    public Task<GenerateTokenResult> GenerateTokenAsync(CancellationToken cancellationToken) =>
+        GenerateTokenAsync(useNativeCredentials: true, cancellationToken);
+
+    private async Task<GenerateTokenResult> GenerateTokenAsync(
+        bool useNativeCredentials,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(_options.BaseUrl))
         {
@@ -210,12 +226,22 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             };
         }
 
+        if (useNativeCredentials && !TryGetMobileMerchant(out _))
+        {
+            return new GenerateTokenResult
+            {
+                IsSuccess = false,
+                Message = "Payment gateway mobile credentials are not configured."
+            };
+        }
+
+        var merchant = ResolveMerchant(useNativeCredentials);
         var tokenRequest = new ComtrustGenerateTokenRequest
         {
             GenerateToken = new ComtrustGenerateTokenPayload
             {
-                UserName = _options.UserName,
-                Password = _options.Password
+                UserName = merchant.UserName,
+                Password = merchant.Password
             }
         };
 
@@ -280,7 +306,12 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             return FailWallet(request.OrderId, "Payment gateway base URL is not configured.");
         }
 
-        var tokenResult = await GenerateTokenAsync(cancellationToken);
+        if (!TryGetMobileMerchant(out var merchant))
+        {
+            return FailWallet(request.OrderId, "Payment gateway mobile credentials are not configured.");
+        }
+
+        var tokenResult = await GenerateTokenAsync(useNativeCredentials: true, cancellationToken);
         if (!tokenResult.IsSuccess)
         {
             return FailWallet(request.OrderId, tokenResult.Message);
@@ -305,9 +336,9 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
                 Amount = request.Amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture),
                 Currency = _options.Currency,
                 TransactionHint = _options.WalletTransactionHint,
-                Customer = _options.CustomerName,
-                UserName = _options.UserName,
-                Password = _options.Password,
+                Customer = merchant.CustomerName,
+                UserName = merchant.UserName,
+                Password = merchant.Password,
                 WalletName = walletName
             }
         };
@@ -342,8 +373,8 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
                 TransactionId = transaction?.TransactionId ?? string.Empty,
                 AuthenticationToken = tokenResult.AuthenticationToken,
                 SessionId = transaction?.SessionId ?? string.Empty,
-                MerchantUserName = _options.UserName,
-                CustomerName = _options.CustomerName,
+                MerchantUserName = merchant.UserName,
+                CustomerName = merchant.CustomerName,
                 BaseUrl = ToNativeSdkBaseUrl(_options.BaseUrl),
                 CallbackUrl = callbackUrl,
                 Amount = request.Amount,
@@ -374,14 +405,14 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             return FailNative(orderId, amount, "Payment gateway base URL is not configured.");
         }
 
-        if (string.IsNullOrWhiteSpace(_options.Password))
+        if (!TryGetMobileMerchant(out var merchant))
         {
-            return FailNative(orderId, amount, "Payment gateway password is not configured.");
+            return FailNative(orderId, amount, "Payment gateway mobile credentials are not configured.");
         }
 
         var returnUrl = ResolveNativeReturnUrl(orderId, returnUrlOverride);
 
-        var tokenResult = await GenerateTokenAsync(cancellationToken);
+        var tokenResult = await GenerateTokenAsync(useNativeCredentials: true, cancellationToken);
         if (!tokenResult.IsSuccess || string.IsNullOrWhiteSpace(tokenResult.AuthenticationToken))
         {
             return FailNative(
@@ -392,13 +423,12 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
                     : tokenResult.Message);
         }
 
-        // Native SDK flow matches EPG merchant sample: GenerateToken, then Registration with
-        // AuthenticationToken + Store/Terminal (MobileSDK), not Password-only web registration.
+        // Native SDK flow: GenerateToken, then Registration with AuthenticationToken + Store/Terminal.
         var registration = new ComtrustRegistrationRequest
         {
             Registration = new ComtrustRegistrationPayload
             {
-                Customer = _options.CustomerName,
+                Customer = merchant.CustomerName,
                 Channel = ResolveMobileChannel(),
                 Amount = amount,
                 Currency = _options.Currency,
@@ -406,7 +436,9 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
                 OrderName = _options.OrderName,
                 OrderInfo = orderInfo,
                 TransactionHint = _options.TransactionHint,
-                UserName = _options.UserName,
+                UserName = merchant.UserName,
+                Store = NullIfWhiteSpace(merchant.Store),
+                Terminal = NullIfWhiteSpace(merchant.Terminal),
                 AuthenticationToken = tokenResult.AuthenticationToken,
                 ReturnPath = returnUrl.TrimEnd('/')
             }
@@ -448,8 +480,8 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
                 OrderId = orderId,
                 TransactionId = transaction?.TransactionId ?? string.Empty,
                 AuthenticationToken = authenticationToken,
-                MerchantUserName = _options.UserName,
-                CustomerName = _options.CustomerName,
+                MerchantUserName = merchant.UserName,
+                CustomerName = merchant.CustomerName,
                 BaseUrl = ToNativeSdkBaseUrl(_options.BaseUrl),
                 CallbackUrl = returnUrl.TrimEnd('/'),
                 Amount = amount,
@@ -504,6 +536,44 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
 
     private string ResolveMobileChannel() =>
         string.IsNullOrWhiteSpace(_options.MobileChannel) ? "Web" : _options.MobileChannel;
+
+    private bool TryGetMobileMerchant(out MobileMerchant merchant)
+    {
+        var mobile = _options.Mobile;
+        if (mobile is null || !mobile.IsConfigured)
+        {
+            merchant = default;
+            return false;
+        }
+
+        merchant = new MobileMerchant(
+            CustomerName: mobile.CustomerName,
+            UserName: mobile.UserName,
+            Password: mobile.Password,
+            Store: mobile.Store,
+            Terminal: mobile.Terminal);
+        return true;
+    }
+
+    private MobileMerchant ResolveMerchant(bool useNativeCredentials) =>
+        useNativeCredentials && TryGetMobileMerchant(out var mobile)
+            ? mobile
+            : new MobileMerchant(
+                CustomerName: _options.CustomerName,
+                UserName: _options.UserName,
+                Password: _options.Password,
+                Store: null,
+                Terminal: null);
+
+    private static string? NullIfWhiteSpace(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private readonly record struct MobileMerchant(
+        string CustomerName,
+        string UserName,
+        string Password,
+        string? Store,
+        string? Terminal);
 
     private static ComtrustRegistrationResponse? DeserializeTransactionResponse(string? rawResponse)
     {
