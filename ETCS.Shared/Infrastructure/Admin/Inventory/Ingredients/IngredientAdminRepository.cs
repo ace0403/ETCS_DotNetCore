@@ -2,6 +2,7 @@ using System.Data.Common;
 using Dapper;
 using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
 using ETCS.Shared.Infrastructure.Admin.Models;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 
 using static ETCS.Shared.Infrastructure.Admin.DataTablePagingHelper;
@@ -13,10 +14,12 @@ public sealed class IngredientAdminRepository : IIngredientAdminRepository
     private const int IngredientEnumTypeId = MealEnumTypeIds.FoodAllergy;
 
     private readonly IMealDbConnectionFactory _connectionFactory;
+    private readonly IAuditLogWriter _auditLogWriter;
 
-    public IngredientAdminRepository(IMealDbConnectionFactory connectionFactory)
+    public IngredientAdminRepository(IMealDbConnectionFactory connectionFactory, IAuditLogWriter auditLogWriter)
     {
         _connectionFactory = connectionFactory;
+        _auditLogWriter = auditLogWriter;
     }
 
     private const string SelectSql = """
@@ -113,6 +116,8 @@ public sealed class IngredientAdminRepository : IIngredientAdminRepository
 
     public async Task<AdminOperationResult> SaveAsync(IngredientSaveRequest request, CancellationToken cancellationToken = default)
     {
+        var before = request.Id > 0 ? await GetAsync(request.Id, cancellationToken) : null;
+        var action = request.Id > 0 ? AuditActions.Update : AuditActions.Create;
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
@@ -146,9 +151,16 @@ public sealed class IngredientAdminRepository : IIngredientAdminRepository
                         EnumTypeId = IngredientEnumTypeId
                     },
                     cancellationToken: cancellationToken));
-            return rows > 0
-                ? AdminOperationResult.Ok("Ingredient updated successfully.")
-                : AdminOperationResult.Fail("Ingredient was not updated.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Ingredient",
+                action,
+                request.Id.ToString(),
+                rows > 0
+                    ? AdminOperationResult.Ok("Ingredient updated successfully.")
+                    : AdminOperationResult.Fail("Ingredient was not updated."),
+                before,
+                request,
+                cancellationToken);
         }
 
         var nextId = await dbConnection.ExecuteScalarAsync<int>(
@@ -171,9 +183,16 @@ public sealed class IngredientAdminRepository : IIngredientAdminRepository
                     EnumTypeId = IngredientEnumTypeId
                 },
                 cancellationToken: cancellationToken));
-        return inserted > 0
-            ? AdminOperationResult.Ok("Ingredient added successfully.")
-            : AdminOperationResult.Fail("Ingredient was not added.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "Ingredient",
+            action,
+            nextId.ToString(),
+            inserted > 0
+                ? AdminOperationResult.Ok("Ingredient added successfully.")
+                : AdminOperationResult.Fail("Ingredient was not added."),
+            before,
+            request,
+            cancellationToken);
     }
 
     public async Task<AdminOperationResult> DeleteAsync(int id, CancellationToken cancellationToken = default)
@@ -183,6 +202,7 @@ public sealed class IngredientAdminRepository : IIngredientAdminRepository
             return AdminOperationResult.Fail("Id is required.");
         }
 
+        var before = await GetAsync(id, cancellationToken);
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
@@ -195,7 +215,14 @@ public sealed class IngredientAdminRepository : IIngredientAdminRepository
 
         if (mealItemUsage > 0)
         {
-            return AdminOperationResult.Fail("Cannot delete — ingredient is assigned to meal items or student allergies.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Ingredient",
+                AuditActions.Delete,
+                id.ToString(),
+                AdminOperationResult.Fail("Cannot delete — ingredient is assigned to meal items or student allergies."),
+                before,
+                null,
+                cancellationToken);
         }
 
         var studentAllergyUsage = await dbConnection.ExecuteScalarAsync<int>(
@@ -206,7 +233,14 @@ public sealed class IngredientAdminRepository : IIngredientAdminRepository
 
         if (studentAllergyUsage > 0)
         {
-            return AdminOperationResult.Fail("Cannot delete — ingredient is assigned to meal items or student allergies.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Ingredient",
+                AuditActions.Delete,
+                id.ToString(),
+                AdminOperationResult.Fail("Cannot delete — ingredient is assigned to meal items or student allergies."),
+                before,
+                null,
+                cancellationToken);
         }
 
         var rows = await dbConnection.ExecuteAsync(
@@ -215,8 +249,15 @@ public sealed class IngredientAdminRepository : IIngredientAdminRepository
                 new { Id = id, EnumTypeId = IngredientEnumTypeId },
                 cancellationToken: cancellationToken));
 
-        return rows > 0
-            ? AdminOperationResult.Ok("Record deleted successfully.")
-            : AdminOperationResult.Fail("Record was not deleted.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "Ingredient",
+            AuditActions.Delete,
+            id.ToString(),
+            rows > 0
+                ? AdminOperationResult.Ok("Record deleted successfully.")
+                : AdminOperationResult.Fail("Record was not deleted."),
+            before,
+            null,
+            cancellationToken);
     }
 }

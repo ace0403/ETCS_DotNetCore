@@ -1,4 +1,5 @@
 using ETCS.Shared.Application.Email;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Options;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -11,6 +12,7 @@ builder.Services.AddWindowsService(options =>
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
 builder.Services.Configure<MealDatabaseOptions>(builder.Configuration.GetSection(MealDatabaseOptions.SectionName));
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+builder.Services.AddAuditLog();
 builder.Services.AddEmailDeliveryWorker();
 
 var host = builder.Build();

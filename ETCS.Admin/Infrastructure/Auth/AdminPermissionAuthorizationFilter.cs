@@ -1,4 +1,5 @@
 using ETCS.Shared.Infrastructure.Admin.Security;
+using ETCS.Shared.Infrastructure.Audit;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -7,6 +8,13 @@ namespace ETCS.Admin.Infrastructure.Auth;
 
 public sealed class AdminPermissionAuthorizationFilter : IAsyncActionFilter
 {
+    private readonly IAuditLogWriter _auditLogWriter;
+
+    public AdminPermissionAuthorizationFilter(IAuditLogWriter auditLogWriter)
+    {
+        _auditLogWriter = auditLogWriter;
+    }
+
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         if (context.ActionDescriptor is not ControllerActionDescriptor descriptor)
@@ -40,6 +48,15 @@ public sealed class AdminPermissionAuthorizationFilter : IAsyncActionFilter
 
         if (!user.HasPermission(permissionKey))
         {
+            await _auditLogWriter.WriteOutcomeAsync(
+                AuditActions.AccessDenied,
+                moduleKey,
+                null,
+                false,
+                "You do not have permission to perform this action.",
+                null,
+                new { Permission = permissionKey },
+                context.HttpContext.RequestAborted);
             await DenyAsync(context);
             return;
         }

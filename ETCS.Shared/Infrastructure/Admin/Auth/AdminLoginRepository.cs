@@ -4,6 +4,7 @@ using Dapper;
 using ETCS.Shared.Helpers;
 using ETCS.Shared.Infrastructure.Admin.Models;
 using ETCS.Shared.Infrastructure.Admin.Security;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 
 namespace ETCS.Shared.Infrastructure.Admin.Auth;
@@ -50,15 +51,18 @@ public sealed class AdminLoginRepository : IAdminLoginRepository
     private readonly IDbConnectionFactory _connectionFactory;
     private readonly IAdminPermissionRepository _permissionRepository;
     private readonly IStaffLoginAssignmentRepository _assignmentRepository;
+    private readonly IAuditLogWriter _auditLogWriter;
 
     public AdminLoginRepository(
         IDbConnectionFactory connectionFactory,
         IAdminPermissionRepository permissionRepository,
-        IStaffLoginAssignmentRepository assignmentRepository)
+        IStaffLoginAssignmentRepository assignmentRepository,
+        IAuditLogWriter auditLogWriter)
     {
         _connectionFactory = connectionFactory;
         _permissionRepository = permissionRepository;
         _assignmentRepository = assignmentRepository;
+        _auditLogWriter = auditLogWriter;
     }
 
     public Task<LoginAccountDto?> GetByLoginNameAsync(string loginName, CancellationToken cancellationToken = default)
@@ -76,6 +80,7 @@ public sealed class AdminLoginRepository : IAdminLoginRepository
         string newPassword,
         CancellationToken cancellationToken = default)
     {
+        var auditValues = new { accountId };
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
@@ -88,19 +93,40 @@ public sealed class AdminLoginRepository : IAdminLoginRepository
 
         if (string.IsNullOrWhiteSpace(stored))
         {
-            return AdminOperationResult.Fail("Account not found.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "LoginAccount",
+                AuditActions.Update,
+                accountId.ToString(),
+                AdminOperationResult.Fail("Account not found."),
+                null,
+                auditValues,
+                cancellationToken);
         }
 
         var currentHash = SecurityHelper.GetMd5Hash(currentPassword);
         if (!PasswordMatches(stored, currentHash, currentPassword))
         {
-            return AdminOperationResult.Fail("Current password is incorrect.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "LoginAccount",
+                AuditActions.Update,
+                accountId.ToString(),
+                AdminOperationResult.Fail("Current password is incorrect."),
+                null,
+                auditValues,
+                cancellationToken);
         }
 
         var newHash = SecurityHelper.GetMd5Hash(newPassword);
         if (PasswordMatches(stored, newHash, newPassword))
         {
-            return AdminOperationResult.Fail("New password must be different from the current password.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "LoginAccount",
+                AuditActions.Update,
+                accountId.ToString(),
+                AdminOperationResult.Fail("New password must be different from the current password."),
+                null,
+                auditValues,
+                cancellationToken);
         }
 
         var rows = await dbConnection.ExecuteAsync(
@@ -109,9 +135,16 @@ public sealed class AdminLoginRepository : IAdminLoginRepository
                 new { Id = accountId, PasswordHash = newHash },
                 cancellationToken: cancellationToken));
 
-        return rows > 0
-            ? AdminOperationResult.Ok("Password updated successfully.")
-            : AdminOperationResult.Fail("Password was not updated.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "LoginAccount",
+            AuditActions.Update,
+            accountId.ToString(),
+            rows > 0
+                ? AdminOperationResult.Ok("Password updated successfully.")
+                : AdminOperationResult.Fail("Password was not updated."),
+            null,
+            auditValues,
+            cancellationToken);
     }
 
     private async Task<LoginAccountDto?> GetByLoginNameInternalAsync(

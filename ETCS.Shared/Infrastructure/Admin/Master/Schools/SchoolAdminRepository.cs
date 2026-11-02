@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Dapper;
 using ETCS.Shared.Infrastructure.Admin.Models;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 
 using static ETCS.Shared.Infrastructure.Admin.DataTablePagingHelper;
@@ -59,15 +60,18 @@ public sealed class SchoolAdminRepository : ISchoolAdminRepository
     private readonly IDbConnectionFactory _connectionFactory;
     private readonly ISchoolOrderTypeAdminRepository _orderTypeRepository;
     private readonly ISchoolGradeOrderTypeAdminRepository _gradeOrderTypeRepository;
+    private readonly IAuditLogWriter _auditLogWriter;
 
     public SchoolAdminRepository(
         IDbConnectionFactory connectionFactory,
         ISchoolOrderTypeAdminRepository orderTypeRepository,
-        ISchoolGradeOrderTypeAdminRepository gradeOrderTypeRepository)
+        ISchoolGradeOrderTypeAdminRepository gradeOrderTypeRepository,
+        IAuditLogWriter auditLogWriter)
     {
         _connectionFactory = connectionFactory;
         _orderTypeRepository = orderTypeRepository;
         _gradeOrderTypeRepository = gradeOrderTypeRepository;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<DataTableResponse<SchoolListItemDto>> GetDataAsync(
@@ -130,6 +134,7 @@ public sealed class SchoolAdminRepository : ISchoolAdminRepository
 
         if (request.Id > 0)
         {
+            var before = await GetAsync(request.Id, cancellationToken);
             const string updateSql = """
                 UPDATE SchoolInfo
                 SET SchoolName = @Name,
@@ -145,12 +150,16 @@ public sealed class SchoolAdminRepository : ISchoolAdminRepository
                 new CommandDefinition(updateSql, request, cancellationToken: cancellationToken));
             if (rows <= 0)
             {
-                return AdminOperationResult.Fail("School was not updated.");
+                return await _auditLogWriter.RecordAdminAsync(
+                    "School", AuditActions.Update, request.Id.ToString(),
+                    AdminOperationResult.Fail("School was not updated."), before, request, cancellationToken);
             }
 
             await _orderTypeRepository.SaveOrderTypesAsync(request.Id, request.OrderTypeIds ?? [], cancellationToken);
             await _gradeOrderTypeRepository.SaveConfigsAsync(request.Id, request.GradeOrderTypeConfigs ?? [], cancellationToken);
-            return AdminOperationResult.Ok("School updated successfully.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "School", AuditActions.Update, request.Id.ToString(),
+                AdminOperationResult.Ok("School updated successfully."), before, request, cancellationToken);
         }
 
         const string insertSql = """
@@ -164,17 +173,22 @@ public sealed class SchoolAdminRepository : ISchoolAdminRepository
         request.Id = newId;
         if (newId <= 0)
         {
-            return AdminOperationResult.Fail("School was not added.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "School", AuditActions.Create, null,
+                AdminOperationResult.Fail("School was not added."), null, request, cancellationToken);
         }
 
         await _orderTypeRepository.SaveOrderTypesAsync(newId, request.OrderTypeIds ?? [], cancellationToken);
         await _gradeOrderTypeRepository.SaveConfigsAsync(newId, request.GradeOrderTypeConfigs ?? [], cancellationToken);
-        return AdminOperationResult.Ok("School added successfully.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "School", AuditActions.Create, newId.ToString(),
+            AdminOperationResult.Ok("School added successfully."), null, request, cancellationToken);
     }
 
     public async Task<AdminOperationResult> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
         if (id <= 0) return AdminOperationResult.Fail("Id is required.");
+        var before = await GetAsync(id, cancellationToken);
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
@@ -187,16 +201,22 @@ public sealed class SchoolAdminRepository : ISchoolAdminRepository
                     cancellationToken: cancellationToken));
             if (rows <= 0)
             {
-                return AdminOperationResult.Fail("Record was not deleted.");
+                return await _auditLogWriter.RecordAdminAsync(
+                    "School", AuditActions.Delete, id.ToString(),
+                    AdminOperationResult.Fail("Record was not deleted."), before, null, cancellationToken);
             }
 
             await _orderTypeRepository.DeleteOrderTypesAsync(id, cancellationToken);
             await _gradeOrderTypeRepository.DeleteConfigsAsync(id, cancellationToken);
-            return AdminOperationResult.Ok("Record deleted successfully.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "School", AuditActions.Delete, id.ToString(),
+                AdminOperationResult.Ok("Record deleted successfully."), before, null, cancellationToken);
         }
         catch
         {
-            return AdminOperationResult.Fail("Record could not be deleted. It may be in use.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "School", AuditActions.Delete, id.ToString(),
+                AdminOperationResult.Fail("Record could not be deleted. It may be in use."), before, null, cancellationToken);
         }
     }
 }

@@ -2,6 +2,7 @@ using ETCS.Shared.Enumeration;
 using ETCS.Shared.Helpers;
 using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Pos;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Options;
 using Microsoft.Extensions.Options;
@@ -15,20 +16,40 @@ public sealed class PosOrderInitiateService : IPosOrderInitiateService
     private readonly IPosSpendRepository _posSpendRepository;
     private readonly IStudentRepository _studentRepository;
     private readonly PosOptions _posOptions;
+    private readonly IAuditLogWriter _auditLogWriter;
 
     public PosOrderInitiateService(
         IPOSOrderRepository posOrderRepository,
         IPosSpendRepository posSpendRepository,
         IStudentRepository studentRepository,
-        IOptions<PosOptions> posOptions)
+        IOptions<PosOptions> posOptions,
+        IAuditLogWriter auditLogWriter)
     {
         _posOrderRepository = posOrderRepository;
         _posSpendRepository = posSpendRepository;
         _studentRepository = studentRepository;
         _posOptions = posOptions.Value;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<PosOrderInitiateResponse> InitiateAsync(
+        PosOrderInitiateRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await InitiateCoreAsync(request, cancellationToken);
+        await _auditLogWriter.WriteOutcomeAsync(
+            AuditActions.OrderInitiate,
+            "PosOrder",
+            string.IsNullOrWhiteSpace(response.OrderId) ? null : response.OrderId,
+            response.IsSuccess,
+            response.Message,
+            null,
+            new { request.StudentId, request.TerminalCode, request.Total, response.OrderId, response.MealTransactionId },
+            cancellationToken);
+        return response;
+    }
+
+    private async Task<PosOrderInitiateResponse> InitiateCoreAsync(
         PosOrderInitiateRequest request,
         CancellationToken cancellationToken)
     {

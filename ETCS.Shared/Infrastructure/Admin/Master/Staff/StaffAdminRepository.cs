@@ -3,6 +3,7 @@ using Dapper;
 using ETCS.Shared.Helpers;
 using ETCS.Shared.Infrastructure.Admin.Auth;
 using ETCS.Shared.Infrastructure.Admin.Models;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 
 using static ETCS.Shared.Infrastructure.Admin.DataTablePagingHelper;
@@ -28,13 +29,16 @@ public sealed class StaffAdminRepository : IStaffAdminRepository
 
     private readonly IDbConnectionFactory _connectionFactory;
     private readonly IStaffLoginAssignmentRepository _assignmentRepository;
+    private readonly IAuditLogWriter _auditLogWriter;
 
     public StaffAdminRepository(
         IDbConnectionFactory connectionFactory,
-        IStaffLoginAssignmentRepository assignmentRepository)
+        IStaffLoginAssignmentRepository assignmentRepository,
+        IAuditLogWriter auditLogWriter)
     {
         _connectionFactory = connectionFactory;
         _assignmentRepository = assignmentRepository;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<DataTableResponse<StaffListItemDto>> GetDataAsync(
@@ -238,6 +242,7 @@ public sealed class StaffAdminRepository : IStaffAdminRepository
 
         if (request.Id > 0)
         {
+            var before = await GetAsync(request.Id, cancellationToken);
             const string updateSql = """
                 UPDATE LoginAccount
                 SET FirstName = @FirstName,
@@ -274,12 +279,26 @@ public sealed class StaffAdminRepository : IStaffAdminRepository
                     cancellationToken: cancellationToken));
             if (rows <= 0)
             {
-                return AdminOperationResult.Fail("Staff was not updated.");
+                return await _auditLogWriter.RecordAdminAsync(
+                    "Staff",
+                    AuditActions.Update,
+                    request.Id.ToString(),
+                    AdminOperationResult.Fail("Staff was not updated."),
+                    before,
+                    request,
+                    cancellationToken);
             }
 
             await _assignmentRepository.SaveSchoolIdsAsync(request.Id, schoolIds, cancellationToken);
             await _assignmentRepository.SaveRoleIdsAsync(request.Id, roleIds, request.DefaultRoleId, cancellationToken);
-            return AdminOperationResult.Ok("Staff updated successfully.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Staff",
+                AuditActions.Update,
+                request.Id.ToString(),
+                AdminOperationResult.Ok("Staff updated successfully."),
+                before,
+                request,
+                cancellationToken);
         }
 
         if (string.IsNullOrWhiteSpace(request.Password))
@@ -321,18 +340,33 @@ public sealed class StaffAdminRepository : IStaffAdminRepository
                 cancellationToken: cancellationToken));
         if (newId <= 0)
         {
-            return AdminOperationResult.Fail("Staff was not added.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Staff",
+                AuditActions.Create,
+                null,
+                AdminOperationResult.Fail("Staff was not added."),
+                null,
+                request,
+                cancellationToken);
         }
 
         request.Id = newId;
         await _assignmentRepository.SaveSchoolIdsAsync(newId, schoolIds, cancellationToken);
         await _assignmentRepository.SaveRoleIdsAsync(newId, roleIds, request.DefaultRoleId, cancellationToken);
-        return AdminOperationResult.Ok("Staff added successfully.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "Staff",
+            AuditActions.Create,
+            newId.ToString(),
+            AdminOperationResult.Ok("Staff added successfully."),
+            null,
+            request,
+            cancellationToken);
     }
 
     public async Task<AdminOperationResult> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
         if (id <= 0) return AdminOperationResult.Fail("Id is required.");
+        var before = await GetAsync(id, cancellationToken);
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
@@ -344,13 +378,27 @@ public sealed class StaffAdminRepository : IStaffAdminRepository
                     "DELETE FROM LoginAccount WHERE Sid = @Id;",
                     new { Id = id },
                     cancellationToken: cancellationToken));
-            return rows > 0
-                ? AdminOperationResult.Ok("Record deleted successfully.")
-                : AdminOperationResult.Fail("Record was not deleted.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Staff",
+                AuditActions.Delete,
+                id.ToString(),
+                rows > 0
+                    ? AdminOperationResult.Ok("Record deleted successfully.")
+                    : AdminOperationResult.Fail("Record was not deleted."),
+                before,
+                null,
+                cancellationToken);
         }
         catch
         {
-            return AdminOperationResult.Fail("Record could not be deleted. It may be in use.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Staff",
+                AuditActions.Delete,
+                id.ToString(),
+                AdminOperationResult.Fail("Record could not be deleted. It may be in use."),
+                before,
+                null,
+                cancellationToken);
         }
     }
 }

@@ -28,6 +28,7 @@ public static class MealOrderExcelExporter
         "Grade",
         "Section",
         "Payment Status",
+        "Amount",
         "Meal Session",
         "Meal Type",
         "Choice",
@@ -69,6 +70,7 @@ public static class MealOrderExcelExporter
             worksheet.Cell(excelRow, col++).Value = row.StudStd;
             worksheet.Cell(excelRow, col++).Value = row.StudDiv;
             worksheet.Cell(excelRow, col++).Value = row.PaymentStatus;
+            worksheet.Cell(excelRow, col++).Value = row.Amount;
             if (includeMealSession)
             {
                 worksheet.Cell(excelRow, col++).Value = row.MealSession;

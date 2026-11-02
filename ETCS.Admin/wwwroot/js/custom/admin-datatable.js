@@ -223,7 +223,7 @@ function initAdminDataTable(selector, relativeUrl, columns, options) {
     var table = $(selector).DataTable({
         processing: true,
         serverSide: true,
-        searching: true,
+        searching: options.searching !== false,
         searchDelay: searchDelay,
         scrollX: options.scrollX !== false,
         responsive: false,

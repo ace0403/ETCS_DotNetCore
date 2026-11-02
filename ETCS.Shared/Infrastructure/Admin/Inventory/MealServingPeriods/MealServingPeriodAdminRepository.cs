@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Dapper;
 using ETCS.Shared.Infrastructure.Admin.Models;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 
 using static ETCS.Shared.Infrastructure.Admin.DataTablePagingHelper;
@@ -10,10 +11,12 @@ namespace ETCS.Shared.Infrastructure.Admin.Inventory.MealServingPeriods;
 public sealed class MealServingPeriodAdminRepository : IMealServingPeriodAdminRepository
 {
     private readonly IMealDbConnectionFactory _connectionFactory;
+    private readonly IAuditLogWriter _auditLogWriter;
 
-    public MealServingPeriodAdminRepository(IMealDbConnectionFactory connectionFactory)
+    public MealServingPeriodAdminRepository(IMealDbConnectionFactory connectionFactory, IAuditLogWriter auditLogWriter)
     {
         _connectionFactory = connectionFactory;
+        _auditLogWriter = auditLogWriter;
     }
 
     private const string SelectSql = """
@@ -137,6 +140,7 @@ public sealed class MealServingPeriodAdminRepository : IMealServingPeriodAdminRe
 
         if (request.Id > 0)
         {
+            var before = await GetAsync(request.Id, cancellationToken);
             var rows = await dbConnection.ExecuteAsync(
                 new CommandDefinition(
                     """
@@ -148,9 +152,16 @@ public sealed class MealServingPeriodAdminRepository : IMealServingPeriodAdminRe
                     """,
                     request,
                     cancellationToken: cancellationToken));
-            return rows > 0
-                ? AdminOperationResult.Ok("Serving period updated successfully.")
-                : AdminOperationResult.Fail("Serving period was not updated.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "MealServingPeriod",
+                AuditActions.Update,
+                request.Id.ToString(),
+                rows > 0
+                    ? AdminOperationResult.Ok("Serving period updated successfully.")
+                    : AdminOperationResult.Fail("Serving period was not updated."),
+                before,
+                request,
+                cancellationToken);
         }
 
         var inserted = await dbConnection.ExecuteAsync(
@@ -161,14 +172,22 @@ public sealed class MealServingPeriodAdminRepository : IMealServingPeriodAdminRe
                 """,
                 request,
                 cancellationToken: cancellationToken));
-        return inserted > 0
-            ? AdminOperationResult.Ok("Serving period added successfully.")
-            : AdminOperationResult.Fail("Serving period was not added.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "MealServingPeriod",
+            AuditActions.Create,
+            null,
+            inserted > 0
+                ? AdminOperationResult.Ok("Serving period added successfully.")
+                : AdminOperationResult.Fail("Serving period was not added."),
+            null,
+            request,
+            cancellationToken);
     }
 
     public async Task<AdminOperationResult> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
         if (id <= 0) return AdminOperationResult.Fail("Id is required.");
+        var before = await GetAsync(id, cancellationToken);
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
@@ -177,8 +196,15 @@ public sealed class MealServingPeriodAdminRepository : IMealServingPeriodAdminRe
                 "DELETE FROM MealPackageServingPeriod WHERE Id = @Id;",
                 new { Id = id },
                 cancellationToken: cancellationToken));
-        return rows > 0
-            ? AdminOperationResult.Ok("Record deleted successfully.")
-            : AdminOperationResult.Fail("Record was not deleted.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "MealServingPeriod",
+            AuditActions.Delete,
+            id.ToString(),
+            rows > 0
+                ? AdminOperationResult.Ok("Record deleted successfully.")
+                : AdminOperationResult.Fail("Record was not deleted."),
+            before,
+            null,
+            cancellationToken);
     }
 }

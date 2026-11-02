@@ -5,6 +5,8 @@ using ETCS.Shared.Application.Email;
 using ETCS.Shared.Application.Notifications;
 using ETCS.Shared.Application.Payment;
 using ETCS.Shared.Enumeration;
+using ETCS.Shared.Infrastructure.Audit;
+using ETCS.Shared.Infrastructure.Data;
 using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Infrastructure.Transaction;
@@ -27,6 +29,8 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
     private readonly IGuardianInAppNotificationService _inAppNotificationService;
     private readonly PaymentCompletionCancellation _completionCancellation;
     private readonly OrderFlowOptions _orderFlowOptions;
+    private readonly IAuditLogWriter _auditLogWriter;
+    private readonly IDbConnectionFactory _connectionFactory;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -43,7 +47,9 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
         IGuardianEmailNotificationService emailNotificationService,
         IGuardianInAppNotificationService inAppNotificationService,
         PaymentCompletionCancellation completionCancellation,
-        IOptions<OrderFlowOptions> orderFlowOptions)
+        IOptions<OrderFlowOptions> orderFlowOptions,
+        IAuditLogWriter auditLogWriter,
+        IDbConnectionFactory connectionFactory)
     {
         _mealOrderRepository = mealOrderRepository;
         _mainOrderRepository = mainOrderRepository;
@@ -55,9 +61,43 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
         _inAppNotificationService = inAppNotificationService;
         _completionCancellation = completionCancellation;
         _orderFlowOptions = orderFlowOptions.Value;
+        _auditLogWriter = auditLogWriter;
+        _connectionFactory = connectionFactory;
     }
 
     public async Task<OrderCompleteResponse> CompleteAsync(OrderCompleteRequest request, CancellationToken cancellationToken)
+    {
+        var response = await CompleteCoreAsync(request, cancellationToken);
+        var guardian = await AuditGuardianActor.TryResolveAsync(
+            _connectionFactory,
+            request.GuardianId,
+            request.StudentId,
+            cancellationToken);
+        await _auditLogWriter.WriteOutcomeAsync(
+            AuditActions.OrderComplete,
+            "Order",
+            string.IsNullOrWhiteSpace(response.OrderId) ? request.OrderId : response.OrderId,
+            response.IsSuccess,
+            response.Message,
+            null,
+            new
+            {
+                request.StudentId,
+                request.GuardianId,
+                request.OrderId,
+                response.IsPending,
+                response.IsAlreadyProcessed,
+                response.AccessLogId
+            },
+            cancellationToken,
+            actorType: guardian is null ? null : AuditActorTypes.Guardian,
+            actorId: guardian?.Id,
+            actorName: guardian?.Name,
+            overrideActor: guardian is not null);
+        return response;
+    }
+
+    private async Task<OrderCompleteResponse> CompleteCoreAsync(OrderCompleteRequest request, CancellationToken cancellationToken)
     {
         var paymentState = await _mealOrderRepository.GetPaymentStateForCompletionAsync(request.OrderId, cancellationToken);
         if (paymentState is null)

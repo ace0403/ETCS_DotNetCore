@@ -30,7 +30,8 @@ public sealed class AdminNavigationService : IAdminNavigationService
         "Report.MealOrders",
         "Report.MealOrderPaymentsMealDb",
         "Report.MealOrderPayments",
-        "Role"
+        "Role",
+        "AuditLog"
     ];
 
     private readonly IAdminPermissionRepository _permissionRepository;

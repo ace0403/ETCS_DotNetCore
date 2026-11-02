@@ -19,6 +19,7 @@ using ETCS.Shared.Application.Payment;
 using ETCS.PaymentGateway.DependencyInjection;
 using ETCS.Shared.Auth;
 using ETCS.Shared.Infrastructure.Auth;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 using ETCS.Shared.Infrastructure.HealthChecks;
 using ETCS.Shared.Infrastructure.Enums;
@@ -105,6 +106,7 @@ builder.Services.AddHostedService<PaymentBackgroundService>();
 builder.Services.AddHostedService<PendingPaymentReconcileBackgroundService>();
 builder.Services.AddSingleton<IDbConnectionFactory, SqlConnectionFactory>();
 builder.Services.AddSingleton<IMealDbConnectionFactory, SqlMealConnectionFactory>();
+builder.Services.AddAuditLog();
 
 var refreshStoreOptions = builder.Configuration.GetSection(RefreshTokenStoreOptions.SectionName).Get<RefreshTokenStoreOptions>()
     ?? new RefreshTokenStoreOptions();
@@ -224,7 +226,10 @@ builder.Services.AddApiVersioning(options =>
     options.SubstituteApiVersionInUrl = true;
 });
 
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<AuditMutationFilter>();
+})
     .AddJsonOptions(options =>
     {
         // Keep `&` unescaped in payment RedirectUrl so iOS/Android WebViews get a clean query string.
@@ -348,6 +353,7 @@ if (true) // (app.Environment.IsDevelopment())
 
 app.UseMiddleware<ApiKeyMiddleware>();
 app.UseAuthentication();
+app.UseAuditContext(AuditSourceApps.Api, AuditActorTypes.Guardian);
 app.UseAuthorization();
 app.UseRateLimiter();
 

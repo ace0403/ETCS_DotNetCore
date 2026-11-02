@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Dapper;
 using ETCS.Shared.Infrastructure.Admin.Models;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 
 using static ETCS.Shared.Infrastructure.Admin.DataTablePagingHelper;
@@ -12,10 +13,12 @@ public sealed class CategoryAdminRepository : ICategoryAdminRepository
     private const int MealCategoryEnumTypeId = 10;
 
     private readonly IMealDbConnectionFactory _connectionFactory;
+    private readonly IAuditLogWriter _auditLogWriter;
 
-    public CategoryAdminRepository(IMealDbConnectionFactory connectionFactory)
+    public CategoryAdminRepository(IMealDbConnectionFactory connectionFactory, IAuditLogWriter auditLogWriter)
     {
         _connectionFactory = connectionFactory;
+        _auditLogWriter = auditLogWriter;
     }
 
     private const string SelectSql = """
@@ -92,6 +95,8 @@ public sealed class CategoryAdminRepository : ICategoryAdminRepository
 
     public async Task<AdminOperationResult> SaveAsync(CategorySaveRequest request, CancellationToken cancellationToken = default)
     {
+        var before = request.Id > 0 ? await GetAsync(request.Id, cancellationToken) : null;
+        var action = request.Id > 0 ? AuditActions.Update : AuditActions.Create;
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
@@ -120,9 +125,16 @@ public sealed class CategoryAdminRepository : ICategoryAdminRepository
                         EnumTypeId = MealCategoryEnumTypeId
                     },
                     cancellationToken: cancellationToken));
-            return rows > 0
-                ? AdminOperationResult.Ok("Category updated successfully.")
-                : AdminOperationResult.Fail("Category was not updated.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Category",
+                action,
+                request.Id.ToString(),
+                rows > 0
+                    ? AdminOperationResult.Ok("Category updated successfully.")
+                    : AdminOperationResult.Fail("Category was not updated."),
+                before,
+                request,
+                cancellationToken);
         }
 
         var nextId = await dbConnection.ExecuteScalarAsync<int>(
@@ -144,14 +156,33 @@ public sealed class CategoryAdminRepository : ICategoryAdminRepository
                     EnumTypeId = MealCategoryEnumTypeId
                 },
                 cancellationToken: cancellationToken));
-        return inserted > 0
-            ? AdminOperationResult.Ok("Category added successfully.")
-            : AdminOperationResult.Fail("Category was not added.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "Category",
+            action,
+            nextId.ToString(),
+            inserted > 0
+                ? AdminOperationResult.Ok("Category added successfully.")
+                : AdminOperationResult.Fail("Category was not added."),
+            before,
+            request,
+            cancellationToken);
     }
 
     public async Task<AdminOperationResult> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
-        if (id <= 0) return AdminOperationResult.Fail("Id is required.");
+        if (id <= 0)
+        {
+            return await _auditLogWriter.RecordAdminAsync(
+                "Category",
+                AuditActions.Delete,
+                id.ToString(),
+                AdminOperationResult.Fail("Id is required."),
+                null,
+                null,
+                cancellationToken);
+        }
+
+        var before = await GetAsync(id, cancellationToken);
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
@@ -162,13 +193,27 @@ public sealed class CategoryAdminRepository : ICategoryAdminRepository
                     "DELETE FROM Enums WHERE Id = @Id AND EnumTypeId = @EnumTypeId;",
                     new { Id = id, EnumTypeId = MealCategoryEnumTypeId },
                     cancellationToken: cancellationToken));
-            return rows > 0
-                ? AdminOperationResult.Ok("Record deleted successfully.")
-                : AdminOperationResult.Fail("Record was not deleted.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Category",
+                AuditActions.Delete,
+                id.ToString(),
+                rows > 0
+                    ? AdminOperationResult.Ok("Record deleted successfully.")
+                    : AdminOperationResult.Fail("Record was not deleted."),
+                before,
+                null,
+                cancellationToken);
         }
         catch
         {
-            return AdminOperationResult.Fail("Record could not be deleted. It may be in use.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "Category",
+                AuditActions.Delete,
+                id.ToString(),
+                AdminOperationResult.Fail("Record could not be deleted. It may be in use."),
+                before,
+                null,
+                cancellationToken);
         }
     }
 }

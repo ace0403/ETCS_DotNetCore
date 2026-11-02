@@ -3,7 +3,9 @@ using Dapper;
 using ETCS.Shared.Application.Students;
 using ETCS.Shared.Enumeration;
 using ETCS.Shared.Infrastructure.Admin.Inventory.MealEnums;
+using ETCS.Shared.Infrastructure.Admin.Inventory;
 using ETCS.Shared.Infrastructure.Admin.Models;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 
 using static ETCS.Shared.Infrastructure.Admin.DataTablePagingHelper;
@@ -13,20 +15,26 @@ namespace ETCS.Shared.Infrastructure.Admin.Inventory.MealItems;
 public sealed class MealItemAdminRepository : IMealItemAdminRepository
 {
     private readonly IMealDbConnectionFactory _connectionFactory;
+    private readonly IDbConnectionFactory _schoolConnectionFactory;
     private readonly IMealItemOrderTypeAdminRepository _orderTypeRepository;
     private readonly IMealItemSchoolAdminRepository _schoolRepository;
     private readonly IMealEnumAdminRepository _mealEnumAdminRepository;
+    private readonly IAuditLogWriter _auditLogWriter;
 
     public MealItemAdminRepository(
         IMealDbConnectionFactory connectionFactory,
+        IDbConnectionFactory schoolConnectionFactory,
         IMealItemOrderTypeAdminRepository orderTypeRepository,
         IMealItemSchoolAdminRepository schoolRepository,
-        IMealEnumAdminRepository mealEnumAdminRepository)
+        IMealEnumAdminRepository mealEnumAdminRepository,
+        IAuditLogWriter auditLogWriter)
     {
         _connectionFactory = connectionFactory;
+        _schoolConnectionFactory = schoolConnectionFactory;
         _orderTypeRepository = orderTypeRepository;
         _schoolRepository = schoolRepository;
         _mealEnumAdminRepository = mealEnumAdminRepository;
+        _auditLogWriter = auditLogWriter;
     }
 
     private const string SelectSql = """
@@ -334,14 +342,17 @@ public sealed class MealItemAdminRepository : IMealItemAdminRepository
             return AdminOperationResult.Fail("Selected meal type does not belong to the chosen meal session.");
         }
 
+        var before = request.Id > 0 ? await GetAsync(request.Id, cancellationToken) : null;
+        var action = request.Id > 0 ? AuditActions.Update : AuditActions.Create;
+
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
         using var tx = await dbConnection.BeginTransactionAsync(cancellationToken);
 
+        var itemId = request.Id;
         try
         {
-            int itemId = request.Id;
             if (request.Id > 0)
             {
                 var rows = await dbConnection.ExecuteAsync(
@@ -361,7 +372,14 @@ public sealed class MealItemAdminRepository : IMealItemAdminRepository
                 if (rows == 0)
                 {
                     await tx.RollbackAsync(cancellationToken);
-                    return AdminOperationResult.Fail("Item was not updated.");
+                    return await _auditLogWriter.RecordAdminAsync(
+                        "MealItem",
+                        action,
+                        request.Id.ToString(),
+                        AdminOperationResult.Fail("Item was not updated."),
+                        await SnapshotItemAsync(before, cancellationToken),
+                        await SnapshotItemAsync(request, cancellationToken),
+                        cancellationToken);
                 }
 
                 await DeleteChildRowsAsync(dbConnection, tx, itemId, cancellationToken);
@@ -447,18 +465,33 @@ public sealed class MealItemAdminRepository : IMealItemAdminRepository
                 cancellationToken);
 
             await tx.CommitAsync(cancellationToken);
-            return AdminOperationResult.Ok(request.Id > 0 ? "Item updated successfully." : "Item added successfully.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "MealItem",
+                action,
+                itemId > 0 ? itemId.ToString() : null,
+                AdminOperationResult.Ok(request.Id > 0 ? "Item updated successfully." : "Item added successfully."),
+                await SnapshotItemAsync(before, cancellationToken),
+                await SnapshotItemAsync(request, cancellationToken, itemId),
+                cancellationToken);
         }
         catch
         {
             await tx.RollbackAsync(cancellationToken);
-            return AdminOperationResult.Fail("Item could not be saved.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "MealItem",
+                action,
+                itemId > 0 ? itemId.ToString() : null,
+                AdminOperationResult.Fail("Item could not be saved."),
+                await SnapshotItemAsync(before, cancellationToken),
+                await SnapshotItemAsync(request, cancellationToken, itemId),
+                cancellationToken);
         }
     }
 
     public async Task<AdminOperationResult> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
         if (id <= 0) return AdminOperationResult.Fail("Id is required.");
+        var before = await GetAsync(id, cancellationToken);
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
@@ -467,9 +500,16 @@ public sealed class MealItemAdminRepository : IMealItemAdminRepository
                 "UPDATE MealItem SET IsDeleted = 1, IsActive = 0 WHERE Id = @Id;",
                 new { Id = id },
                 cancellationToken: cancellationToken));
-        return rows > 0
-            ? AdminOperationResult.Ok("Record deleted successfully.")
-            : AdminOperationResult.Fail("Record was not deleted.");
+        return await _auditLogWriter.RecordAdminAsync(
+            "MealItem",
+            AuditActions.Delete,
+            id.ToString(),
+            rows > 0
+                ? AdminOperationResult.Ok("Record deleted successfully.")
+                : AdminOperationResult.Fail("Record was not deleted."),
+            await SnapshotItemAsync(before, cancellationToken),
+            null,
+            cancellationToken);
     }
 
     public async Task<bool> ExistsAsync(
@@ -569,13 +609,42 @@ public sealed class MealItemAdminRepository : IMealItemAdminRepository
             }
         }
 
-        return new MealItemBulkImportResult
+        var importResult = new MealItemBulkImportResult
         {
             Inserted = inserted,
             SkippedExisting = skippedExisting,
             Failed = failed,
             Errors = errors
         };
+        await _auditLogWriter.WriteOutcomeAsync(
+            "Import",
+            "MealItem",
+            null,
+            failed == 0,
+            $"Inserted {inserted}, skipped {skippedExisting}, failed {failed}.",
+            null,
+            importResult,
+            cancellationToken);
+        return importResult;
+    }
+
+    private async Task<MealItemAuditSnapshot?> SnapshotItemAsync(
+        MealItemSaveRequest? request,
+        CancellationToken cancellationToken,
+        int? idOverride = null)
+    {
+        var snapshot = await MealCatalogAuditSnapshot.ForItemAsync(
+            _connectionFactory,
+            _schoolConnectionFactory,
+            request,
+            cancellationToken);
+        if (snapshot is null || idOverride is not > 0)
+        {
+            return snapshot;
+        }
+
+        snapshot.Id = idOverride.Value;
+        return snapshot;
     }
 
     private static async Task DeleteChildRowsAsync(

@@ -6,6 +6,8 @@ using ETCS.Shared.Application.Notifications;
 using ETCS.Shared.Application.Payment;
 using ETCS.Shared.Enumeration;
 using ETCS.Shared.Infrastructure.Orders;
+using ETCS.Shared.Infrastructure.Audit;
+using ETCS.Shared.Infrastructure.Data;
 using ETCS.Shared.Infrastructure.Students;
 using ETCS.Shared.Infrastructure.Transaction;
 using Microsoft.Extensions.Logging;
@@ -30,6 +32,8 @@ public sealed class TopupPaymentCompleteService : ITopupPaymentCompleteService
     private readonly IGuardianInAppNotificationService _inAppNotificationService;
     private readonly PaymentCompletionCancellation _completionCancellation;
     private readonly ILogger<TopupPaymentCompleteService> _logger;
+    private readonly IAuditLogWriter _auditLogWriter;
+    private readonly IDbConnectionFactory _connectionFactory;
 
     public TopupPaymentCompleteService(
         ITransactionRepository transactionRepository,
@@ -40,7 +44,9 @@ public sealed class TopupPaymentCompleteService : ITopupPaymentCompleteService
         IGuardianEmailNotificationService emailNotificationService,
         IGuardianInAppNotificationService inAppNotificationService,
         PaymentCompletionCancellation completionCancellation,
-        ILogger<TopupPaymentCompleteService> logger)
+        ILogger<TopupPaymentCompleteService> logger,
+        IAuditLogWriter auditLogWriter,
+        IDbConnectionFactory connectionFactory)
     {
         _transactionRepository = transactionRepository;
         _mainOrderRepository = mainOrderRepository;
@@ -51,9 +57,37 @@ public sealed class TopupPaymentCompleteService : ITopupPaymentCompleteService
         _inAppNotificationService = inAppNotificationService;
         _completionCancellation = completionCancellation;
         _logger = logger;
+        _auditLogWriter = auditLogWriter;
+        _connectionFactory = connectionFactory;
     }
 
     public async Task<TopupCompleteResponse> CompleteAsync(
+        TopupCompleteRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await CompleteCoreAsync(request, cancellationToken);
+        var guardian = await AuditGuardianActor.TryResolveAsync(
+            _connectionFactory,
+            guardianId: 0,
+            request.StudentId,
+            cancellationToken);
+        await _auditLogWriter.WriteOutcomeAsync(
+            AuditActions.TopupComplete,
+            "Topup",
+            string.IsNullOrWhiteSpace(response.OrderId) ? request.OrderId : response.OrderId,
+            response.IsSuccess,
+            response.Message,
+            null,
+            new { request.StudentId, request.OrderId, response.Amount, response.Status, response.IsPending, response.IsAlreadyProcessed },
+            cancellationToken,
+            actorType: guardian is null ? null : AuditActorTypes.Guardian,
+            actorId: guardian?.Id,
+            actorName: guardian?.Name,
+            overrideActor: guardian is not null);
+        return response;
+    }
+
+    private async Task<TopupCompleteResponse> CompleteCoreAsync(
         TopupCompleteRequest request,
         CancellationToken cancellationToken)
     {

@@ -5,6 +5,7 @@ using ETCS.Shared.Application.Orders;
 using ETCS.Shared.Application.Students;
 using ETCS.Shared.Enumeration;
 using ETCS.Shared.Helpers;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Schools.Calendar;
 using ETCS.Shared.Infrastructure.Students;
@@ -28,6 +29,7 @@ public sealed class NativeOrderInitiateService : INativeOrderInitiateService
     private readonly IPaymentBackgroundQueue _paymentBackgroundQueue;
     private readonly IStudentOrderTypeAccessService _orderTypeAccess;
     private readonly ISchoolCalendarService _schoolCalendar;
+    private readonly IAuditLogWriter _auditLogWriter;
 
     public NativeOrderInitiateService(
         IMealOrderRepository mealOrderRepository,
@@ -36,7 +38,8 @@ public sealed class NativeOrderInitiateService : INativeOrderInitiateService
         ITransactionRepository transactionRepository,
         IPaymentBackgroundQueue paymentBackgroundQueue,
         IStudentOrderTypeAccessService orderTypeAccess,
-        ISchoolCalendarService schoolCalendar)
+        ISchoolCalendarService schoolCalendar,
+        IAuditLogWriter auditLogWriter)
     {
         _mealOrderRepository = mealOrderRepository;
         _studentRepository = studentRepository;
@@ -45,9 +48,27 @@ public sealed class NativeOrderInitiateService : INativeOrderInitiateService
         _paymentBackgroundQueue = paymentBackgroundQueue;
         _orderTypeAccess = orderTypeAccess;
         _schoolCalendar = schoolCalendar;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<NativeOrderInitiateResponse> InitiateAsync(
+        NativeOrderInitiateRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await InitiateCoreAsync(request, cancellationToken);
+        await _auditLogWriter.WriteOutcomeAsync(
+            AuditActions.OrderInitiate,
+            "Order",
+            string.IsNullOrWhiteSpace(response.OrderId) ? null : response.OrderId,
+            response.IsSuccess,
+            response.Message,
+            null,
+            new { request.StudentId, request.GuardianId, request.OrderTypeId, request.Total, response.OrderId, response.MealTransactionId },
+            cancellationToken);
+        return response;
+    }
+
+    private async Task<NativeOrderInitiateResponse> InitiateCoreAsync(
         NativeOrderInitiateRequest request,
         CancellationToken cancellationToken)
     {

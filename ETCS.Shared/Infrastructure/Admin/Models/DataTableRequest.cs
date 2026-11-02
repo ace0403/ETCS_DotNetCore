@@ -1,6 +1,6 @@
 namespace ETCS.Shared.Infrastructure.Admin.Models;
 
-public sealed class DataTableRequest
+public class DataTableRequest
 {
     public const int DefaultPageSize = 25;
 

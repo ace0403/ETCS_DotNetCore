@@ -2,6 +2,7 @@ using ETCS.Pos.Web.Options;
 using ETCS.Pos.Web.Services;
 using ETCS.Shared.Infrastructure.Admin.Auth;
 using ETCS.Shared.Infrastructure.Admin.Security;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 using ETCS.Shared.Media;
 using ETCS.Shared.Options;
@@ -18,6 +19,7 @@ builder.Services.ConfigureMediaOptions(builder.Configuration, PosWebOptions.Sect
 
 builder.Services.AddSingleton<IDbConnectionFactory, SqlConnectionFactory>();
 builder.Services.AddSingleton<IMealDbConnectionFactory, SqlMealConnectionFactory>();
+builder.Services.AddAuditLog();
 builder.Services.AddScoped<IAdminLoginRepository, AdminLoginRepository>();
 builder.Services.AddScoped<IStaffLoginAssignmentRepository, StaffLoginAssignmentRepository>();
 builder.Services.AddScoped<IAdminPermissionRepository, AdminPermissionRepository>();
@@ -54,7 +56,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.SlidingExpiration = true;
     });
 builder.Services.AddAuthorization();
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add<AuditMutationFilter>();
+});
 
 builder.Services.AddCors(options =>
 {
@@ -84,6 +89,7 @@ app.MapMealImageStaticFiles(posWebOptions.StorePath);
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
+app.UseAuditContext(AuditSourceApps.Pos, AuditActorTypes.LoginAccount);
 app.UseAuthorization();
 
 app.MapControllerRoute(

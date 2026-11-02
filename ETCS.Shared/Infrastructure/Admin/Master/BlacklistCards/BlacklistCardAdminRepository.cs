@@ -3,6 +3,7 @@ using System.Data.Common;
 using System.Globalization;
 using Dapper;
 using ETCS.Shared.Infrastructure.Admin.Models;
+using ETCS.Shared.Infrastructure.Audit;
 using ETCS.Shared.Infrastructure.Data;
 using Microsoft.Extensions.Logging;
 
@@ -14,13 +15,16 @@ public sealed class BlacklistCardAdminRepository : IBlacklistCardAdminRepository
 
     private readonly IDbConnectionFactory _connectionFactory;
     private readonly ILogger<BlacklistCardAdminRepository> _logger;
+    private readonly IAuditLogWriter _auditLogWriter;
 
     public BlacklistCardAdminRepository(
         IDbConnectionFactory connectionFactory,
-        ILogger<BlacklistCardAdminRepository> logger)
+        ILogger<BlacklistCardAdminRepository> logger,
+        IAuditLogWriter auditLogWriter)
     {
         _connectionFactory = connectionFactory;
         _logger = logger;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<int?> GetStudentSchoolIdAsync(string customerId, CancellationToken cancellationToken = default)
@@ -119,12 +123,26 @@ public sealed class BlacklistCardAdminRepository : IBlacklistCardAdminRepository
                     commandType: CommandType.StoredProcedure,
                     cancellationToken: cancellationToken));
 
-            return AdminOperationResult.Ok("Card blocked.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "BlacklistCard",
+                "Blacklist",
+                customerId,
+                AdminOperationResult.Ok("Card blocked."),
+                null,
+                request,
+                cancellationToken);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to blacklist card {CustomerId}.", customerId);
-            return AdminOperationResult.Fail("Unable to blacklist the card. Please try again.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "BlacklistCard",
+                "Blacklist",
+                customerId,
+                AdminOperationResult.Fail("Unable to blacklist the card. Please try again."),
+                null,
+                request,
+                cancellationToken);
         }
     }
 
@@ -200,12 +218,26 @@ public sealed class BlacklistCardAdminRepository : IBlacklistCardAdminRepository
                     commandType: CommandType.StoredProcedure,
                     cancellationToken: cancellationToken));
 
-            return AdminOperationResult.Ok("Balance transferred to the new active card.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "BlacklistCard",
+                "TransferBalance",
+                customerId,
+                AdminOperationResult.Ok("Balance transferred to the new active card."),
+                null,
+                request,
+                cancellationToken);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to transfer balance from card {CardSn} for {CustomerId}.", cardSn, customerId);
-            return AdminOperationResult.Fail("Unable to transfer the balance. Please try again.");
+            return await _auditLogWriter.RecordAdminAsync(
+                "BlacklistCard",
+                "TransferBalance",
+                customerId,
+                AdminOperationResult.Fail("Unable to transfer the balance. Please try again."),
+                null,
+                request,
+                cancellationToken);
         }
     }
 
