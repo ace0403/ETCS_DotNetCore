@@ -30,6 +30,9 @@ public sealed class PaymentGatewayOptions
 
     public string OrderName { get; set; } = "Smart Food Card";
 
+    /// <summary>Comtrust merchant used only for the native mobile SDK (GenerateToken, Registration, wallet, capture).</summary>
+    public PaymentGatewayMobileOptions Mobile { get; set; } = new();
+
     public string ApplePayMerchantIdentifier { get; set; } = string.Empty;
 
     public string SamsungPayMerchantId { get; set; } = string.Empty;

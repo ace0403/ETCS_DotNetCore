@@ -420,7 +420,8 @@ public sealed class TransactionRepository : ITransactionRepository
                 StudentId,
                 GuardianId,
                 StatusId,
-                ReconcileAttemptCount
+                ReconcileAttemptCount,
+                PaymentMethod
             FROM
             (
                 SELECT
@@ -432,6 +433,7 @@ public sealed class TransactionRepository : ITransactionRepository
                     ISNULL(t.GuardianId, 0) AS GuardianId,
                     t.StatusId,
                     ISNULL(t.ReconcileAttemptCount, 0) AS ReconcileAttemptCount,
+                    ISNULL(t.PaymentMethod, 0) AS PaymentMethod,
                     t.CreatedOn
                 FROM [Transaction] t
                 LEFT JOIN [Order] o ON o.TransactionId = t.Id
@@ -454,6 +456,7 @@ public sealed class TransactionRepository : ITransactionRepository
                     ISNULL(o.GuardianId, 0) AS GuardianId,
                     t.StatusId,
                     ISNULL(t.ReconcileAttemptCount, 0) AS ReconcileAttemptCount,
+                    ISNULL(t.PaymentMethod, 0) AS PaymentMethod,
                     t.CreatedOn
                 FROM [Order] o
                 INNER JOIN [Transaction] t ON t.Id = o.TransactionId
@@ -494,7 +497,8 @@ public sealed class TransactionRepository : ITransactionRepository
                 StudentId = r.StudentId,
                 GuardianId = r.GuardianId,
                 StatusId = r.StatusId,
-                ReconcileAttemptCount = r.ReconcileAttemptCount
+                ReconcileAttemptCount = r.ReconcileAttemptCount,
+                PaymentMethod = r.PaymentMethod
             })
             .ToList();
     }
@@ -542,6 +546,8 @@ public sealed class TransactionRepository : ITransactionRepository
         public int StatusId { get; init; }
 
         public int ReconcileAttemptCount { get; init; }
+
+        public int PaymentMethod { get; init; }
     }
 
     public async Task QueueEmailNotificationAsync(QueueEmailNotificationRequest request, CancellationToken cancellationToken)

@@ -131,7 +131,8 @@ public sealed class PendingPaymentReconcileService : IPendingPaymentReconcileSer
                 {
                     StudentId = item.StudentId,
                     OrderId = item.OrderId,
-                    TransactionId = item.GatewayTransactionId
+                    TransactionId = item.GatewayTransactionId,
+                    UseNativeCredentials = UsesNativeCredentials(item.PaymentMethod)
                 },
                 cancellationToken);
 
@@ -165,7 +166,8 @@ public sealed class PendingPaymentReconcileService : IPendingPaymentReconcileSer
                 StudentId = item.StudentId,
                 GuardianId = item.GuardianId,
                 OrderId = item.OrderId,
-                TransactionId = item.GatewayTransactionId
+                TransactionId = item.GatewayTransactionId,
+                UseNativeCredentials = UsesNativeCredentials(item.PaymentMethod)
             },
             cancellationToken);
 
@@ -191,4 +193,9 @@ public sealed class PendingPaymentReconcileService : IPendingPaymentReconcileSer
             _options.MaxAttempts,
             orderResult.Message);
     }
+
+    private static bool UsesNativeCredentials(int paymentMethod) =>
+        paymentMethod is (int)PaymentMethodEnum.Card
+            or (int)PaymentMethodEnum.ApplePay
+            or (int)PaymentMethodEnum.SamsungPay;
 }

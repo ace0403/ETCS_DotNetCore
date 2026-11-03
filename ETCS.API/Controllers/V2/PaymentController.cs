@@ -165,7 +165,8 @@ public sealed class PaymentController : ControllerBase
             {
                 StudentId = request.StudentId,
                 OrderId = request.OrderId,
-                TransactionId = request.TransactionId ?? string.Empty
+                TransactionId = request.TransactionId ?? string.Empty,
+                UseNativeCredentials = true
             },
             cancellationToken);
 
