@@ -43,5 +43,11 @@ public sealed class ComtrustWalletRegistrationPayload
 
     public required string Password { get; init; }
 
+    public string? AuthenticationToken { get; init; }
+
+    public string? Store { get; init; }
+
+    public string? Terminal { get; init; }
+
     public required string WalletName { get; init; }
 }

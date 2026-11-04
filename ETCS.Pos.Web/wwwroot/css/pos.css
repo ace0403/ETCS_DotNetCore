@@ -453,6 +453,7 @@ body.pos-api-offline .pos-ticket-actions .pos-btn,
 body.pos-api-offline .pos-cash-fields input,
 body.pos-api-offline .pos-summary-inputs input,
 body.pos-api-offline .pos-qty-btn,
+body.pos-api-offline .pos-qty-input,
 body.pos-api-offline .pos-line-select {
     pointer-events: none;
     opacity: 0.55;
@@ -1152,6 +1153,29 @@ body.pos-api-offline .pos-line-select {
     font-size: 0.9rem;
 }
 
+.pos-qty-input {
+    width: 32px;
+    min-width: 28px;
+    height: 22px;
+    margin: 0;
+    padding: 0 2px;
+    border: 1px solid var(--pos-border);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--pos-ink);
+    text-align: center;
+    font-weight: 800;
+    font-size: 0.9rem;
+    line-height: 1;
+    -moz-appearance: textfield;
+}
+
+.pos-qty-input:focus {
+    outline: 2px solid var(--pos-accent);
+    outline-offset: 1px;
+    border-color: var(--pos-accent);
+}
+
 /* ── Summary / totals ─────────────────────────────────────── */
 
 .pos-ticket-summary {
@@ -1749,6 +1773,7 @@ body.pos-bridge-offline .pos-ticket-actions .pos-btn,
 body.pos-bridge-offline .pos-cash-fields input,
 body.pos-bridge-offline .pos-summary-inputs input,
 body.pos-bridge-offline .pos-qty-btn,
+body.pos-bridge-offline .pos-qty-input,
 body.pos-bridge-offline .pos-line-select {
     pointer-events: none;
 }
@@ -2051,7 +2076,7 @@ a.pos-bridge-overlay-btn--secondary:visited {
 
 .pos-order-table-head {
     display: grid;
-    grid-template-columns: 44px 1fr 80px;
+    grid-template-columns: 44px 1fr 96px;
     gap: 6px;
     padding: 6px 12px;
     font-size: 0.65rem;
@@ -2065,7 +2090,7 @@ a.pos-bridge-overlay-btn--secondary:visited {
 
 .pos-line-grid {
     display: grid;
-    grid-template-columns: 44px 1fr 80px;
+    grid-template-columns: 44px 1fr 96px;
     gap: 6px;
     align-items: center;
 }

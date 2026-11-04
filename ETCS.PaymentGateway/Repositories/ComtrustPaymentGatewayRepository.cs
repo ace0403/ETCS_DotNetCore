@@ -67,7 +67,8 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
         PaymentCaptureRequest request,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_options.BaseUrl))
+        var gatewayBaseUrl = ResolveGatewayBaseUrl(request.UseNativeCredentials);
+        if (string.IsNullOrWhiteSpace(gatewayBaseUrl))
         {
             return new PaymentCaptureResult
             {
@@ -108,7 +109,7 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(captureTimeoutSeconds));
 
-            using var httpRequest = CreateJsonPostRequest(finalization);
+            using var httpRequest = CreateJsonPostRequest(finalization, gatewayBaseUrl);
             using var httpResponse = await _httpClient.SendAsync(httpRequest, timeoutCts.Token);
 
             var rawResponse = await ReadResponseBodyAsync(httpResponse, timeoutCts.Token);
@@ -217,7 +218,8 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
         bool useNativeCredentials,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_options.BaseUrl))
+        var gatewayBaseUrl = ResolveGatewayBaseUrl(useNativeCredentials);
+        if (string.IsNullOrWhiteSpace(gatewayBaseUrl))
         {
             return new GenerateTokenResult
             {
@@ -247,7 +249,7 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
 
         try
         {
-            using var httpRequest = CreateJsonPostRequest(tokenRequest);
+            using var httpRequest = CreateJsonPostRequest(tokenRequest, gatewayBaseUrl);
             using var httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
             var rawResponse = await ReadResponseBodyAsync(httpResponse, cancellationToken);
             var parsed = DeserializeTransactionResponse(rawResponse);
@@ -301,7 +303,8 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
         WalletRegistrationRequest request,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_options.BaseUrl))
+        var gatewayBaseUrl = ResolveGatewayBaseUrl(useNativeCredentials: true);
+        if (string.IsNullOrWhiteSpace(gatewayBaseUrl))
         {
             return FailWallet(request.OrderId, "Payment gateway base URL is not configured.");
         }
@@ -339,13 +342,16 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
                 Customer = merchant.CustomerName,
                 UserName = merchant.UserName,
                 Password = merchant.Password,
+                AuthenticationToken = tokenResult.AuthenticationToken,
+                Store = NullIfWhiteSpace(merchant.Store),
+                Terminal = NullIfWhiteSpace(merchant.Terminal),
                 WalletName = walletName
             }
         };
 
         try
         {
-            using var httpRequest = CreateJsonPostRequest(walletRequest);
+            using var httpRequest = CreateJsonPostRequest(walletRequest, gatewayBaseUrl);
             using var httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
             var rawResponse = await ReadResponseBodyAsync(httpResponse, cancellationToken);
             var parsed = DeserializeTransactionResponse(rawResponse);
@@ -375,7 +381,7 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
                 SessionId = transaction?.SessionId ?? string.Empty,
                 MerchantUserName = merchant.UserName,
                 CustomerName = merchant.CustomerName,
-                BaseUrl = ToNativeSdkBaseUrl(_options.BaseUrl),
+                BaseUrl = ToNativeSdkBaseUrl(gatewayBaseUrl),
                 CallbackUrl = callbackUrl,
                 Amount = request.Amount,
                 Currency = _options.Currency,
@@ -400,7 +406,8 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
         CancellationToken cancellationToken,
         string? returnUrlOverride = null)
     {
-        if (string.IsNullOrWhiteSpace(_options.BaseUrl))
+        var gatewayBaseUrl = ResolveGatewayBaseUrl(useNativeCredentials: true);
+        if (string.IsNullOrWhiteSpace(gatewayBaseUrl))
         {
             return FailNative(orderId, amount, "Payment gateway base URL is not configured.");
         }
@@ -423,7 +430,9 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
                     : tokenResult.Message);
         }
 
-        // Native SDK flow: GenerateToken, then Registration with AuthenticationToken + Store/Terminal.
+        // Native SDK: GenerateToken, then Registration with AuthenticationToken + Store/Terminal.
+        // Password is also required for password-authenticated merchants; without it Comtrust returns
+        // "Either certificate OR password should be provided".
         var registration = new ComtrustRegistrationRequest
         {
             Registration = new ComtrustRegistrationPayload
@@ -439,6 +448,7 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
                 UserName = merchant.UserName,
                 Store = NullIfWhiteSpace(merchant.Store),
                 Terminal = NullIfWhiteSpace(merchant.Terminal),
+                Password = merchant.Password,
                 AuthenticationToken = tokenResult.AuthenticationToken,
                 ReturnPath = returnUrl.TrimEnd('/')
             }
@@ -453,7 +463,7 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(sessionTimeoutSeconds));
 
-            using var httpRequest = CreateJsonPostRequest(registration);
+            using var httpRequest = CreateJsonPostRequest(registration, gatewayBaseUrl);
             using var httpResponse = await _httpClient.SendAsync(httpRequest, timeoutCts.Token);
             var rawResponse = await ReadResponseBodyAsync(httpResponse, timeoutCts.Token);
             var parsed = DeserializeTransactionResponse(rawResponse);
@@ -482,7 +492,7 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
                 AuthenticationToken = authenticationToken,
                 MerchantUserName = merchant.UserName,
                 CustomerName = merchant.CustomerName,
-                BaseUrl = ToNativeSdkBaseUrl(_options.BaseUrl),
+                BaseUrl = ToNativeSdkBaseUrl(gatewayBaseUrl),
                 CallbackUrl = returnUrl.TrimEnd('/'),
                 Amount = amount,
                 Currency = _options.Currency,
@@ -536,6 +546,20 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
 
     private string ResolveMobileChannel() =>
         string.IsNullOrWhiteSpace(_options.MobileChannel) ? "Web" : _options.MobileChannel;
+
+    /// <summary>
+    /// Native mobile flows prefer PaymentGateway:Mobile:BaseUrl; otherwise PaymentGateway:BaseUrl.
+    /// </summary>
+    private string ResolveGatewayBaseUrl(bool useNativeCredentials)
+    {
+        if (useNativeCredentials
+            && !string.IsNullOrWhiteSpace(_options.Mobile?.BaseUrl))
+        {
+            return _options.Mobile.BaseUrl.Trim();
+        }
+
+        return _options.BaseUrl?.Trim() ?? string.Empty;
+    }
 
     private bool TryGetMobileMerchant(out MobileMerchant merchant)
     {
@@ -757,10 +781,11 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
         }
     }
 
-    private HttpRequestMessage CreateJsonPostRequest<TPayload>(TPayload payload)
+    private HttpRequestMessage CreateJsonPostRequest<TPayload>(TPayload payload, string? baseUrl = null)
     {
+        var endpoint = string.IsNullOrWhiteSpace(baseUrl) ? _options.BaseUrl : baseUrl.Trim();
         var json = JsonSerializer.Serialize(payload, RequestJsonOptions);
-        var request = new HttpRequestMessage(HttpMethod.Post, _options.BaseUrl)
+        var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
         {
             // Matches working Postman/HttpClient call: null encoding => UTF-8, application/json only.
             Content = new StringContent(json, encoding: null, mediaType: "application/json")

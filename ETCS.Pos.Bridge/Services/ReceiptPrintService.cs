@@ -192,8 +192,8 @@ public sealed class ReceiptPrintService
             DrawCenteredLine(graphics, docTitle, _title);
             _y += LineSpacing;
 
-            var printedAt = _request.PrintedAt ?? DateTime.Now;
-            DrawLeftLine(graphics, printedAt.ToString("dd/MM/yyyy hh:mm:ss tt", CultureInfo.InvariantCulture), _regular);
+            // Always use Bridge PC local time; client toISOString() was UTC and printed wrong.
+            DrawLeftLine(graphics, DateTime.Now.ToString("dd/MM/yyyy hh:mm:ss tt", CultureInfo.InvariantCulture), _regular);
             if (!string.IsNullOrWhiteSpace(_request.TerminalLine))
             {
                 DrawLeftLine(graphics, "Terminal: " + _request.TerminalLine.Trim(), _regular);
@@ -280,11 +280,14 @@ public sealed class ReceiptPrintService
     {
         decimal total = 0;
         var priceColumnWidth = 52f;
-        var nameColumnWidth = _contentWidth - priceColumnWidth - 4f;
+        var qtyColumnWidth = 28f;
+        var nameColumnWidth = _contentWidth - priceColumnWidth - qtyColumnWidth - 8f;
+        var qtyColumnLeft = _right - priceColumnWidth - qtyColumnWidth - 4f;
 
         foreach (var item in _request!.Items)
         {
-            var lineTotal = item.Price * item.Quantity;
+            var quantity = item.Quantity < 1 ? 1 : item.Quantity;
+            var lineTotal = item.Price * quantity;
             if (_request.DiscountApplied && _request.DiscountPercent > 0)
             {
                 lineTotal -= lineTotal * _request.DiscountPercent / 100m;
@@ -297,6 +300,14 @@ public sealed class ReceiptPrintService
                 _left,
                 _y,
                 nameColumnWidth);
+
+            DrawRightAlignedText(
+                graphics,
+                quantity.ToString(CultureInfo.InvariantCulture),
+                _regular!,
+                qtyColumnLeft,
+                _y,
+                qtyColumnWidth);
 
             DrawRightAlignedText(
                 graphics,
@@ -339,8 +350,13 @@ public sealed class ReceiptPrintService
 
     private void DrawItemHeader(Graphics graphics)
     {
+        const float priceColumnWidth = 52f;
+        const float qtyColumnWidth = 28f;
+        var qtyColumnLeft = _right - priceColumnWidth - qtyColumnWidth - 4f;
+
         graphics.DrawString("Item Name", _bold!, Brushes.Black, _left, _y);
-        DrawRightAlignedText(graphics, "Price", _bold!, _right - 52f, _y, 52f);
+        DrawRightAlignedText(graphics, "Qty", _bold!, qtyColumnLeft, _y, qtyColumnWidth);
+        DrawRightAlignedText(graphics, "Price", _bold!, _right - priceColumnWidth, _y, priceColumnWidth);
         _y += _bold!.GetHeight(graphics) + LineSpacing;
     }
 

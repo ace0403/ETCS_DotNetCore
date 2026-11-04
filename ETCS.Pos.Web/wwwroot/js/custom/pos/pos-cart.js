@@ -73,6 +73,26 @@
                 App.cart.changeQuantity(Number(btn.dataset.itemId), btn.dataset.qtyAction === 'increase' ? 1 : -1);
             });
         });
+        document.querySelectorAll('.pos-qty-input').forEach(input => {
+            input.addEventListener('click', function (e) {
+                e.stopPropagation();
+            });
+            input.addEventListener('input', function () {
+                const digitsOnly = String(input.value || '').replace(/\D/g, '');
+                if (input.value !== digitsOnly) {
+                    input.value = digitsOnly;
+                }
+            });
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    input.blur();
+                }
+            });
+            input.addEventListener('blur', function () {
+                App.cart.setQuantity(Number(input.dataset.itemId), input.value);
+            });
+        });
         document.querySelectorAll('[data-select-id]').forEach(btn => {
             btn.addEventListener('click', function () {
                 state.selectedCartItemId = Number(btn.dataset.selectId);
@@ -125,8 +145,7 @@
             vatRegNoLine: normalizeReceiptText(App.config.receiptVatRegNoLine),
             locationLine: normalizeReceiptText(App.helpers.getSelectedSchoolName()),
             terminalLine: normalizeReceiptText(App.helpers.getSelectedTerminalLabel()),
-            logoBase64: App.config.receiptLogoBase64 || '',
-            printedAt: new Date().toISOString()
+            logoBase64: App.config.receiptLogoBase64 || ''
         };
 
         if (allergenCtx && allergenCtx.hasConflict) {
@@ -256,7 +275,7 @@
                         </button>
                         <div class="pos-qty-control">
                             <button type="button" class="pos-qty-btn" data-qty-action="decrease" data-item-id="${item.id}" aria-label="Decrease quantity">&#8722;</button>
-                            <span class="pos-qty-value">${item.quantity}</span>
+                            <input type="text" inputmode="numeric" pattern="[1-9][0-9]*" class="pos-qty-input" data-item-id="${item.id}" value="${item.quantity}" aria-label="Quantity" />
                             <button type="button" class="pos-qty-btn pos-qty-btn--accent" data-qty-action="increase" data-item-id="${item.id}" aria-label="Increase quantity">+</button>
                         </div>
                     </div>
@@ -300,6 +319,31 @@
                     state.selectedCartItemId = state.cart.length ? state.cart[0].id : 0;
                 }
             }
+            App.cart.render();
+        },
+
+        setQuantity(itemId, rawValue) {
+            if (App.state.bridgeOnline !== true) {
+                App.bridge.requireOnline();
+                App.cart.render();
+                return;
+            }
+            const line = state.cart.find(c => c.id === itemId);
+            if (!line) return;
+
+            const trimmed = String(rawValue == null ? '' : rawValue).trim();
+            if (!/^[1-9]\d*$/.test(trimmed)) {
+                App.cart.render();
+                return;
+            }
+
+            const qty = parseInt(trimmed, 10);
+            if (!Number.isFinite(qty) || qty < 1 || qty === line.quantity) {
+                App.cart.render();
+                return;
+            }
+
+            line.quantity = qty;
             App.cart.render();
         },
 
