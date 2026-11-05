@@ -1589,8 +1589,27 @@ body.canteen-report-loading {
 
 .canteen-report-card .dt-scroll-body table,
 .canteen-report-card .dt-scroll-headInner table,
-.canteen-report-card .dt-scroll-head table {
+.canteen-report-card .dt-scroll-head table,
+.canteen-report-card .dt-scroll-footInner table,
+.canteen-report-card .dt-scroll-foot table {
     min-width: 1280px !important;
+}
+
+/*
+  scrollX clones tfoot below the body scrollbar. Prefer Total directly under the data
+  (inside the scroll body) and hide the cloned scroll-foot so the bar sits under Total.
+*/
+.canteen-report-card .dt-scroll-foot,
+.canteen-report-card .dataTables_scrollFoot {
+    display: none !important;
+}
+
+.canteen-report-card .dt-scroll-body tfoot th,
+.canteen-report-card .dataTables_scrollBody tfoot th,
+.canteen-report-card table.dataTable tfoot th {
+    font-weight: 700;
+    white-space: nowrap;
+    background-color: #f8f9fa;
 }
 
 .canteen-report-card table.dataTable thead th {

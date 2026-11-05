@@ -76,6 +76,54 @@ function formatReportCurrency(value) {
     return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function parseReportNumber(value) {
+    if (typeof value === 'string') {
+        value = value.replace(/,/g, '').trim();
+    }
+    var num = Number(value);
+    return Number.isFinite(num) ? num : 0;
+}
+
+function sumNumericColumn(api, columnIndex) {
+    return api
+        .column(columnIndex, { page: 'current' })
+        .data()
+        .reduce(function (total, value) {
+            return total + parseReportNumber(value);
+        }, 0);
+}
+
+function readRowNumber(row, fieldName) {
+    if (!row) {
+        return 0;
+    }
+    var raw = row[fieldName];
+    if (raw == null && fieldName) {
+        var camel = fieldName.charAt(0).toLowerCase() + fieldName.slice(1);
+        raw = row[camel];
+    }
+    if (typeof raw === 'string') {
+        raw = raw.replace(/,/g, '').trim();
+    }
+    var num = Number(raw);
+    return Number.isFinite(num) ? num : 0;
+}
+
+function sumRowsField(rows, fieldName) {
+    return (rows || []).reduce(function (total, row) {
+        return total + readRowNumber(row, fieldName);
+    }, 0);
+}
+
+function setSalesSummaryFooterCell(api, columnIndex, html) {
+    $(api.column(columnIndex).footer()).html(html);
+    // scrollX can leave the visible body tfoot out of sync with the cloned scroll-foot
+    $(api.table().container())
+        .find('.dt-scroll-body tfoot th, .dataTables_scrollBody tfoot th')
+        .eq(columnIndex)
+        .html(html);
+}
+
 function loadTerminalSalesTerminals(schoolCode) {
     var $terminal = $('#ddlTerminal');
     $terminal.prop('disabled', true).html('<option value="">Loading terminals...</option>').attr('title', 'Loading terminals...');
@@ -199,7 +247,23 @@ function initTerminalSalesReportTable() {
             { data: 'StudentCardUndoTopup', render: function (d) { return formatReportCurrency(d); } },
             { data: 'OnlineStudentCardTopup', render: function (d) { return formatReportCurrency(d); } },
             { data: 'UndoCashPurchase', render: function (d) { return formatReportCurrency(d); } }
-        ]
+        ],
+        footerCallback: function () {
+            var api = this.api();
+            var pageInfo = api.page.info();
+            var hasRows = pageInfo && pageInfo.recordsDisplay > 0 && pageInfo.end > pageInfo.start;
+
+            setSalesSummaryFooterCell(api, 3, hasRows ? 'Total' : '');
+            setSalesSummaryFooterCell(api, 4, hasRows ? String(sumNumericColumn(api, 4)) : '');
+
+            [5, 6, 7, 8, 9, 10, 11].forEach(function (columnIndex) {
+                setSalesSummaryFooterCell(
+                    api,
+                    columnIndex,
+                    hasRows ? formatReportCurrency(sumNumericColumn(api, columnIndex)) : ''
+                );
+            });
+        }
     });
 
     bindTerminalSalesReportTableEvents(reportTable);
@@ -260,6 +324,7 @@ function buildTerminalSalesPrintHtml(filters, rows) {
     html += 'th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;}';
     html += 'th{background:#f3f4f6;}';
     html += '.text-end{text-align:right;}';
+    html += '.total-row th{background:#f3f4f6;font-weight:700;}';
     html += '</style></head><body>';
     html += '<h1>Sales Summary</h1>';
     html += '<p class="meta">Date range: ' + escapeHtml(filters.StartDate) + ' to ' + escapeHtml(filters.EndDate) + '<br>';
@@ -276,21 +341,32 @@ function buildTerminalSalesPrintHtml(filters, rows) {
     (rows || []).forEach(function (row, index) {
         html += '<tr>';
         html += '<td>' + (index + 1) + '</td>';
-        html += '<td>' + escapeHtml(row.TerminalCode) + '</td>';
-        html += '<td>' + escapeHtml(row.TerminalName) + '</td>';
-        html += '<td>' + escapeHtml(row.Date) + '</td>';
-        html += '<td>' + escapeHtml(row.StudentsCount) + '</td>';
-        html += '<td class="text-end">' + formatReportCurrency(row.StudentCardPurchase) + '</td>';
-        html += '<td class="text-end">' + formatReportCurrency(row.CashPurchase) + '</td>';
-        html += '<td class="text-end">' + formatReportCurrency(row.CreditCardPurchase) + '</td>';
-        html += '<td class="text-end">' + formatReportCurrency(row.StudentCardManualTopup) + '</td>';
-        html += '<td class="text-end">' + formatReportCurrency(row.StudentCardUndoTopup) + '</td>';
-        html += '<td class="text-end">' + formatReportCurrency(row.OnlineStudentCardTopup) + '</td>';
-        html += '<td class="text-end">' + formatReportCurrency(row.UndoCashPurchase) + '</td>';
+        html += '<td>' + escapeHtml(row.TerminalCode || row.terminalCode) + '</td>';
+        html += '<td>' + escapeHtml(row.TerminalName || row.terminalName) + '</td>';
+        html += '<td>' + escapeHtml(row.Date || row.date) + '</td>';
+        html += '<td class="text-end">' + escapeHtml(readRowNumber(row, 'StudentsCount')) + '</td>';
+        html += '<td class="text-end">' + formatReportCurrency(readRowNumber(row, 'StudentCardPurchase')) + '</td>';
+        html += '<td class="text-end">' + formatReportCurrency(readRowNumber(row, 'CashPurchase')) + '</td>';
+        html += '<td class="text-end">' + formatReportCurrency(readRowNumber(row, 'CreditCardPurchase')) + '</td>';
+        html += '<td class="text-end">' + formatReportCurrency(readRowNumber(row, 'StudentCardManualTopup')) + '</td>';
+        html += '<td class="text-end">' + formatReportCurrency(readRowNumber(row, 'StudentCardUndoTopup')) + '</td>';
+        html += '<td class="text-end">' + formatReportCurrency(readRowNumber(row, 'OnlineStudentCardTopup')) + '</td>';
+        html += '<td class="text-end">' + formatReportCurrency(readRowNumber(row, 'UndoCashPurchase')) + '</td>';
         html += '</tr>';
     });
 
-    html += '</tbody></table></body></html>';
+    // Use a final body row (not tfoot) so browsers do not repeat Total on every printed page.
+    html += '<tr class="total-row">';
+    html += '<th></th><th></th><th></th><th class="text-end">Total</th>';
+    html += '<th class="text-end">' + sumRowsField(rows, 'StudentsCount') + '</th>';
+    html += '<th class="text-end">' + formatReportCurrency(sumRowsField(rows, 'StudentCardPurchase')) + '</th>';
+    html += '<th class="text-end">' + formatReportCurrency(sumRowsField(rows, 'CashPurchase')) + '</th>';
+    html += '<th class="text-end">' + formatReportCurrency(sumRowsField(rows, 'CreditCardPurchase')) + '</th>';
+    html += '<th class="text-end">' + formatReportCurrency(sumRowsField(rows, 'StudentCardManualTopup')) + '</th>';
+    html += '<th class="text-end">' + formatReportCurrency(sumRowsField(rows, 'StudentCardUndoTopup')) + '</th>';
+    html += '<th class="text-end">' + formatReportCurrency(sumRowsField(rows, 'OnlineStudentCardTopup')) + '</th>';
+    html += '<th class="text-end">' + formatReportCurrency(sumRowsField(rows, 'UndoCashPurchase')) + '</th>';
+    html += '</tr></tbody></table></body></html>';
     return html;
 }
 
@@ -306,7 +382,7 @@ function printTerminalSalesReport() {
         data: {
             Draw: 1,
             Start: 0,
-            Length: 1000000,
+            Length: 0,
             StartDate: filters.StartDate,
             EndDate: filters.EndDate,
             SchoolCode: filters.SchoolCode,

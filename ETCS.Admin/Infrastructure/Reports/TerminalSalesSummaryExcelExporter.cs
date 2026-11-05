@@ -49,6 +49,21 @@ public static class TerminalSalesSummaryExcelExporter
             worksheet.Cell(excelRow, 11).Value = row.UndoCashPurchase;
         }
 
+        if (rows.Count > 0)
+        {
+            var totalRow = rows.Count + 2;
+            worksheet.Cell(totalRow, 3).Value = "Total";
+            worksheet.Cell(totalRow, 4).Value = rows.Sum(r => r.StudentsCount);
+            worksheet.Cell(totalRow, 5).Value = rows.Sum(r => r.StudentCardPurchase);
+            worksheet.Cell(totalRow, 6).Value = rows.Sum(r => r.CashPurchase);
+            worksheet.Cell(totalRow, 7).Value = rows.Sum(r => r.CreditCardPurchase);
+            worksheet.Cell(totalRow, 8).Value = rows.Sum(r => r.StudentCardManualTopup);
+            worksheet.Cell(totalRow, 9).Value = rows.Sum(r => r.StudentCardUndoTopup);
+            worksheet.Cell(totalRow, 10).Value = rows.Sum(r => r.OnlineStudentCardTopup);
+            worksheet.Cell(totalRow, 11).Value = rows.Sum(r => r.UndoCashPurchase);
+            worksheet.Range(totalRow, 1, totalRow, Headers.Length).Style.Font.Bold = true;
+        }
+
         worksheet.Columns().AdjustToContents();
 
         using var stream = new MemoryStream();

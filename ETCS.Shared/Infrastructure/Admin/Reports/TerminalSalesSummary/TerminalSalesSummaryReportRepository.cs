@@ -66,13 +66,16 @@ public sealed class TerminalSalesSummaryReportRepository : ITerminalSalesSummary
 
         var filter = ToFilter(request);
 
+        // Length <= 0 means "all rows" for the SP (do not coerce to DefaultPageSize).
+        var pageLength = request.Length <= 0 ? 0 : request.Length;
+
         var (rows, totalCount) = await QuerySummaryAsync(
 
             filter,
 
             request.Start,
 
-            request.PageSize,
+            pageLength,
 
             cancellationToken);
 
