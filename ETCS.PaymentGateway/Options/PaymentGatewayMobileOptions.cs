@@ -15,6 +15,12 @@ public sealed class PaymentGatewayMobileOptions
 
     public string Terminal { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Explicit compatibility for EPG endpoints that require merchant credentials in
+    /// operation bodies as well as HTTP Basic. These credentials remain server-side.
+    /// </summary>
+    public bool IncludeCredentialsInBody { get; set; }
+
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(UserName) && !string.IsNullOrWhiteSpace(Password);
 }

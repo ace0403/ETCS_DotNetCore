@@ -19,19 +19,75 @@ public sealed class PaymentController : ControllerBase
 {
     private readonly INativeTopupInitiateService _nativeTopupInitiateService;
     private readonly INativeWalletRegistrationService _nativeWalletRegistrationService;
-    private readonly ITopupPaymentCompleteService _topupPaymentCompleteService;
+    private readonly INativePaymentService _nativePayments;
     private readonly PaymentGatewayOptions _paymentGatewayOptions;
 
     public PaymentController(
         INativeTopupInitiateService nativeTopupInitiateService,
         INativeWalletRegistrationService nativeWalletRegistrationService,
-        ITopupPaymentCompleteService topupPaymentCompleteService,
+        INativePaymentService nativePayments,
         IOptions<PaymentGatewayOptions> paymentGatewayOptions)
     {
         _nativeTopupInitiateService = nativeTopupInitiateService;
         _nativeWalletRegistrationService = nativeWalletRegistrationService;
-        _topupPaymentCompleteService = topupPaymentCompleteService;
+        _nativePayments = nativePayments;
         _paymentGatewayOptions = paymentGatewayOptions.Value;
+    }
+
+    [HttpPost("cancel")]
+    public async Task<IActionResult> CancelNativePayment([FromBody] NativePaymentCancelApiRequest request, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetGuardianId(out var guardianId)) return Unauthorized(new { message = "Guardian claim is missing in token." });
+        if (request.StudentId <= 0 || string.IsNullOrWhiteSpace(request.OrderId) || string.IsNullOrWhiteSpace(request.TransactionId)
+            || request.Type is not ("order" or "topup"))
+            return BadRequest(new { message = "Exact original payment references and type are required." });
+        var result = await _nativePayments.CancelAsync(guardianId, request.StudentId, request.OrderId.Trim(),
+            request.TransactionId.Trim(), request.Type, cancellationToken);
+        return result.IsSuccess ? Ok(result) : BadRequest(new { message = result.Message });
+    }
+
+    // A missing SDK result is not a user cancellation. This route only verifies
+    // the original payment and persists terminal evidence; it cannot Capture/Reverse/CancelPayment.
+    [HttpPost("cancel/status")]
+    public async Task<IActionResult> CheckNativeCancellation([FromBody] NativePaymentCancelApiRequest request, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetGuardianId(out var guardianId)) return Unauthorized(new { message = "Guardian claim is missing in token." });
+        if (request.StudentId <= 0 || string.IsNullOrWhiteSpace(request.OrderId) || string.IsNullOrWhiteSpace(request.TransactionId)
+            || request.Type is not ("order" or "topup"))
+            return BadRequest(new { message = "Exact original payment references and type are required." });
+        var result = await _nativePayments.CancelAsync(guardianId, request.StudentId, request.OrderId.Trim(),
+            request.TransactionId.Trim(), request.Type, cancellationToken, verifyOnly: true);
+        return result.IsSuccess ? Ok(result) : BadRequest(new { message = result.Message });
+    }
+
+    [HttpPost("card/resume")]
+    public async Task<IActionResult> ResumeNativeCard([FromBody] NativeCardResumeApiRequest request, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetGuardianId(out var guardianId))
+            return Unauthorized(new { message = "Guardian claim is missing in token." });
+        if (request.StudentId <= 0 || string.IsNullOrWhiteSpace(request.OrderId) || request.Type is not ("topup" or "order"))
+            return BadRequest(new { message = "Valid payment references and type are required." });
+        if (!NativeReturnUrl.TryResolve(Request, request.ReturnUrl, _paymentGatewayOptions, out var returnUrl))
+            return BadRequest(new { message = "A valid HTTPS native return URL on this API is required." });
+        var result = await _nativePayments.ResumeCardAsync(guardianId, request.StudentId, request.OrderId.Trim(),
+            request.TransactionId, request.Type, returnUrl, cancellationToken);
+        return result.IsSuccess ? Ok(result) : BadRequest(new { message = result.Message });
+    }
+
+    [HttpGet("status")]
+    public async Task<IActionResult> GetNativeStatus(
+        [FromQuery] string orderId, [FromQuery] int studentId,
+        [FromQuery] string? transactionId = null, [FromQuery] string type = "order",
+        CancellationToken cancellationToken = default)
+    {
+        if (!User.TryGetGuardianId(out var guardianId))
+            return Unauthorized(new { message = "Guardian claim is missing in token." });
+        if (string.IsNullOrWhiteSpace(orderId) || studentId <= 0 || type is not ("order" or "topup"))
+            return BadRequest(new { message = "A valid OrderId, StudentId and payment type are required." });
+        var result = await _nativePayments.GetStatusAsync(
+            guardianId, studentId, orderId.Trim(), transactionId, type, cancellationToken);
+        if (!result.IsSuccess && !result.IsPending && result.Status is not ("declined" or "cancelled")) return BadRequest(new { message = result.Message });
+        return Ok(result);
     }
 
     [HttpGet("native-capabilities")]
@@ -39,9 +95,8 @@ public sealed class PaymentController : ControllerBase
     {
         return Ok(new NativePaymentCapabilitiesResponse
         {
-            SamsungPayEnabled = !string.IsNullOrWhiteSpace(_paymentGatewayOptions.SamsungPayMerchantId)
-                                && !string.IsNullOrWhiteSpace(_paymentGatewayOptions.SamsungPayServiceId),
-            ApplePayEnabled = !string.IsNullOrWhiteSpace(_paymentGatewayOptions.ApplePayMerchantIdentifier)
+            SamsungPayEnabled = _paymentGatewayOptions.NativeConfigurationError("SamsungPay") is null,
+            ApplePayEnabled = _paymentGatewayOptions.NativeConfigurationError("ApplePay") is null
         });
     }
 
@@ -55,6 +110,8 @@ public sealed class PaymentController : ControllerBase
             return Unauthorized(new { message = "Guardian claim is missing in token." });
         }
 
+        if (!NativeReturnUrl.TryResolve(Request, request.ReturnUrl, _paymentGatewayOptions, out var returnUrl))
+            return BadRequest(new { message = "A valid HTTPS native return URL on this API is required." });
         var result = await _nativeTopupInitiateService.InitiateAsync(
             new NativeTopupInitiateRequest
             {
@@ -62,7 +119,7 @@ public sealed class PaymentController : ControllerBase
                 StudentId = request.StudentId,
                 Amount = request.Amount,
                 PaymentMethod = request.PaymentMethod,
-                ReturnUrl = request.ReturnUrl,
+                ReturnUrl = returnUrl,
                 SourceChannel = TransactionSourceChannel.Api.ToDbValue()
             },
             cancellationToken);
@@ -94,6 +151,8 @@ public sealed class PaymentController : ControllerBase
             return Unauthorized(new { message = "Guardian claim is missing in token." });
         }
 
+        if (!NativeReturnUrl.TryResolve(Request, request.ReturnUrl, _paymentGatewayOptions, out var returnUrl))
+            return BadRequest(new { message = "A valid HTTPS native return URL on this API is required." });
         var result = await _nativeWalletRegistrationService.RegisterAsync(
             new NativeWalletRegisterRequest
             {
@@ -103,7 +162,8 @@ public sealed class PaymentController : ControllerBase
                 Amount = request.Amount,
                 PaymentMethod = request.PaymentMethod,
                 OrderInfo = request.OrderInfo,
-                ReturnUrl = request.ReturnUrl
+                PaymentKind = "topup",
+                ReturnUrl = returnUrl
             },
             cancellationToken);
 
@@ -119,6 +179,7 @@ public sealed class PaymentController : ControllerBase
     /// Comtrust 3DS return URL for native EPG SDK sessions. Must be HTTPS so the SDK WebView can load it.
     /// </summary>
     [HttpGet("mobile-return")]
+    [HttpPost("mobile-return")]
     [AllowAnonymous]
     public IActionResult MobileReturn([FromQuery] string orderid)
     {
@@ -135,11 +196,11 @@ public sealed class PaymentController : ControllerBase
             <head>
               <meta charset="utf-8" />
               <meta name="viewport" content="width=device-width, initial-scale=1" />
-              <title>Payment complete</title>
+              <title>Payment authentication returned</title>
             </head>
             <body>
-              <p>Payment received. Returning to the app…</p>
-              <script>window.location.replace({System.Text.Json.JsonSerializer.Serialize(deepLink)});</script>
+              <p>Authentication finished. Return to the app to confirm your payment.</p>
+              <p><a href="{System.Net.WebUtility.HtmlEncode(deepLink)}">Return to the app</a></p>
             </body>
             </html>
             """;
@@ -148,7 +209,7 @@ public sealed class PaymentController : ControllerBase
     }
 
     /// <summary>
-    /// Finalizes native top-up by delegating to the existing v1 completion pipeline.
+    /// Finalizes native top-up with ownership checks, mobile credentials and retryable wallet credit.
     /// </summary>
     [HttpPost("topup/complete")]
     public async Task<IActionResult> CompleteNativeTopup(
@@ -160,30 +221,27 @@ public sealed class PaymentController : ControllerBase
             return BadRequest(new { message = "OrderId is required." });
         }
 
-        var result = await _topupPaymentCompleteService.CompleteAsync(
-            new TopupCompleteRequest
-            {
-                StudentId = request.StudentId,
-                OrderId = request.OrderId,
-                TransactionId = request.TransactionId ?? string.Empty,
-                UseNativeCredentials = true
-            },
-            cancellationToken);
-
+        if (!User.TryGetGuardianId(out var guardianId))
+            return Unauthorized(new { message = "Guardian claim is missing in token." });
+        if (request.StudentId <= 0)
+            return BadRequest(new { message = "StudentId is required." });
+        var result = await _nativePayments.CompleteTopupAsync(
+            guardianId, request.StudentId, request.OrderId.Trim(), request.TransactionId, cancellationToken);
         if (!result.IsSuccess && !result.IsPending)
         {
             return BadRequest(new { message = result.Message });
         }
 
-        return Ok(new PaymentCaptureResult
-        {
-            IsSuccess = result.IsSuccess,
-            IsPending = result.IsPending,
-            Message = result.Message,
-            TransactionId = result.TransactionId,
-            Status = result.Status
-        });
+        return Ok(result);
     }
+}
+
+public sealed class NativePaymentCancelApiRequest
+{
+    public string OrderId { get; init; } = string.Empty;
+    public string TransactionId { get; init; } = string.Empty;
+    public int StudentId { get; init; }
+    public string Type { get; init; } = "order";
 }
 
 public sealed class NativeTopupApiRequest
@@ -217,4 +275,13 @@ public sealed class NativePaymentCapabilitiesResponse
     public bool SamsungPayEnabled { get; init; }
 
     public bool ApplePayEnabled { get; init; }
+}
+
+public sealed class NativeCardResumeApiRequest
+{
+    public string OrderId { get; init; } = string.Empty;
+    public string? TransactionId { get; init; }
+    public int StudentId { get; init; }
+    public string Type { get; init; } = "order";
+    public string? ReturnUrl { get; init; }
 }

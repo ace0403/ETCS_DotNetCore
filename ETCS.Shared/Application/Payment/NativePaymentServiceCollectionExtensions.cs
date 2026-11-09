@@ -9,6 +9,9 @@ public static class NativePaymentServiceCollectionExtensions
         services.AddScoped<INativeTopupInitiateService, NativeTopupInitiateService>();
         services.AddScoped<INativeOrderInitiateService, NativeOrderInitiateService>();
         services.AddScoped<INativeWalletRegistrationService, NativeWalletRegistrationService>();
+        services.AddScoped<INativePaymentRepository, NativePaymentRepository>();
+        services.AddScoped<INativePaymentService, NativePaymentService>();
+        services.AddScoped<NativeOrderValidator>();
         return services;
     }
 }

@@ -25,6 +25,7 @@ public sealed class NativeTopupInitiateService : INativeTopupInitiateService
     private readonly IPaymentBackgroundQueue _paymentBackgroundQueue;
     private readonly IStudentOrderTypeAccessService _orderTypeAccess;
     private readonly IAuditLogWriter _auditLogWriter;
+    private readonly INativePaymentRepository _payments;
 
     public NativeTopupInitiateService(
         IStudentRepository studentRepository,
@@ -32,7 +33,8 @@ public sealed class NativeTopupInitiateService : INativeTopupInitiateService
         IPaymentGatewayRepository paymentGatewayRepository,
         IPaymentBackgroundQueue paymentBackgroundQueue,
         IStudentOrderTypeAccessService orderTypeAccess,
-        IAuditLogWriter auditLogWriter)
+        IAuditLogWriter auditLogWriter,
+        INativePaymentRepository payments)
     {
         _studentRepository = studentRepository;
         _transactionRepository = transactionRepository;
@@ -40,6 +42,7 @@ public sealed class NativeTopupInitiateService : INativeTopupInitiateService
         _paymentBackgroundQueue = paymentBackgroundQueue;
         _orderTypeAccess = orderTypeAccess;
         _auditLogWriter = auditLogWriter;
+        _payments = payments;
     }
 
     public async Task<NativeTopupInitiateResponse> InitiateAsync(
@@ -83,10 +86,12 @@ public sealed class NativeTopupInitiateService : INativeTopupInitiateService
             return Fail("Amount must be greater than zero.");
         }
 
+        if (request.Amount != decimal.Round(request.Amount, 2, MidpointRounding.AwayFromZero))
+            return Fail("Amount must have no more than two decimal places.");
         var paymentMethod = PaymentMethodEnumExtensions.ParseOrUnknown(request.PaymentMethod);
-        if (paymentMethod is PaymentMethodEnum.Unknown)
+        if (paymentMethod is not (PaymentMethodEnum.Card or PaymentMethodEnum.ApplePay or PaymentMethodEnum.SamsungPay))
         {
-            paymentMethod = PaymentMethodEnum.Card;
+            return Fail("PaymentMethod must be Card, ApplePay or SamsungPay.");
         }
 
         var parentDetails = await _studentRepository.GetGuardianBasicDetailByStudentIdAsync(
@@ -193,7 +198,7 @@ public sealed class NativeTopupInitiateService : INativeTopupInitiateService
             cancellationToken,
             request.ReturnUrl);
 
-        _paymentBackgroundQueue.EnqueuePaymentLog(orderId, JsonSerializer.Serialize(result, JsonOptions));
+        _paymentBackgroundQueue.EnqueuePaymentLog(orderId, JsonSerializer.Serialize(new { result.IsSuccess, result.Message, result.OrderId, result.TransactionId, result.PaymentMethod }, JsonOptions));
 
         if (!result.IsSuccess)
         {
@@ -213,7 +218,7 @@ public sealed class NativeTopupInitiateService : INativeTopupInitiateService
             parentDetails,
             orderId,
             request.Amount,
-            result.TransactionId,
+            result.TransactionId, result.Currency, result.ManualCapture,
             cancellationToken);
 
         return MapSessionResponse(result, paymentMethod, minimumTopup);
@@ -241,7 +246,7 @@ public sealed class NativeTopupInitiateService : INativeTopupInitiateService
             },
             cancellationToken);
 
-        _paymentBackgroundQueue.EnqueuePaymentLog(orderId, JsonSerializer.Serialize(walletResult, JsonOptions));
+        _paymentBackgroundQueue.EnqueuePaymentLog(orderId, JsonSerializer.Serialize(new { walletResult.IsSuccess, walletResult.Message, walletResult.OrderId, walletResult.TransactionId, walletResult.PaymentMethod }, JsonOptions));
 
         if (!walletResult.IsSuccess)
         {
@@ -261,7 +266,7 @@ public sealed class NativeTopupInitiateService : INativeTopupInitiateService
             parentDetails,
             orderId,
             request.Amount,
-            walletResult.TransactionId,
+            walletResult.TransactionId, walletResult.Currency, walletResult.ManualCapture,
             cancellationToken);
 
         return new NativeTopupInitiateResponse
@@ -291,9 +296,15 @@ public sealed class NativeTopupInitiateService : INativeTopupInitiateService
         StudentGuardianBasicDetailDto parentDetails,
         string orderId,
         decimal amount,
-        string transactionId,
+        string transactionId, string currency, bool manualCapture,
         CancellationToken cancellationToken)
     {
+        await _payments.SaveSessionTermsAsync(new NativePaymentVerificationState
+        {
+            TransactionPkId = topupTransactionPkId, OrderId = orderId, Kind = "topup",
+            GatewayTransactionId = transactionId, Amount = amount,
+            Currency = currency.Trim().ToUpperInvariant(), ManualCapture = manualCapture
+        }, cancellationToken);
         await _transactionRepository.UpdateTopupTransactionStatusAsync(
             new TopupTransactionUpdateRequest
             {

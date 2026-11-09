@@ -4,6 +4,9 @@ using ETCS.Shared.Application.Orders;
 using ETCS.Shared.Application.Payment;
 using ETCS.Shared.Enumeration;
 using ETCS.Shared.Infrastructure.Orders;
+using ETCS.Shared.Infrastructure.Students;
+using ETCS.PaymentGateway.Options;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,16 +20,44 @@ public sealed class OrderController : ControllerBase
 {
     private readonly INativeOrderInitiateService _nativeOrderInitiateService;
     private readonly INativeWalletRegistrationService _nativeWalletRegistrationService;
-    private readonly IOrderPaymentCompleteService _orderPaymentCompleteService;
+    private readonly INativePaymentService _nativePayments;
+    private readonly OrderAllergenConsentEnricher _consent;
+    private readonly IStudentRepository _students;
+    private readonly PaymentGatewayOptions _options;
 
     public OrderController(
         INativeOrderInitiateService nativeOrderInitiateService,
         INativeWalletRegistrationService nativeWalletRegistrationService,
-        IOrderPaymentCompleteService orderPaymentCompleteService)
+        INativePaymentService nativePayments,
+        OrderAllergenConsentEnricher consent,
+        IStudentRepository students,
+        IOptions<PaymentGatewayOptions> options)
     {
         _nativeOrderInitiateService = nativeOrderInitiateService;
         _nativeWalletRegistrationService = nativeWalletRegistrationService;
-        _orderPaymentCompleteService = orderPaymentCompleteService;
+        _nativePayments = nativePayments;
+        _consent = consent;
+        _students = students;
+        _options = options.Value;
+    }
+
+    [HttpPost("allergen-consent")]
+    public async Task<IActionResult> GetAllergenConsent(
+        [FromBody] NativeOrderApiRequest request, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetGuardianId(out var guardianId))
+            return Unauthorized(new { message = "Guardian claim is missing in token." });
+        if (request.StudentId <= 0 || request.MealList is null || request.MealList.Count is 0 or > 500)
+            return BadRequest(new { message = "StudentId and meal lines are required." });
+        var guardian = await _students.GetGuardianBasicDetailByStudentIdAsync(
+            request.StudentId.ToString(System.Globalization.CultureInfo.InvariantCulture), cancellationToken);
+        if (guardian?.GuardianId != guardianId) return Forbid();
+        var map = await _consent.ResolveItemTextMapAsync(request.StudentId,
+            request.MealList.Select(x => (x.ItemId, x.PackageId)), cancellationToken);
+        return Ok(map.Where(x => !string.IsNullOrWhiteSpace(x.Value)).Select(x => new
+        {
+            x.Key.ItemId, x.Key.PackageId, AllergenText = x.Value
+        }));
     }
 
     [HttpPost("initiate")]
@@ -54,6 +85,8 @@ public sealed class OrderController : ControllerBase
             return BadRequest(new { message = "MealList is required." });
         }
 
+        if (!NativeReturnUrl.TryResolve(Request, request.ReturnUrl, _options, out var returnUrl))
+            return BadRequest(new { message = "A valid HTTPS native return URL on this API is required." });
         var result = await _nativeOrderInitiateService.InitiateAsync(
             new NativeOrderInitiateRequest
             {
@@ -63,7 +96,7 @@ public sealed class OrderController : ControllerBase
                 Total = request.Total,
                 Notes = request.Notes,
                 PaymentMethod = request.PaymentMethod,
-                ReturnUrl = request.ReturnUrl,
+                ReturnUrl = returnUrl,
                 SourceChannel = TransactionSourceChannel.Api.ToDbValue(),
                 MealList = request.MealList
             },
@@ -87,6 +120,8 @@ public sealed class OrderController : ControllerBase
             return Unauthorized(new { message = "Guardian claim is missing in token." });
         }
 
+        if (!NativeReturnUrl.TryResolve(Request, request.ReturnUrl, _options, out var returnUrl))
+            return BadRequest(new { message = "A valid HTTPS native return URL on this API is required." });
         var result = await _nativeWalletRegistrationService.RegisterAsync(
             new NativeWalletRegisterRequest
             {
@@ -96,7 +131,8 @@ public sealed class OrderController : ControllerBase
                 Amount = request.Amount,
                 PaymentMethod = request.PaymentMethod,
                 OrderInfo = request.OrderInfo,
-                ReturnUrl = request.ReturnUrl
+                PaymentKind = "order",
+                ReturnUrl = returnUrl
             },
             cancellationToken);
 
@@ -128,16 +164,8 @@ public sealed class OrderController : ControllerBase
             return BadRequest(new { message = "OrderId is required." });
         }
 
-        var scopedRequest = new OrderCompleteRequest
-        {
-            StudentId = request.StudentId,
-            GuardianId = guardianId,
-            OrderId = request.OrderId,
-            TransactionId = request.TransactionId,
-            UseNativeCredentials = true
-        };
-
-        var result = await _orderPaymentCompleteService.CompleteAsync(scopedRequest, cancellationToken);
+        var result = await _nativePayments.CompleteOrderAsync(
+            guardianId, request.StudentId, request.OrderId.Trim(), request.TransactionId, cancellationToken);
         if (!result.IsSuccess && !result.IsPending)
         {
             return BadRequest(new { message = result.Message });

@@ -19,17 +19,23 @@ public sealed class NativeWalletRegistrationService : INativeWalletRegistrationS
     private readonly IPaymentBackgroundQueue _paymentBackgroundQueue;
     private readonly IStudentRepository _studentRepository;
     private readonly IMealOrderRepository _mealOrderRepository;
+    private readonly INativePaymentRepository _payments;
+    private readonly ETCS.Shared.Infrastructure.Transaction.ITransactionRepository _transactions;
 
     public NativeWalletRegistrationService(
         IPaymentGatewayRepository paymentGatewayRepository,
         IPaymentBackgroundQueue paymentBackgroundQueue,
         IStudentRepository studentRepository,
-        IMealOrderRepository mealOrderRepository)
+        IMealOrderRepository mealOrderRepository,
+        INativePaymentRepository payments,
+        ETCS.Shared.Infrastructure.Transaction.ITransactionRepository transactions)
     {
         _paymentGatewayRepository = paymentGatewayRepository;
         _paymentBackgroundQueue = paymentBackgroundQueue;
         _studentRepository = studentRepository;
         _mealOrderRepository = mealOrderRepository;
+        _payments = payments;
+        _transactions = transactions;
     }
 
     public async Task<NativeWalletRegisterResponse> RegisterAsync(
@@ -57,6 +63,9 @@ public sealed class NativeWalletRegistrationService : INativeWalletRegistrationS
             return Fail("PaymentMethod must be ApplePay or SamsungPay.");
         }
 
+        if (request.StudentId <= 0 || request.PaymentKind is not ("order" or "topup"))
+            return Fail("StudentId and payment type are required.");
+
         if (request.StudentId > 0)
         {
             var guardianDetail = await _studentRepository.GetGuardianBasicDetailByStudentIdAsync(
@@ -67,6 +76,19 @@ public sealed class NativeWalletRegistrationService : INativeWalletRegistrationS
                 return Fail("You do not have access to this student.");
             }
         }
+
+        await using var lease = await _payments.TryAcquireAsync(request.OrderId, request.PaymentKind, cancellationToken);
+        if (lease is null) return Fail("Payment is still processing. Please retry.");
+        var payment = await _payments.FindAsync(request.OrderId, request.PaymentKind, cancellationToken);
+        if (payment is null || !payment.IsNative || payment.GuardianId != request.GuardianId
+            || payment.StudentId != request.StudentId || payment.Amount != request.Amount
+            || payment.PaymentMethod != (int)paymentMethod)
+            return Fail("Payment not found or payment references do not match.");
+        // Initiation already registers the chosen wallet. Never replace an in-flight or paid transaction.
+        if (payment.IsPaid || payment.IsTransactionCompleted
+            || !string.IsNullOrWhiteSpace(payment.GatewayTransactionId)
+            || payment.StatusId is not ((int)TransactionStatusEnum.Pending or (int)TransactionStatusEnum.Initiated))
+            return Fail("This payment already has a session. Use its existing session or start a new payment.");
 
         var walletResult = await _paymentGatewayRepository.CreateWalletRegistrationAsync(
             new WalletRegistrationRequest
@@ -80,26 +102,32 @@ public sealed class NativeWalletRegistrationService : INativeWalletRegistrationS
             },
             cancellationToken);
 
-        _paymentBackgroundQueue.EnqueuePaymentLog(request.OrderId, JsonSerializer.Serialize(walletResult, JsonOptions));
+        _paymentBackgroundQueue.EnqueuePaymentLog(request.OrderId, JsonSerializer.Serialize(new { walletResult.IsSuccess, walletResult.Message, walletResult.OrderId, walletResult.TransactionId, walletResult.PaymentMethod }, JsonOptions));
 
         if (!walletResult.IsSuccess)
         {
-            await _mealOrderRepository.SetPaymentSessionFailedAsync(
-                request.OrderId.Trim(),
-                walletResult.Message,
-                cancellationToken);
-
             return Fail(string.IsNullOrWhiteSpace(walletResult.Message)
                 ? "Wallet registration failed."
                 : walletResult.Message);
         }
 
-        await _mealOrderRepository.SetPaymentSessionAsync(
-            request.OrderId.Trim(),
-            walletResult.TransactionId,
-            (int)TransactionStatusEnum.Initiated,
-            cancellationToken);
-
+        await _payments.SaveSessionTermsAsync(new NativePaymentVerificationState
+        {
+            TransactionPkId = payment.TransactionPkId, OrderId = payment.OrderId, Kind = payment.Kind,
+            GatewayTransactionId = walletResult.TransactionId, Amount = payment.Amount,
+            Currency = walletResult.Currency.Trim().ToUpperInvariant(), ManualCapture = walletResult.ManualCapture
+        }, cancellationToken);
+        if (request.PaymentKind == "topup")
+            await _transactions.UpdateTopupTransactionStatusAsync(
+                new ETCS.Shared.Infrastructure.Transaction.TopupTransactionUpdateRequest
+                {
+                    TransactionPkId = payment.TransactionPkId, GatewayTransactionId = walletResult.TransactionId,
+                    StatusId = (int)TransactionStatusEnum.Initiated, IsTransactionCompleted = false,
+                    Remarks = payment.OrderId, UpdatedBy = payment.GuardianId
+                }, cancellationToken);
+        else
+            await _mealOrderRepository.SetPaymentSessionAsync(payment.OrderId, walletResult.TransactionId,
+                (int)TransactionStatusEnum.Initiated, cancellationToken);
         return new NativeWalletRegisterResponse
         {
             IsSuccess = true,

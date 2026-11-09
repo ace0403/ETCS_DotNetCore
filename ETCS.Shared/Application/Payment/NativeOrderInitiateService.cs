@@ -30,6 +30,8 @@ public sealed class NativeOrderInitiateService : INativeOrderInitiateService
     private readonly IStudentOrderTypeAccessService _orderTypeAccess;
     private readonly ISchoolCalendarService _schoolCalendar;
     private readonly IAuditLogWriter _auditLogWriter;
+    private readonly NativeOrderValidator _validator;
+    private readonly INativePaymentRepository _payments;
 
     public NativeOrderInitiateService(
         IMealOrderRepository mealOrderRepository,
@@ -39,7 +41,9 @@ public sealed class NativeOrderInitiateService : INativeOrderInitiateService
         IPaymentBackgroundQueue paymentBackgroundQueue,
         IStudentOrderTypeAccessService orderTypeAccess,
         ISchoolCalendarService schoolCalendar,
-        IAuditLogWriter auditLogWriter)
+        IAuditLogWriter auditLogWriter,
+        NativeOrderValidator validator,
+        INativePaymentRepository payments)
     {
         _mealOrderRepository = mealOrderRepository;
         _studentRepository = studentRepository;
@@ -49,6 +53,8 @@ public sealed class NativeOrderInitiateService : INativeOrderInitiateService
         _orderTypeAccess = orderTypeAccess;
         _schoolCalendar = schoolCalendar;
         _auditLogWriter = auditLogWriter;
+        _validator = validator;
+        _payments = payments;
     }
 
     public async Task<NativeOrderInitiateResponse> InitiateAsync(
@@ -72,15 +78,27 @@ public sealed class NativeOrderInitiateService : INativeOrderInitiateService
         NativeOrderInitiateRequest request,
         CancellationToken cancellationToken)
     {
+        if (request.GuardianId <= 0 || request.StudentId <= 0 || request.MealList.Count is 0 or > 500)
+            return Fail("A guardian, student and meal lines are required.");
+        var guardianDetail = await _studentRepository.GetGuardianBasicDetailByStudentIdAsync(
+            request.StudentId.ToString(CultureInfo.InvariantCulture),
+            cancellationToken);
+        if (guardianDetail is null || string.IsNullOrWhiteSpace(guardianDetail.CustomerId))
+        {
+            return Fail("Unable to resolve customer profile for this student.");
+        }
+        if (guardianDetail.GuardianId != request.GuardianId)
+            return Fail("You do not have access to this student.");
+
         if (!await _orderTypeAccess.IsAllowedAsync(request.StudentId, request.OrderTypeId, cancellationToken))
         {
             return Fail(_orderTypeAccess.GetDeniedMessage(request.OrderTypeId));
         }
 
         var paymentMethod = PaymentMethodEnumExtensions.ParseOrUnknown(request.PaymentMethod);
-        if (paymentMethod is PaymentMethodEnum.Unknown)
+        if (paymentMethod is not (PaymentMethodEnum.Card or PaymentMethodEnum.ApplePay or PaymentMethodEnum.SamsungPay))
         {
-            paymentMethod = PaymentMethodEnum.Card;
+            return Fail("PaymentMethod must be Card, ApplePay or SamsungPay.");
         }
 
         var generatedOrderId = OrderIdGenerator.GenerateForStudent(request.StudentId);
@@ -103,13 +121,10 @@ public sealed class NativeOrderInitiateService : INativeOrderInitiateService
             }
         }
 
-        var guardianDetail = await _studentRepository.GetGuardianBasicDetailByStudentIdAsync(
-            request.StudentId.ToString(CultureInfo.InvariantCulture),
-            cancellationToken);
-        if (guardianDetail is null || string.IsNullOrWhiteSpace(guardianDetail.CustomerId))
-        {
-            return Fail("Unable to resolve customer profile for this student.");
-        }
+
+
+        var validation = await _validator.ValidateAsync(request, schoolId ?? 0, cancellationToken);
+        if (validation.Error is not null) return Fail(validation.Error);
 
         var orderRequest = new OrderInitiateRequest
         {
@@ -121,7 +136,7 @@ public sealed class NativeOrderInitiateService : INativeOrderInitiateService
             Total = request.Total,
             Notes = request.Notes,
             SourceChannel = request.SourceChannel,
-            MealList = request.MealList
+            MealList = validation.Lines
         };
 
         var mealTransactionId = await _mealOrderRepository.CreatePendingOrderAsync(
@@ -144,7 +159,7 @@ public sealed class NativeOrderInitiateService : INativeOrderInitiateService
                 },
                 cancellationToken);
 
-            _paymentBackgroundQueue.EnqueuePaymentLog(generatedOrderId, JsonSerializer.Serialize(walletResult, JsonOptions));
+            _paymentBackgroundQueue.EnqueuePaymentLog(generatedOrderId, JsonSerializer.Serialize(new { walletResult.IsSuccess, walletResult.Message, walletResult.OrderId, walletResult.TransactionId, walletResult.PaymentMethod }, JsonOptions));
 
             if (!walletResult.IsSuccess)
             {
@@ -166,6 +181,12 @@ public sealed class NativeOrderInitiateService : INativeOrderInitiateService
 
             await InsertPendingOrderRecordAsync(guardianDetail, generatedOrderId, request, walletResult.TransactionId, cancellationToken);
 
+            await _payments.SaveSessionTermsAsync(new NativePaymentVerificationState
+            {
+                TransactionPkId = mealTransactionId, OrderId = generatedOrderId, Kind = "order",
+                GatewayTransactionId = walletResult.TransactionId, Amount = request.Total,
+                Currency = walletResult.Currency.Trim().ToUpperInvariant(), ManualCapture = walletResult.ManualCapture
+            }, cancellationToken);
             return MapWalletOrderResponse(request, generatedOrderId, mealTransactionId, walletResult, paymentMethod);
         }
 
@@ -181,7 +202,7 @@ public sealed class NativeOrderInitiateService : INativeOrderInitiateService
             },
             cancellationToken);
 
-        _paymentBackgroundQueue.EnqueuePaymentLog(generatedOrderId, JsonSerializer.Serialize(sessionResult, JsonOptions));
+        _paymentBackgroundQueue.EnqueuePaymentLog(generatedOrderId, JsonSerializer.Serialize(new { sessionResult.IsSuccess, sessionResult.Message, sessionResult.OrderId, sessionResult.TransactionId, sessionResult.PaymentMethod }, JsonOptions));
 
         if (!sessionResult.IsSuccess)
         {
@@ -203,6 +224,12 @@ public sealed class NativeOrderInitiateService : INativeOrderInitiateService
 
         await InsertPendingOrderRecordAsync(guardianDetail, generatedOrderId, request, sessionResult.TransactionId, cancellationToken);
 
+        await _payments.SaveSessionTermsAsync(new NativePaymentVerificationState
+        {
+            TransactionPkId = mealTransactionId, OrderId = generatedOrderId, Kind = "order",
+            GatewayTransactionId = sessionResult.TransactionId, Amount = request.Total,
+            Currency = sessionResult.Currency.Trim().ToUpperInvariant(), ManualCapture = sessionResult.ManualCapture
+        }, cancellationToken);
         return new NativeOrderInitiateResponse
         {
             IsSuccess = true,

@@ -1,6 +1,7 @@
 using System.IO;
 using ETCS.PaymentGateway.Abstractions;
 using ETCS.PaymentGateway.Options;
+using ETCS.PaymentGateway.Models;
 using ETCS.PaymentGateway.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,7 +25,8 @@ public static class ServiceCollectionExtensions
             var timeoutSeconds = options.TimeoutSeconds <= 0 ? 120 : Math.Min(options.TimeoutSeconds, 120);
             client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
         })
-        .AddPolicyHandler(GetRetryPolicy());
+        .AddPolicyHandler(request => request.Options.TryGetValue(NativeEpgTransport.RequestMarker, out var native) && native
+            ? Policy.NoOpAsync<HttpResponseMessage>() : GetRetryPolicy());
 
         return services;
     }

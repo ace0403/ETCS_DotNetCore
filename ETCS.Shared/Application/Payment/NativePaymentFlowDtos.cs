@@ -119,6 +119,9 @@ public sealed class NativeOrderInitiateResponse
 
 public sealed class NativeWalletRegisterRequest
 {
+    /// <summary>Set by the V2 controller, never taken from client JSON.</summary>
+    public string PaymentKind { get; init; } = string.Empty;
+
     public int GuardianId { get; init; }
 
     public int StudentId { get; init; }

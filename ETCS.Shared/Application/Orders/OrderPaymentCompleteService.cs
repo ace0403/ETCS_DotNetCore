@@ -65,9 +65,21 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
         _connectionFactory = connectionFactory;
     }
 
-    public async Task<OrderCompleteResponse> CompleteAsync(OrderCompleteRequest request, CancellationToken cancellationToken)
+    public Task<OrderCompleteResponse> CompleteAsync(OrderCompleteRequest request, CancellationToken cancellationToken) =>
+        CompleteWithAuditAsync(request, cancellationToken);
+
+    public Task<OrderCompleteResponse> CompleteVerifiedNativeAsync(OrderCompleteRequest request,
+        NativePaymentVerificationResult proof, CancellationToken cancellationToken)
     {
-        var response = await CompleteCoreAsync(request, cancellationToken);
+        if (!request.UseNativeCredentials || !proof.IsSuccess || !proof.IsCaptured || proof.IsPending)
+            return Task.FromResult(new OrderCompleteResponse { Message = "Validated native capture evidence is required." });
+        return CompleteWithAuditAsync(request, cancellationToken, proof);
+    }
+
+    private async Task<OrderCompleteResponse> CompleteWithAuditAsync(OrderCompleteRequest request,
+        CancellationToken cancellationToken, NativePaymentVerificationResult? nativeProof = null)
+    {
+        var response = await CompleteCoreAsync(request, cancellationToken, nativeProof);
         var guardian = await AuditGuardianActor.TryResolveAsync(
             _connectionFactory,
             request.GuardianId,
@@ -97,7 +109,7 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
         return response;
     }
 
-    private async Task<OrderCompleteResponse> CompleteCoreAsync(OrderCompleteRequest request, CancellationToken cancellationToken)
+    private async Task<OrderCompleteResponse> CompleteCoreAsync(OrderCompleteRequest request, CancellationToken cancellationToken, NativePaymentVerificationResult? nativeProof = null)
     {
         var paymentState = await _mealOrderRepository.GetPaymentStateForCompletionAsync(request.OrderId, cancellationToken);
         if (paymentState is null)
@@ -110,6 +122,10 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
                 GatewayTransactionId = request.TransactionId
             };
         }
+
+        if (nativeProof is not null && !nativeProof.Matches(new NativePaymentVerificationRequest(
+            request.TransactionId, request.OrderId, paymentState.Total, nativeProof.Currency, false)))
+            return new OrderCompleteResponse { Message = "Native capture evidence does not match the order." };
 
         if (paymentState.IsPaid && paymentState.AccessLogId.HasValue)
         {
@@ -151,7 +167,10 @@ public sealed class OrderPaymentCompleteService : IOrderPaymentCompleteService
             };
         }
 
-        var captureResult = await _paymentGatewayRepository.CapturePaymentAsync(
+        var captureResult = nativeProof is not null
+            ? new PaymentCaptureResult { IsSuccess = true, TransactionId = nativeProof.TransactionId,
+                Status = "captured", Message = "Native capture verified." }
+            : await _paymentGatewayRepository.CapturePaymentAsync(
             new PaymentCaptureRequest(
                 request.TransactionId,
                 request.OrderId,

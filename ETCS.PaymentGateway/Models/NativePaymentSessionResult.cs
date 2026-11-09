@@ -24,6 +24,8 @@ public sealed class NativePaymentSessionResult
 
     public string Currency { get; init; } = "AED";
 
+    public bool ManualCapture { get; init; }
+
     public string PaymentMethod { get; init; } = "Card";
 }
 
@@ -52,6 +54,8 @@ public sealed class NativeWalletSessionResult
     public decimal Amount { get; init; }
 
     public string Currency { get; init; } = "AED";
+
+    public bool ManualCapture { get; init; }
 
     public string PaymentMethod { get; init; } = string.Empty;
 

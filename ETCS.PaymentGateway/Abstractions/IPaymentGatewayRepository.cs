@@ -18,6 +18,22 @@ public interface IPaymentGatewayRepository
         PaymentCaptureRequest request,
         CancellationToken cancellationToken);
 
+    Task<NativePaymentVerificationResult> FinalizeNativePaymentAsync(
+        NativePaymentVerificationRequest request, CancellationToken cancellationToken);
+
+    Task<NativePaymentVerificationResult> CaptureNativePaymentAsync(
+        NativePaymentVerificationRequest request, NativePaymentVerificationResult authorization,
+        CancellationToken cancellationToken);
+
+    Task<NativePaymentSessionResult> ResumeNativeCardSessionAsync(NativePaymentVerificationRequest expected,
+        string returnUrl, CancellationToken cancellationToken);
+
+    Task<NativePaymentVerificationResult> ReverseNativePaymentAsync(NativePaymentVerificationRequest expected,
+        NativePaymentVerificationResult authorization, CancellationToken cancellationToken);
+
+    Task<NativePaymentVerificationResult> CancelNativeSdkPaymentAsync(
+        NativePaymentVerificationRequest expected, CancellationToken cancellationToken);
+
     Task<GenerateTokenResult> GenerateTokenAsync(CancellationToken cancellationToken);
 
     Task<NativePaymentSessionResult> CreateNativeTopupSessionAsync(

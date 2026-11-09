@@ -7,7 +7,7 @@ using System.Text.Json;
 
 namespace ETCS.PaymentGateway.Repositories;
 
-public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
+public sealed partial class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
 {
     private const string RequiredAccept = "text/xml-standard-api";
 
@@ -220,60 +220,85 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
     {
         var gatewayBaseUrl = ResolveGatewayBaseUrl(useNativeCredentials);
         if (string.IsNullOrWhiteSpace(gatewayBaseUrl))
-        {
-            return new GenerateTokenResult
-            {
-                IsSuccess = false,
-                Message = "Payment gateway base URL is not configured."
-            };
-        }
-
+            return new() { Message = "Payment gateway base URL is not configured." };
         if (useNativeCredentials && !TryGetMobileMerchant(out _))
-        {
-            return new GenerateTokenResult
-            {
-                IsSuccess = false,
-                Message = "Payment gateway mobile credentials are not configured."
-            };
-        }
+            return new() { Message = "Payment gateway mobile credentials are not configured." };
 
         var merchant = ResolveMerchant(useNativeCredentials);
         var tokenRequest = new ComtrustGenerateTokenRequest
         {
-            GenerateToken = new ComtrustGenerateTokenPayload
-            {
-                UserName = merchant.UserName,
-                Password = merchant.Password
-            }
+            GenerateToken = new ComtrustGenerateTokenPayload { UserName = merchant.UserName, Password = merchant.Password }
         };
+        int? status = null;
+        string? contentType = null;
+        Uri.TryCreate(gatewayBaseUrl, UriKind.Absolute, out var endpoint);
+
+        GenerateTokenResult Failed(string failure, string message, string? code = null, Exception? error = null)
+        {
+            // Metadata only: never log the request/response body, credentials, token or raw exception text.
+            var safeCode = code is { Length: > 0 and <= 12 } && code.All(c => c is >= '0' and <= '9') ? code : null;
+            _logger.LogWarning("Native EPG GenerateToken failed. Failure={Failure}; GatewayHost={GatewayHost}; GatewayPort={GatewayPort}; HttpStatus={HttpStatus}; ContentType={ContentType}; ResponseCode={ResponseCode}; ExceptionType={ExceptionType}; HttpRequestError={HttpRequestError}",
+                failure, endpoint?.Host, endpoint?.Port, status, contentType, safeCode, error?.GetType().Name,
+                error is HttpRequestException http ? http.HttpRequestError.ToString() : null);
+            return new() { Message = message };
+        }
 
         try
         {
-            using var httpRequest = CreateJsonPostRequest(tokenRequest, gatewayBaseUrl);
-            using var httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
-            var rawResponse = await ReadResponseBodyAsync(httpResponse, cancellationToken);
-            var parsed = DeserializeTransactionResponse(rawResponse);
-            var token = parsed?.Transaction?.AuthenticationToken ?? string.Empty;
-            var isSuccess = IsGatewaySuccess(parsed?.Transaction) && !string.IsNullOrWhiteSpace(token);
-
-            return new GenerateTokenResult
-            {
-                IsSuccess = isSuccess,
-                Message = parsed?.Transaction?.ResponseDescription
-                           ?? (isSuccess ? "Token generated." : "Token generation failed."),
-                AuthenticationToken = token
-            };
+            using var sessionTimeout = CreateNativeSessionTimeout(cancellationToken);
+            using var httpRequest = CreateNativeJsonPostRequest(tokenRequest, gatewayBaseUrl, merchant);
+            using var httpResponse = await _httpClient.SendAsync(httpRequest, sessionTimeout.Token);
+            status = (int)httpResponse.StatusCode;
+            contentType = httpResponse.Content.Headers.ContentType?.MediaType;
+            // An HTML proxy/error page must not be parsed as a successful EPG response.
+            if (!httpResponse.IsSuccessStatusCode)
+                return Failed("http-error", "The payment gateway is currently unavailable. Please try again later.");
+            var rawResponse = await ReadResponseBodyAsync(httpResponse, sessionTimeout.Token);
+            var parsed = DeserializeNativeTransactionResponse(rawResponse);
+            if (parsed?.Transaction is null)
+                return Failed("invalid-envelope", "The payment gateway returned an invalid authentication response. Please try again later.");
+            var code = Code(parsed.Transaction.ResponseCode);
+            if (code != "0")
+                return Failed("response-code", "The payment gateway could not authenticate this session. Please try again later.", code);
+            var token = parsed.Transaction.AuthenticationToken;
+            if (string.IsNullOrWhiteSpace(token))
+                return Failed("missing-token", "The payment gateway did not return an authentication token. Please try again later.", code);
+            return new() { IsSuccess = true, Message = "Token generated.", AuthenticationToken = token };
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            return Failed("cancelled", "Payment setup was interrupted. Please try again.", error: ex);
+        }
+        catch (OperationCanceledException ex)
+        {
+            return Failed("timeout", "The payment gateway took too long to prepare payment. Please try again.", error: ex);
+        }
+        catch (HttpRequestException ex) when (ex.HttpRequestError == HttpRequestError.SecureConnectionError)
+        {
+            return Failed("tls-error", "The payment service could not establish a secure connection to the gateway. Please try again later.", error: ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            return Failed("connection-error", "The payment service could not reach the payment gateway. Please try again later.", error: ex);
+        }
+        catch (IOException ex)
+        {
+            return Failed("interrupted-connection", "The payment gateway connection was interrupted. Please try again.", error: ex);
+        }
+        catch (JsonException ex)
+        {
+            return Failed("invalid-json", "The payment gateway returned an invalid authentication response. Please try again later.", error: ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Failed("configuration-error", "Native payment gateway configuration is invalid. Please contact support.", error: ex);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error generating Comtrust authentication token.");
-            return new GenerateTokenResult
-            {
-                IsSuccess = false,
-                Message = "Unable to generate authentication token at the moment."
-            };
+            return Failed("unexpected-error", "Unable to prepare payment authentication at the moment. Please try again later.", error: ex);
         }
     }
+
 
     public Task<NativePaymentSessionResult> CreateNativeTopupSessionAsync(
         StudentTopupPaymentRequest request,
@@ -303,6 +328,10 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
         WalletRegistrationRequest request,
         CancellationToken cancellationToken)
     {
+        var configurationError = _options.NativeConfigurationError(request.PaymentMethod);
+        if (configurationError is not null) return FailWallet(request.OrderId, configurationError);
+        if (string.IsNullOrWhiteSpace(request.OrderId) || request.Amount <= 0 || decimal.Round(request.Amount, 2) != request.Amount)
+            return FailWallet(request.OrderId, "A valid order reference and amount are required.");
         var gatewayBaseUrl = ResolveGatewayBaseUrl(useNativeCredentials: true);
         if (string.IsNullOrWhiteSpace(gatewayBaseUrl))
         {
@@ -351,14 +380,16 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
 
         try
         {
-            using var httpRequest = CreateJsonPostRequest(walletRequest, gatewayBaseUrl);
-            using var httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
-            var rawResponse = await ReadResponseBodyAsync(httpResponse, cancellationToken);
-            var parsed = DeserializeTransactionResponse(rawResponse);
+            using var sessionTimeout = CreateNativeSessionTimeout(cancellationToken);
+            using var httpRequest = CreateNativeJsonPostRequest(walletRequest, gatewayBaseUrl, merchant);
+            using var httpResponse = await _httpClient.SendAsync(httpRequest, sessionTimeout.Token);
+            var rawResponse = await ReadResponseBodyAsync(httpResponse, sessionTimeout.Token);
+            var parsed = DeserializeNativeTransactionResponse(rawResponse);
             var transaction = parsed?.Transaction;
-            var isSuccess = IsGatewaySuccess(transaction)
+            var isSuccess = httpResponse.IsSuccessStatusCode && IsGatewaySuccess(transaction)
                             && !string.IsNullOrWhiteSpace(transaction?.TransactionId)
-                            && !string.IsNullOrWhiteSpace(transaction?.SessionId);
+                            && !string.IsNullOrWhiteSpace(transaction?.SessionId)
+                            && RegistrationResponseMatches(transaction!, request.OrderId, request.Amount, _options.Currency);
 
             if (!isSuccess)
             {
@@ -373,8 +404,9 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             return new NativeWalletSessionResult
             {
                 IsSuccess = isSuccess,
-                Message = transaction?.ResponseDescription
-                           ?? (isSuccess ? "Wallet session created." : "Wallet registration failed."),
+                Message = !isSuccess && httpResponse.IsSuccessStatusCode && IsGatewaySuccess(transaction)
+                    ? "Gateway returned incomplete or mismatched wallet session details."
+                    : transaction?.ResponseDescription ?? (isSuccess ? "Wallet session created." : "Wallet registration failed."),
                 OrderId = request.OrderId,
                 TransactionId = transaction?.TransactionId ?? string.Empty,
                 AuthenticationToken = tokenResult.AuthenticationToken,
@@ -386,6 +418,7 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
                 Amount = request.Amount,
                 Currency = _options.Currency,
                 PaymentMethod = request.PaymentMethod,
+                ManualCapture = NativeEpgTransport.RequiresManualCapture(_options.WalletTransactionHint),
                 MerchantIdentifier = _options.ApplePayMerchantIdentifier,
                 SamsungPayMerchantId = _options.SamsungPayMerchantId,
                 SamsungPayServiceId = _options.SamsungPayServiceId
@@ -406,6 +439,10 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
         CancellationToken cancellationToken,
         string? returnUrlOverride = null)
     {
+        var configurationError = _options.NativeConfigurationError("Card");
+        if (configurationError is not null) return FailNative(orderId, amount, configurationError);
+        if (string.IsNullOrWhiteSpace(orderId) || amount <= 0 || decimal.Round(amount, 2) != amount)
+            return FailNative(orderId, amount, "A valid order reference and amount are required.");
         var gatewayBaseUrl = ResolveGatewayBaseUrl(useNativeCredentials: true);
         if (string.IsNullOrWhiteSpace(gatewayBaseUrl))
         {
@@ -431,8 +468,8 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
         }
 
         // Native SDK: GenerateToken, then Registration with AuthenticationToken + Store/Terminal.
-        // Password is also required for password-authenticated merchants; without it Comtrust returns
-        // "Either certificate OR password should be provided".
+        // Server-side merchant authentication follows the configured native endpoint's mode.
+        // The app receives the SDK token, never the merchant password. V1 serialization is unchanged.
         var registration = new ComtrustRegistrationRequest
         {
             Registration = new ComtrustRegistrationPayload
@@ -463,13 +500,14 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(sessionTimeoutSeconds));
 
-            using var httpRequest = CreateJsonPostRequest(registration, gatewayBaseUrl);
+            using var httpRequest = CreateNativeJsonPostRequest(registration, gatewayBaseUrl, merchant);
             using var httpResponse = await _httpClient.SendAsync(httpRequest, timeoutCts.Token);
             var rawResponse = await ReadResponseBodyAsync(httpResponse, timeoutCts.Token);
-            var parsed = DeserializeTransactionResponse(rawResponse);
+            var parsed = DeserializeNativeTransactionResponse(rawResponse);
             var transaction = parsed?.Transaction;
-            var isSuccess = IsGatewaySuccess(transaction)
-                            && !string.IsNullOrWhiteSpace(transaction?.TransactionId);
+            var isSuccess = httpResponse.IsSuccessStatusCode && IsGatewaySuccess(transaction)
+                            && !string.IsNullOrWhiteSpace(transaction?.TransactionId)
+                            && RegistrationResponseMatches(transaction!, orderId, amount, _options.Currency);
 
             if (!isSuccess)
             {
@@ -485,8 +523,9 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
             return new NativePaymentSessionResult
             {
                 IsSuccess = isSuccess,
-                Message = transaction?.ResponseDescription
-                           ?? (isSuccess ? "Native payment session created." : "Native payment session creation failed."),
+                Message = !isSuccess && httpResponse.IsSuccessStatusCode && IsGatewaySuccess(transaction)
+                    ? "Gateway returned incomplete or mismatched native session details."
+                    : transaction?.ResponseDescription ?? (isSuccess ? "Native payment session created." : "Native payment session creation failed."),
                 OrderId = orderId,
                 TransactionId = transaction?.TransactionId ?? string.Empty,
                 AuthenticationToken = authenticationToken,
@@ -496,7 +535,8 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
                 CallbackUrl = returnUrl.TrimEnd('/'),
                 Amount = amount,
                 Currency = _options.Currency,
-                PaymentMethod = "Card"
+                PaymentMethod = "Card",
+                ManualCapture = NativeEpgTransport.RequiresManualCapture(_options.TransactionHint)
             };
         }
         catch (OperationCanceledException ex)
@@ -519,14 +559,15 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
     private string ResolveNativeReturnUrl(string orderId, string? returnUrlOverride)
     {
         var template = !string.IsNullOrWhiteSpace(returnUrlOverride)
-            ? returnUrlOverride
-            : !string.IsNullOrWhiteSpace(_options.NativeReturnBaseUrl)
-                ? _options.NativeReturnBaseUrl
-                : _options.ReturnBaseUrl;
-
-        return string.Format(template, orderId).TrimEnd('/');
+            ? returnUrlOverride : _options.NativeReturnBaseUrl;
+        template = template.Replace("%7B0%7D", "{0}", StringComparison.OrdinalIgnoreCase);
+        var resolved = string.Format(System.Globalization.CultureInfo.InvariantCulture,
+            template, Uri.EscapeDataString(orderId.Trim()));
+        if (!Uri.TryCreate(resolved, UriKind.Absolute, out var uri)
+            || uri.Scheme != Uri.UriSchemeHttps || !string.IsNullOrEmpty(uri.UserInfo))
+            throw new InvalidOperationException("Native payments require an HTTPS return URL.");
+        return resolved;
     }
-
     private static NativePaymentSessionResult FailNative(string orderId, decimal amount, string message) =>
         new()
         {
@@ -599,33 +640,11 @@ public sealed class ComtrustPaymentGatewayRepository : IPaymentGatewayRepository
         string? Store,
         string? Terminal);
 
-    private static ComtrustRegistrationResponse? DeserializeTransactionResponse(string? rawResponse)
-    {
-        if (string.IsNullOrWhiteSpace(rawResponse))
-        {
-            return null;
-        }
+    private static NativeEpgResponse? DeserializeNativeTransactionResponse(string? rawResponse) =>
+        string.IsNullOrWhiteSpace(rawResponse) ? null : DeserializeValidatedNativeResponse(rawResponse);
 
-        return JsonSerializer.Deserialize<ComtrustRegistrationResponse>(rawResponse, ResponseJsonOptions);
-    }
-
-    private static bool IsGatewaySuccess(ComtrustTransaction? transaction)
-    {
-        if (transaction is null)
-        {
-            return false;
-        }
-
-        if (string.Equals(transaction.ResponseCode, "0", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        var responseClass = transaction.ResponseClassDescription?.Trim() ?? string.Empty;
-        return responseClass.Equals("success", StringComparison.OrdinalIgnoreCase)
-               || responseClass.Equals("pending", StringComparison.OrdinalIgnoreCase);
-    }
-
+    private static bool IsGatewaySuccess(NativeEpgTransaction? transaction) =>
+        transaction is not null && Code(transaction.ResponseCode) == "0";
     private async Task<PaymentSessionCreateResult> CreateSessionInternalAsync(
         string orderId,
         decimal amount,

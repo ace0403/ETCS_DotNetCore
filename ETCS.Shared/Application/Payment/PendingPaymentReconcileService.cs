@@ -23,6 +23,7 @@ public sealed class PendingPaymentReconcileService : IPendingPaymentReconcileSer
     private readonly PendingPaymentReconcileOptions _options;
     private readonly ILogger<PendingPaymentReconcileService> _logger;
     private readonly IAuditLogWriter _auditLogWriter;
+    private readonly INativePaymentService _nativePayments;
 
     public PendingPaymentReconcileService(
         ITransactionRepository transactionRepository,
@@ -30,7 +31,8 @@ public sealed class PendingPaymentReconcileService : IPendingPaymentReconcileSer
         IOrderPaymentCompleteService orderPaymentCompleteService,
         IOptions<PendingPaymentReconcileOptions> options,
         ILogger<PendingPaymentReconcileService> logger,
-        IAuditLogWriter auditLogWriter)
+        IAuditLogWriter auditLogWriter,
+        INativePaymentService nativePayments)
     {
         _transactionRepository = transactionRepository;
         _topupPaymentCompleteService = topupPaymentCompleteService;
@@ -38,6 +40,7 @@ public sealed class PendingPaymentReconcileService : IPendingPaymentReconcileSer
         _options = options.Value;
         _logger = logger;
         _auditLogWriter = auditLogWriter;
+        _nativePayments = nativePayments;
     }
 
     public async Task ProcessBatchAsync(CancellationToken cancellationToken)
@@ -126,7 +129,10 @@ public sealed class PendingPaymentReconcileService : IPendingPaymentReconcileSer
 
         if (item.Kind == PendingPaymentReconcileKind.Topup)
         {
-            var result = await _topupPaymentCompleteService.CompleteAsync(
+            var result = UsesNativeCredentials(item.PaymentMethod)
+                ? await _nativePayments.CompleteTopupAsync(item.GuardianId, item.StudentId,
+                    item.OrderId, item.GatewayTransactionId, cancellationToken)
+                : await _topupPaymentCompleteService.CompleteAsync(
                 new TopupCompleteRequest
                 {
                     StudentId = item.StudentId,
@@ -160,7 +166,10 @@ public sealed class PendingPaymentReconcileService : IPendingPaymentReconcileSer
             return;
         }
 
-        var orderResult = await _orderPaymentCompleteService.CompleteAsync(
+        var orderResult = UsesNativeCredentials(item.PaymentMethod)
+            ? await _nativePayments.CompleteOrderAsync(item.GuardianId, item.StudentId,
+                item.OrderId, item.GatewayTransactionId, cancellationToken)
+            : await _orderPaymentCompleteService.CompleteAsync(
             new OrderCompleteRequest
             {
                 StudentId = item.StudentId,
