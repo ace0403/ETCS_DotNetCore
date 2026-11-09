@@ -1,4 +1,5 @@
 var reportTable = null;
+var lastSalesSummaryGrandTotals = null;
 
 function escapeHtml(value) {
     return $('<div/>').text(value || '').html();
@@ -115,13 +116,116 @@ function sumRowsField(rows, fieldName) {
     }, 0);
 }
 
-function setSalesSummaryFooterCell(api, columnIndex, html) {
-    $(api.column(columnIndex).footer()).html(html);
-    // scrollX can leave the visible body tfoot out of sync with the cloned scroll-foot
-    $(api.table().container())
-        .find('.dt-scroll-body tfoot th, .dataTables_scrollBody tfoot th')
-        .eq(columnIndex)
-        .html(html);
+function getSalesSummaryFooterTables(api) {
+    return $(api.table().container()).find('table.dataTable tfoot, .dt-scroll-body tfoot, .dataTables_scrollBody tfoot');
+}
+
+function buildSalesSummaryFooterRow(rowIndex, label) {
+    var $tr = $('<tr class="sales-summary-total-row"/>');
+    $tr.toggleClass('sales-summary-page-total', rowIndex === 0);
+    $tr.toggleClass('sales-summary-grand-total', rowIndex === 1);
+    $tr.append(
+        $('<th class="text-start" colspan="4"/>').text(label || '')
+    );
+    for (var i = 0; i < 8; i++) {
+        $tr.append($('<th class="text-end"/>'));
+    }
+    return $tr;
+}
+
+function ensureSalesSummaryFooterRows(api) {
+    getSalesSummaryFooterTables(api).each(function () {
+        var $tfoot = $(this);
+        var expectedLabels = ['Page Total', 'Grand Total'];
+        expectedLabels.forEach(function (label, rowIndex) {
+            var $tr = $tfoot.children('tr').eq(rowIndex);
+            var needsRebuild = !$tr.length
+                || $tr.children('th').length !== 9
+                || Number($tr.children('th').first().attr('colspan') || 1) !== 4;
+
+            if (needsRebuild) {
+                var $newRow = buildSalesSummaryFooterRow(rowIndex, label);
+                if ($tr.length) {
+                    $tr.replaceWith($newRow);
+                } else {
+                    $tfoot.append($newRow);
+                }
+            } else {
+                $tr.addClass('sales-summary-total-row');
+                $tr.toggleClass('sales-summary-page-total', rowIndex === 0);
+                $tr.toggleClass('sales-summary-grand-total', rowIndex === 1);
+                $tr.children('th').first().attr('colspan', 4).addClass('text-start');
+            }
+        });
+
+        $tfoot.children('tr').slice(2).remove();
+    });
+}
+
+/** Map DataTables column index to footer <th> index when cols 0-3 are merged. */
+function salesSummaryFooterThIndex(dataColumnIndex) {
+    if (dataColumnIndex < 4) {
+        return 0;
+    }
+    return dataColumnIndex - 3;
+}
+
+function setSalesSummaryFooterCell(api, rowIndex, dataColumnIndex, html) {
+    var thIndex = salesSummaryFooterThIndex(dataColumnIndex);
+    getSalesSummaryFooterTables(api).each(function () {
+        $(this)
+            .children('tr')
+            .eq(rowIndex)
+            .children('th')
+            .eq(thIndex)
+            .html(html);
+    });
+}
+
+function readGrandTotalField(totals, fieldName) {
+    if (!totals) {
+        return 0;
+    }
+    return readRowNumber(totals, fieldName);
+}
+
+function applySalesSummaryFooterTotals(api, hasRows, grandTotals) {
+    ensureSalesSummaryFooterRows(api);
+    $(api.table().container()).toggleClass('sales-summary-no-totals', !hasRows);
+
+    setSalesSummaryFooterCell(api, 0, 0, hasRows ? 'Page Total' : '');
+    setSalesSummaryFooterCell(api, 1, 0, hasRows ? 'Grand Total' : '');
+
+    setSalesSummaryFooterCell(api, 0, 4, hasRows ? String(sumNumericColumn(api, 4)) : '');
+    setSalesSummaryFooterCell(
+        api,
+        1,
+        4,
+        hasRows ? String(readGrandTotalField(grandTotals, 'StudentsCount')) : '');
+
+    var moneyFields = [
+        'StudentCardPurchase',
+        'CashPurchase',
+        'CreditCardPurchase',
+        'StudentCardManualTopup',
+        'StudentCardUndoTopup',
+        'OnlineStudentCardTopup',
+        'UndoCashPurchase'
+    ];
+
+    moneyFields.forEach(function (fieldName, index) {
+        var columnIndex = 5 + index;
+        setSalesSummaryFooterCell(
+            api,
+            0,
+            columnIndex,
+            hasRows ? formatReportCurrency(sumNumericColumn(api, columnIndex)) : '');
+        setSalesSummaryFooterCell(
+            api,
+            1,
+            columnIndex,
+            hasRows ? formatReportCurrency(readGrandTotalField(grandTotals, fieldName)) : '');
+    });
 }
 
 function loadTerminalSalesTerminals(schoolCode) {
@@ -158,6 +262,9 @@ function bindTerminalSalesReportTableEvents(table) {
     table.on('draw.dt', function () {
         setTerminalSalesReportLoading(false);
         table.columns.adjust();
+        var pageInfo = table.page.info();
+        var hasRows = !!(pageInfo && pageInfo.recordsDisplay > 0 && pageInfo.end > pageInfo.start);
+        applySalesSummaryFooterTotals(table, hasRows, lastSalesSummaryGrandTotals);
     });
 
     table.on('error.dt', function () {
@@ -186,8 +293,11 @@ function initTerminalSalesReportTable() {
         if (j.Success === false && j.Message) {
             toastMsg(j.Message, false);
         }
-        if (j.RecordsFiltered === 0) {
+        lastSalesSummaryGrandTotals = j.Totals || j.totals || null;
+        var filteredCount = Number(j.RecordsFiltered != null ? j.RecordsFiltered : j.recordsFiltered);
+        if (!Number.isFinite(filteredCount) || filteredCount <= 0) {
             $('#reportEmptyMessage').text('No data available..').show();
+            lastSalesSummaryGrandTotals = null;
         } else {
             $('#reportEmptyMessage').hide();
         }
@@ -252,17 +362,7 @@ function initTerminalSalesReportTable() {
             var api = this.api();
             var pageInfo = api.page.info();
             var hasRows = pageInfo && pageInfo.recordsDisplay > 0 && pageInfo.end > pageInfo.start;
-
-            setSalesSummaryFooterCell(api, 3, hasRows ? 'Total' : '');
-            setSalesSummaryFooterCell(api, 4, hasRows ? String(sumNumericColumn(api, 4)) : '');
-
-            [5, 6, 7, 8, 9, 10, 11].forEach(function (columnIndex) {
-                setSalesSummaryFooterCell(
-                    api,
-                    columnIndex,
-                    hasRows ? formatReportCurrency(sumNumericColumn(api, columnIndex)) : ''
-                );
-            });
+            applySalesSummaryFooterTotals(api, hasRows, lastSalesSummaryGrandTotals);
         }
     });
 
@@ -355,9 +455,9 @@ function buildTerminalSalesPrintHtml(filters, rows) {
         html += '</tr>';
     });
 
-    // Use a final body row (not tfoot) so browsers do not repeat Total on every printed page.
+    // Use a final body row (not tfoot) so browsers do not repeat Grand Total on every printed page.
     html += '<tr class="total-row">';
-    html += '<th></th><th></th><th></th><th class="text-end">Total</th>';
+    html += '<th colspan="4">Grand Total</th>';
     html += '<th class="text-end">' + sumRowsField(rows, 'StudentsCount') + '</th>';
     html += '<th class="text-end">' + formatReportCurrency(sumRowsField(rows, 'StudentCardPurchase')) + '</th>';
     html += '<th class="text-end">' + formatReportCurrency(sumRowsField(rows, 'CashPurchase')) + '</th>';

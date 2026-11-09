@@ -26,6 +26,7 @@ public sealed class AdminNavigationService : IAdminNavigationService
         "Report.AdminTransaction",
         "Report.TerminalSalesSummary",
         "Report.StudentConsumption",
+        "Report.StudentPurchaseHistory",
         "Report.MealOrdersMealDb",
         "Report.MealOrders",
         "Report.MealOrderPaymentsMealDb",

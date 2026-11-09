@@ -42,10 +42,23 @@ public sealed class TerminalSalesSummaryReportRowDto
     public decimal UndoCashPurchase { get; init; }
 }
 
+public sealed class TerminalSalesSummaryReportTotalsDto
+{
+    public int StudentsCount { get; init; }
+    public decimal StudentCardPurchase { get; init; }
+    public decimal CashPurchase { get; init; }
+    public decimal CreditCardPurchase { get; init; }
+    public decimal StudentCardManualTopup { get; init; }
+    public decimal StudentCardUndoTopup { get; init; }
+    public decimal OnlineStudentCardTopup { get; init; }
+    public decimal UndoCashPurchase { get; init; }
+}
+
 public sealed class TerminalSalesSummaryReportPagedResult
 {
     public int Draw { get; init; }
     public int RecordsTotal { get; init; }
     public int RecordsFiltered { get; init; }
     public IReadOnlyList<TerminalSalesSummaryReportRowDto> Data { get; init; } = [];
+    public TerminalSalesSummaryReportTotalsDto Totals { get; init; } = new();
 }

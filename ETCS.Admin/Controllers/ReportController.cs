@@ -7,6 +7,7 @@ using ETCS.Shared.Infrastructure.Admin.Reports.MealOrders;
 using ETCS.Shared.Infrastructure.Admin.Reports.MealOrderPayments;
 using ETCS.Shared.Infrastructure.Admin.Master.Students;
 using ETCS.Shared.Infrastructure.Admin.Reports.StudentConsumption;
+using ETCS.Shared.Infrastructure.Admin.Reports.StudentPurchaseHistory;
 using ETCS.Shared.Infrastructure.Admin.Reports.TerminalSalesSummary;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,6 +22,7 @@ public class ReportController : Controller
     private readonly IAdminTransactionReportRepository _adminTransactionReportRepository;
     private readonly ITerminalSalesSummaryReportRepository _terminalSalesSummaryReportRepository;
     private readonly IStudentConsumptionReportRepository _studentConsumptionReportRepository;
+    private readonly IStudentPurchaseHistoryReportRepository _studentPurchaseHistoryReportRepository;
     private readonly IMealOrderReportRepository _mealOrderReportRepository;
     private readonly IMealOrderMealDbReportRepository _mealOrderMealDbReportRepository;
     private readonly IMealOrderPaymentReportRepository _mealOrderPaymentReportRepository;
@@ -35,6 +37,7 @@ public class ReportController : Controller
         IAdminTransactionReportRepository adminTransactionReportRepository,
         ITerminalSalesSummaryReportRepository terminalSalesSummaryReportRepository,
         IStudentConsumptionReportRepository studentConsumptionReportRepository,
+        IStudentPurchaseHistoryReportRepository studentPurchaseHistoryReportRepository,
         IMealOrderReportRepository mealOrderReportRepository,
         IMealOrderMealDbReportRepository mealOrderMealDbReportRepository,
         IMealOrderPaymentReportRepository mealOrderPaymentReportRepository,
@@ -48,6 +51,7 @@ public class ReportController : Controller
         _adminTransactionReportRepository = adminTransactionReportRepository;
         _terminalSalesSummaryReportRepository = terminalSalesSummaryReportRepository;
         _studentConsumptionReportRepository = studentConsumptionReportRepository;
+        _studentPurchaseHistoryReportRepository = studentPurchaseHistoryReportRepository;
         _mealOrderReportRepository = mealOrderReportRepository;
         _mealOrderMealDbReportRepository = mealOrderMealDbReportRepository;
         _mealOrderPaymentReportRepository = mealOrderPaymentReportRepository;
@@ -240,6 +244,120 @@ public class ReportController : Controller
         }
     }
 
+    [Route("/report/student-purchase-history")]
+    public async Task<IActionResult> StudentPurchaseHistory(CancellationToken cancellationToken)
+    {
+        var schools = await _studentAdminRepository.SchoolLookupsAsync(cancellationToken);
+        ViewBag.Schools = _schoolScope.FilterSchools(schools, s => s.Id);
+        return View();
+    }
+
+    [HttpPost]
+    public async Task<JsonResult> GetStudentPurchaseHistoryList(
+        [FromForm] StudentPurchaseHistoryReportListRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.StartDate is null || request.EndDate is null)
+        {
+            return Json(new StudentPurchaseHistoryReportPagedResult
+            {
+                Draw = request.Draw,
+                Success = false,
+                Message = "Start date and end date are required."
+            });
+        }
+
+        if (request.SchoolId <= 0)
+        {
+            return Json(new StudentPurchaseHistoryReportPagedResult
+            {
+                Draw = request.Draw,
+                Success = false,
+                Message = "School is required."
+            });
+        }
+
+        if (request.StartDate.Value.Date > request.EndDate.Value.Date)
+        {
+            return Json(new StudentPurchaseHistoryReportPagedResult
+            {
+                Draw = request.Draw,
+                Success = false,
+                Message = "Start date should be less than or equal to end date."
+            });
+        }
+
+        try
+        {
+            _schoolScope.EnsureReportSchoolIdInScope(request.SchoolId.ToString());
+            var result = await _studentPurchaseHistoryReportRepository.GetRowsPagedAsync(request, cancellationToken);
+            return Json(new StudentPurchaseHistoryReportPagedResult
+            {
+                Draw = request.Draw,
+                RecordsTotal = result.RecordsTotal,
+                RecordsFiltered = result.RecordsFiltered,
+                Data = result.Data,
+                Success = true
+            });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Json(new StudentPurchaseHistoryReportPagedResult
+            {
+                Draw = request.Draw,
+                Success = false,
+                Message = "You do not have access to this school."
+            });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ExportStudentPurchaseHistory(
+        [FromForm] StudentPurchaseHistoryReportFilter filter,
+        CancellationToken cancellationToken)
+    {
+        if (filter.StartDate == default || filter.EndDate == default)
+        {
+            TempData["ReportError"] = "Start date and end date are required.";
+            return RedirectToAction(nameof(StudentPurchaseHistory));
+        }
+
+        if (filter.SchoolId <= 0)
+        {
+            TempData["ReportError"] = "School is required.";
+            return RedirectToAction(nameof(StudentPurchaseHistory));
+        }
+
+        if (filter.StartDate.Date > filter.EndDate.Date)
+        {
+            TempData["ReportError"] = "Start date should be less than or equal to end date.";
+            return RedirectToAction(nameof(StudentPurchaseHistory));
+        }
+
+        try
+        {
+            _schoolScope.EnsureReportSchoolIdInScope(filter.SchoolId.ToString());
+            var rows = await _studentPurchaseHistoryReportRepository.GetRowsAsync(filter, cancellationToken);
+            if (rows.Count == 0)
+            {
+                TempData["ReportError"] = "No data available.";
+                return RedirectToAction(nameof(StudentPurchaseHistory));
+            }
+
+            var fileBytes = StudentPurchaseHistoryExcelExporter.Export(rows);
+            return File(
+                fileBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                StudentPurchaseHistoryExcelExporter.BuildFileName());
+        }
+        catch (UnauthorizedAccessException)
+        {
+            TempData["ReportError"] = "You do not have access to this school.";
+            return RedirectToAction(nameof(StudentPurchaseHistory));
+        }
+    }
+
     [Route("/report/meal-order")]
     public async Task<IActionResult> MealOrders(CancellationToken cancellationToken)
     {
@@ -415,6 +533,7 @@ public class ReportController : Controller
                 RecordsTotal = 0,
                 RecordsFiltered = 0,
                 Data = Array.Empty<TerminalSalesSummaryReportRowDto>(),
+                Totals = new TerminalSalesSummaryReportTotalsDto(),
                 Success = false,
                 Message = "Start date and end date are required."
             });
@@ -428,6 +547,7 @@ public class ReportController : Controller
                 RecordsTotal = 0,
                 RecordsFiltered = 0,
                 Data = Array.Empty<TerminalSalesSummaryReportRowDto>(),
+                Totals = new TerminalSalesSummaryReportTotalsDto(),
                 Success = false,
                 Message = "Start date should be less than End date."
             });
@@ -442,6 +562,7 @@ public class ReportController : Controller
                 RecordsTotal = 0,
                 RecordsFiltered = 0,
                 Data = Array.Empty<TerminalSalesSummaryReportRowDto>(),
+                Totals = new TerminalSalesSummaryReportTotalsDto(),
                 Success = false,
                 Message = scope.Message
             });
@@ -457,6 +578,7 @@ public class ReportController : Controller
             result.RecordsTotal,
             result.RecordsFiltered,
             result.Data,
+            result.Totals,
             Success = true
         });
     }

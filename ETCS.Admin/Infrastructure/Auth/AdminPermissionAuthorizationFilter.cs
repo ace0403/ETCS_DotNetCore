@@ -126,6 +126,11 @@ public sealed class AdminPermissionAuthorizationFilter : IAsyncActionFilter
             return "Report.MealOrders";
         }
 
+        if (action.Contains("StudentPurchaseHistory", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Report.StudentPurchaseHistory";
+        }
+
         if (action.Contains("StudentConsumption", StringComparison.OrdinalIgnoreCase))
         {
             return "Report.StudentConsumption";

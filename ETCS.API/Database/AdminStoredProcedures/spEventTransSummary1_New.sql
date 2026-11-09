@@ -20,7 +20,15 @@ CREATE OR ALTER PROCEDURE [dbo].[spEventTransSummary1_New]
     @TerminalCode AS NVARCHAR(75) = '',
     @Start AS INT = 0,
     @Length AS INT = 0,
-    @TotalCount AS INT OUTPUT
+    @TotalCount AS INT OUTPUT,
+    @StudentsCountTotal AS INT = 0 OUTPUT,
+    @StudentCardPurchaseTotal AS DECIMAL(18, 2) = 0 OUTPUT,
+    @CashPurchaseTotal AS DECIMAL(18, 2) = 0 OUTPUT,
+    @CreditCardPurchaseTotal AS DECIMAL(18, 2) = 0 OUTPUT,
+    @StudentCardManualTopupTotal AS DECIMAL(18, 2) = 0 OUTPUT,
+    @StudentCardUndoTopupTotal AS DECIMAL(18, 2) = 0 OUTPUT,
+    @OnlineStudentCardTopupTotal AS DECIMAL(18, 2) = 0 OUTPUT,
+    @UndoCashPurchaseTotal AS DECIMAL(18, 2) = 0 OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -115,6 +123,17 @@ BEGIN
         ON #TMP (SortDate DESC, TerminalCode ASC);
 
     SELECT @TotalCount = COUNT(*)
+    FROM #TMP;
+
+    SELECT
+        @StudentsCountTotal = ISNULL(SUM(StudentsCount), 0),
+        @StudentCardPurchaseTotal = ISNULL(SUM(StudentCardPurchase), 0),
+        @CashPurchaseTotal = ISNULL(SUM(CashPurchase), 0),
+        @CreditCardPurchaseTotal = ISNULL(SUM(CreditCardPurchase), 0),
+        @StudentCardManualTopupTotal = ISNULL(SUM(StudentCardManualTopup), 0),
+        @StudentCardUndoTopupTotal = ISNULL(SUM(StudentCardUndoTopup), 0),
+        @OnlineStudentCardTopupTotal = ISNULL(SUM(OnlineStudentCardTopup), 0),
+        @UndoCashPurchaseTotal = ISNULL(SUM(UndoCashPurchase), 0)
     FROM #TMP;
 
     IF (@Length IS NULL OR @Length <= 0)

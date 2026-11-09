@@ -24,6 +24,7 @@ using ETCS.Shared.Infrastructure.Admin.Dashboard;
 using ETCS.Shared.Infrastructure.Admin.Reports.MealOrders;
 using ETCS.Shared.Infrastructure.Admin.Reports.MealOrderPayments;
 using ETCS.Shared.Infrastructure.Admin.Reports.StudentConsumption;
+using ETCS.Shared.Infrastructure.Admin.Reports.StudentPurchaseHistory;
 using ETCS.Shared.Infrastructure.Admin.Reports.TerminalSalesSummary;
 using ETCS.Shared.Infrastructure.Admin.Master.Staff;
 using ETCS.Shared.Infrastructure.Admin.Master.Students;
@@ -88,6 +89,7 @@ builder.Services.AddScoped<ICanteenTransactionReportRepository, CanteenTransacti
 builder.Services.AddScoped<IAdminTransactionReportRepository, AdminTransactionReportRepository>();
 builder.Services.AddScoped<ITerminalSalesSummaryReportRepository, TerminalSalesSummaryReportRepository>();
 builder.Services.AddScoped<IStudentConsumptionReportRepository, StudentConsumptionReportRepository>();
+builder.Services.AddScoped<IStudentPurchaseHistoryReportRepository, StudentPurchaseHistoryReportRepository>();
 builder.Services.AddScoped<IMealOrderReportRepository, MealOrderReportRepository>();
 builder.Services.AddScoped<IMealOrderMealDbReportRepository, MealOrderMealDbReportRepository>();
 builder.Services.AddScoped<IMealOrderPaymentReportRepository, MealOrderPaymentReportRepository>();

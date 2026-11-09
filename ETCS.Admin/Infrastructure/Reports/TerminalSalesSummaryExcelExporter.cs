@@ -52,7 +52,8 @@ public static class TerminalSalesSummaryExcelExporter
         if (rows.Count > 0)
         {
             var totalRow = rows.Count + 2;
-            worksheet.Cell(totalRow, 3).Value = "Total";
+            worksheet.Cell(totalRow, 1).Value = "Grand Total";
+            worksheet.Range(totalRow, 1, totalRow, 3).Merge();
             worksheet.Cell(totalRow, 4).Value = rows.Sum(r => r.StudentsCount);
             worksheet.Cell(totalRow, 5).Value = rows.Sum(r => r.StudentCardPurchase);
             worksheet.Cell(totalRow, 6).Value = rows.Sum(r => r.CashPurchase);

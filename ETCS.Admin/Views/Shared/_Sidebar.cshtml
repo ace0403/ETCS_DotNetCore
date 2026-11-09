@@ -179,6 +179,7 @@
                     || AdminPermissionViewHelper.CanView(User, "Report.AdminTransaction")
                     || AdminPermissionViewHelper.CanView(User, "Report.TerminalSalesSummary")
                     || AdminPermissionViewHelper.CanView(User, "Report.StudentConsumption")
+                    || AdminPermissionViewHelper.CanView(User, "Report.StudentPurchaseHistory")
                     || AdminPermissionViewHelper.CanView(User, "Report.MealOrdersMealDb")
                     || AdminPermissionViewHelper.CanView(User, "Report.MealOrders")
                     || AdminPermissionViewHelper.CanView(User, "Report.MealOrderPaymentsMealDb")
@@ -219,6 +220,15 @@
                         <a asp-controller="Report" asp-action="StudentConsumption" class="pc-link">
                             <span class="pc-micon"><i class="ti ti-report-money"></i></span>
                             <span class="pc-mtext">Student Consumption</span>
+                        </a>
+                    </li>
+                }
+                @if (AdminPermissionViewHelper.CanView(User, "Report.StudentPurchaseHistory"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="Report" asp-action="StudentPurchaseHistory" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-shopping-cart"></i></span>
+                            <span class="pc-mtext">Student Purchase History</span>
                         </a>
                     </li>
                 }
