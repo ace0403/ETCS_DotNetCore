@@ -1,5 +1,6 @@
 using ETCS.PaymentGateway.Abstractions;
 using ETCS.PaymentGateway.Models;
+using ETCS.Shared.Application.Payment;
 using ETCS.Shared.Infrastructure.Orders;
 using ETCS.Shared.Infrastructure.Payment;
 using ETCS.Shared.Infrastructure.Transaction;
@@ -21,15 +22,18 @@ public sealed class PaymentStatusService : IPaymentStatusService
     private readonly IMealOrderRepository _mealOrderRepository;
     private readonly ITransactionRepository _transactionRepository;
     private readonly IPaymentGatewayRepository _paymentGatewayRepository;
+    private readonly PaymentCompletionCancellation _completionCancellation;
 
     public PaymentStatusService(
         IMealOrderRepository mealOrderRepository,
         ITransactionRepository transactionRepository,
-        IPaymentGatewayRepository paymentGatewayRepository)
+        IPaymentGatewayRepository paymentGatewayRepository,
+        PaymentCompletionCancellation completionCancellation)
     {
         _mealOrderRepository = mealOrderRepository;
         _transactionRepository = transactionRepository;
         _paymentGatewayRepository = paymentGatewayRepository;
+        _completionCancellation = completionCancellation;
     }
 
     public async Task<PaymentStatusResponse> GetStatusAsync(
@@ -100,6 +104,24 @@ public sealed class PaymentStatusService : IPaymentStatusService
             transactionId,
             cancellationToken);
 
+        if (topupState is { IsV1AppTopup: true } &&
+            (!string.Equals(topupState.OrderId, orderId, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(topupState.GatewayTransactionId, transactionId, StringComparison.Ordinal)
+                || topupState.StudentId != studentId))
+            return new PaymentStatusResponse { Message = "Payment references do not match the top-up." };
+
+        if (topupState is { HasUncreditedV1Capture: true })
+        {
+            return new PaymentStatusResponse
+            {
+                IsSuccess = true,
+                Message = "Payment captured. Complete the payment to apply the top-up credit.",
+                OrderId = orderId,
+                TransactionId = transactionId,
+                Status = "captured"
+            };
+        }
+
         if (topupState is { IsTransactionCompleted: true })
         {
             return new PaymentStatusResponse
@@ -116,6 +138,14 @@ public sealed class PaymentStatusService : IPaymentStatusService
         var captureResult = await _paymentGatewayRepository.CapturePaymentAsync(
             new PaymentCaptureRequest(transactionId, orderId, studentId),
             cancellationToken);
+
+        if (topupState is { IsV1AppTopup: true } && captureResult.IsSuccess && !captureResult.IsPending
+            && string.Equals(captureResult.TransactionId, transactionId, StringComparison.Ordinal))
+        {
+            // Gateway finalization can finish even if the app closes before posting topup/update.
+            using var dbTimeout = _completionCancellation.CreateDbTimeoutSource();
+            await _transactionRepository.RecordV1TopupCaptureAsync(topupState.TransactionPkId, dbTimeout.Token);
+        }
 
         return MapCaptureResult(captureResult, orderId, transactionId);
     }

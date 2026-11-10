@@ -112,6 +112,20 @@ public sealed class TopupPaymentCompleteService : ITopupPaymentCompleteService
             return Fail("TransactionId is required.");
         }
 
+        if (!request.UseNativeCredentials && topupState is { IsV1AppTopup: true })
+        {
+            if (!string.Equals(topupState.OrderId, request.OrderId.Trim(), StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(topupState.GatewayTransactionId, transactionId, StringComparison.Ordinal)
+                || (request.StudentId > 0 && request.StudentId != topupState.StudentId))
+                return Fail("Payment references do not match the top-up.");
+
+            if (topupState.HasUncreditedV1Capture)
+            {
+                using var dbTimeout = _completionCancellation.CreateDbTimeoutSource();
+                return await FinishV1CreditAsync(topupState, dbTimeout.Token);
+            }
+        }
+
         if (topupState is { IsTransactionCompleted: true }
             || topupState is { StatusId: (int)TransactionStatusEnum.Success })
         {
@@ -177,6 +191,13 @@ public sealed class TopupPaymentCompleteService : ITopupPaymentCompleteService
         {
             using var dbTimeout = _completionCancellation.CreateDbTimeoutSource();
             var dbToken = dbTimeout.Token;
+
+            if (!request.UseNativeCredentials && topupState is { IsV1AppTopup: true })
+            {
+                // Persist gateway capture before wallet work. A retry resumes from this marker.
+                await _transactionRepository.RecordV1TopupCaptureAsync(topupState.TransactionPkId, dbToken);
+                return await FinishV1CreditAsync(topupState, dbToken);
+            }
 
             var studentId = request.StudentId > 0
                 ? request.StudentId
@@ -294,6 +315,80 @@ public sealed class TopupPaymentCompleteService : ITopupPaymentCompleteService
             TransactionId = gatewayTransactionId,
             Amount = topupState?.Amount ?? 0m,
             Status = result.Status
+        };
+    }
+
+    private async Task<TopupCompleteResponse> FinishV1CreditAsync(
+        TopupPendingTransactionState payment, CancellationToken cancellationToken)
+    {
+        TopupCompleteResponse PendingCredit() => new()
+        {
+            IsPending = true,
+            Message = "Payment received. The top-up credit is still processing.",
+            Status = "credit-pending",
+            OrderId = payment.OrderId,
+            TransactionId = payment.GatewayTransactionId,
+            Amount = payment.Amount
+        };
+
+        bool newlyCompleted;
+        StudentGuardianBasicDetailDto? guardian;
+        try
+        {
+            guardian = await _studentRepository.GetGuardianBasicDetailByStudentIdAsync(
+                payment.StudentId.ToString(CultureInfo.InvariantCulture), cancellationToken);
+            if (guardian is null || string.IsNullOrWhiteSpace(guardian.CustomerId))
+                return PendingCredit();
+
+            await _transactionRepository.ApplyV1TopupCreditAsync(new UpdatePendingTransactionRequest
+            {
+                CustomerID = guardian.CustomerId,
+                Loaded = "1",
+                Creby = guardian.Email,
+                PaymentDetails = payment.GatewayTransactionId,
+                Remarks = payment.OrderId
+            }, cancellationToken);
+
+            var accessLogId = await _mainOrderRepository.FindAccessLogIdByGatewayTransactionAsync(
+                guardian.CustomerId, payment.GatewayTransactionId, cancellationToken);
+            if (accessLogId is not > 0)
+                return PendingCredit();
+
+            newlyCompleted = await _transactionRepository.FinishV1TopupCreditAsync(
+                payment.TransactionPkId, accessLogId.Value, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "V1 top-up credit will retry for OrderId={OrderId}.", payment.OrderId);
+            return PendingCredit();
+        }
+
+        if (newlyCompleted && !string.IsNullOrWhiteSpace(guardian.Email))
+        {
+            try
+            {
+                await _emailNotificationService.QueueTopupSuccessAsync(payment.StudentId, payment.GuardianId,
+                    guardian.Email, guardian.GuardianName, payment.OrderId, payment.GatewayTransactionId,
+                    payment.Amount, cancellationToken);
+                var schoolId = await _studentRepository.GetStudentSchoolIdAsync(payment.StudentId, cancellationToken);
+                await _inAppNotificationService.CreateTopupSuccessAsync(payment.StudentId, payment.GuardianId,
+                    payment.Amount, payment.OrderId, schoolId, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "V1 top-up notification failed for OrderId={OrderId}.", payment.OrderId);
+            }
+        }
+
+        return new TopupCompleteResponse
+        {
+            IsSuccess = true,
+            IsAlreadyProcessed = !newlyCompleted,
+            Message = "Top-up completed successfully.",
+            Status = "completed",
+            OrderId = payment.OrderId,
+            TransactionId = payment.GatewayTransactionId,
+            Amount = payment.Amount
         };
     }
 

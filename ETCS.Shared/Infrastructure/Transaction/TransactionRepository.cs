@@ -142,15 +142,46 @@ public sealed class TransactionRepository : ITransactionRepository
                 cancellationToken: cancellationToken));
     }
 
-    public async Task UpdatePendingAndTopupTransactionAsync(
+    public Task UpdatePendingAndTopupTransactionAsync(
         UpdatePendingTransactionRequest pendingRequest,
         UpdateTopupTransactionRequest topupRequest,
+        CancellationToken cancellationToken) =>
+        UpdatePendingAndTopupTransactionAsync(pendingRequest, topupRequest, lockV1Credit: false, cancellationToken);
+
+    public Task ApplyV1TopupCreditAsync(UpdatePendingTransactionRequest pendingRequest, CancellationToken cancellationToken) =>
+        UpdatePendingAndTopupTransactionAsync(pendingRequest,
+            new UpdateTopupTransactionRequest { CustomerID = pendingRequest.CustomerID, Remarks = pendingRequest.Remarks },
+            lockV1Credit: true, cancellationToken);
+
+    private async Task UpdatePendingAndTopupTransactionAsync(
+        UpdatePendingTransactionRequest pendingRequest,
+        UpdateTopupTransactionRequest topupRequest,
+        bool lockV1Credit,
         CancellationToken cancellationToken)
     {
         using var connection = _connectionFactory.CreateConnection();
         var dbConnection = (DbConnection)connection;
         await dbConnection.OpenAsync(cancellationToken);
         await using var transaction = await dbConnection.BeginTransactionAsync(cancellationToken);
+
+        if (lockV1Credit)
+        {
+            // Serialize the API and worker around the wallet procedure's transaction-reference guard.
+            const string lockSql = """
+                DECLARE @result int;
+                EXEC @result = sys.sp_getapplock @Resource = @Resource, @LockMode = 'Exclusive',
+                    @LockOwner = 'Transaction', @LockTimeout = 5000;
+                SELECT @result;
+                """;
+            var lockResult = await dbConnection.QuerySingleAsync<int>(new CommandDefinition(lockSql,
+                new { Resource = "v1-topup:" + pendingRequest.Remarks.Trim().ToUpperInvariant() },
+                transaction: transaction, commandTimeout: DefaultCommandTimeoutSeconds, cancellationToken: cancellationToken));
+            if (lockResult < 0)
+                throw new InvalidOperationException("Unable to lock V1 wallet credit.");
+
+            if (await HasV1WalletReceiptAsync(dbConnection, transaction, pendingRequest, cancellationToken))
+                return;
+        }
 
         var pendingParameters = new DynamicParameters();
         pendingParameters.Add("CustomerID", pendingRequest.CustomerID);
@@ -181,7 +212,26 @@ public sealed class TransactionRepository : ITransactionRepository
                 commandTimeout: DefaultCommandTimeoutSeconds,
                 cancellationToken: cancellationToken));
 
+        if (lockV1Credit && !await HasV1WalletReceiptAsync(dbConnection, transaction, pendingRequest, cancellationToken))
+            throw new InvalidOperationException("The wallet procedure did not record the V1 top-up credit.");
+
         await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static Task<bool> HasV1WalletReceiptAsync(DbConnection connection, DbTransaction transaction,
+        UpdatePendingTransactionRequest request, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT CAST(CASE WHEN EXISTS (
+                SELECT 1 FROM dbo.AccessLog
+                WHERE LTRIM(RTRIM(CustomerID)) = @CustomerID
+                  AND LTRIM(RTRIM(TransactionID)) = @PaymentDetails
+            ) THEN 1 ELSE 0 END AS bit);
+            """;
+
+        return connection.QuerySingleAsync<bool>(new CommandDefinition(sql,
+            new { CustomerID = request.CustomerID.Trim(), PaymentDetails = request.PaymentDetails.Trim() },
+            transaction: transaction, commandTimeout: DefaultCommandTimeoutSeconds, cancellationToken: cancellationToken));
     }
 
     public async Task UpdatePrepaidBalanceAsync(
@@ -297,6 +347,43 @@ public sealed class TransactionRepository : ITransactionRepository
             cancellationToken: cancellationToken));
     }
 
+    public async Task RecordV1TopupCaptureAsync(int transactionPkId, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            UPDATE [Transaction]
+            SET StatusId = @Captured, UpdatedOn = GETDATE()
+            WHERE Id = @Id AND ISNULL(IsTransactionCompleted, 0) = 0
+              AND StatusId IN (@Initiated, @Pending);
+            """;
+
+        using var connection = _mealDbConnectionFactory.CreateConnection();
+        await connection.ExecuteAsync(new CommandDefinition(sql, new
+        {
+            Id = transactionPkId,
+            Captured = (int)TransactionStatusEnum.Success,
+            Initiated = (int)TransactionStatusEnum.Initiated,
+            Pending = (int)TransactionStatusEnum.Pending
+        }, commandTimeout: DefaultCommandTimeoutSeconds, cancellationToken: cancellationToken));
+    }
+
+    public async Task<bool> FinishV1TopupCreditAsync(int transactionPkId, long accessLogId, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            UPDATE [Transaction]
+            SET AccessLogId = @AccessLogId, IsTransactionCompleted = 1, UpdatedOn = GETDATE()
+            WHERE Id = @Id AND StatusId = @Captured AND ISNULL(IsTransactionCompleted, 0) = 0;
+            SELECT @@ROWCOUNT;
+            """;
+
+        using var connection = _mealDbConnectionFactory.CreateConnection();
+        return await connection.QuerySingleAsync<int>(new CommandDefinition(sql, new
+        {
+            Id = transactionPkId,
+            AccessLogId = accessLogId,
+            Captured = (int)TransactionStatusEnum.Success
+        }, commandTimeout: DefaultCommandTimeoutSeconds, cancellationToken: cancellationToken)) == 1;
+    }
+
     public async Task<TopupPendingTransactionState?> GetTopupPendingByOrderIdAsync(
         string orderId,
         string? gatewayTransactionId,
@@ -336,7 +423,9 @@ public sealed class TransactionRepository : ITransactionRepository
                 ISNULL(t.StudentId, 0) AS StudentId,
                 ISNULL(t.GuardianId, 0) AS GuardianId,
                 LTRIM(RTRIM(ISNULL(t.TransactionId, ''))) AS GatewayTransactionId,
-                t.AccessLogId
+                t.AccessLogId,
+                t.SourceChannel,
+                ISNULL(t.PaymentMethod, 0) AS PaymentMethod
             FROM [Transaction] t {lockHint}
             LEFT JOIN [Order] o ON o.TransactionId = t.Id
             LEFT JOIN ibonus.dbo.PendingTransInfo p
@@ -434,16 +523,25 @@ public sealed class TransactionRepository : ITransactionRepository
                     t.StatusId,
                     ISNULL(t.ReconcileAttemptCount, 0) AS ReconcileAttemptCount,
                     ISNULL(t.PaymentMethod, 0) AS PaymentMethod,
-                    t.CreatedOn
+                    t.CreatedOn,
+                    CASE WHEN v.IsV1App = 1 THEN COALESCE(t.LastReconcileOn, t.CreatedOn)
+                        ELSE t.CreatedOn END AS ReconcilePriority
                 FROM [Transaction] t
                 LEFT JOIN [Order] o ON o.TransactionId = t.Id
+                CROSS APPLY (VALUES (CASE WHEN t.SourceChannel = @ApiChannel
+                    AND ISNULL(t.PaymentMethod, 0) IN (@UnknownMethod, @HostedMethod) THEN 1 ELSE 0 END)) v(IsV1App)
                 WHERE o.Id IS NULL
                   AND ISNULL(t.IsTransactionCompleted, 0) = 0
-                  AND t.StatusId IN (@StatusInitiated, @StatusPending)
                   AND NULLIF(LTRIM(RTRIM(ISNULL(t.TransactionId, ''))), '') IS NOT NULL
                   AND NULLIF(LTRIM(RTRIM(ISNULL(t.Remarks, ''))), '') IS NOT NULL
-                  AND t.CreatedOn >= DATEADD(HOUR, -@LookbackHours, SYSUTCDATETIME())
-                  AND ISNULL(t.ReconcileAttemptCount, 0) < @MaxAttempts
+                  AND (
+                      (v.IsV1App = 1 AND t.StatusId = @StatusCaptured)
+                      OR (
+                          t.StatusId IN (@StatusInitiated, @StatusPending)
+                          AND t.CreatedOn >= DATEADD(HOUR, -@LookbackHours, SYSUTCDATETIME())
+                          AND (v.IsV1App = 1 OR ISNULL(t.ReconcileAttemptCount, 0) < @MaxAttempts)
+                      )
+                  )
 
                 UNION ALL
 
@@ -457,18 +555,22 @@ public sealed class TransactionRepository : ITransactionRepository
                     t.StatusId,
                     ISNULL(t.ReconcileAttemptCount, 0) AS ReconcileAttemptCount,
                     ISNULL(t.PaymentMethod, 0) AS PaymentMethod,
-                    t.CreatedOn
+                    t.CreatedOn,
+                    CASE WHEN v.IsV1App = 1 THEN COALESCE(t.LastReconcileOn, t.CreatedOn)
+                        ELSE t.CreatedOn END AS ReconcilePriority
                 FROM [Order] o
                 INNER JOIN [Transaction] t ON t.Id = o.TransactionId
+                CROSS APPLY (VALUES (CASE WHEN t.SourceChannel = @ApiChannel
+                    AND ISNULL(t.PaymentMethod, 0) IN (@UnknownMethod, @HostedMethod) THEN 1 ELSE 0 END)) v(IsV1App)
                 WHERE ISNULL(o.IsPaid, 0) = 0
                   AND ISNULL(t.IsTransactionCompleted, 0) = 0
                   AND t.StatusId IN (@StatusInitiated, @StatusPending)
                   AND NULLIF(LTRIM(RTRIM(ISNULL(t.TransactionId, ''))), '') IS NOT NULL
                   AND NULLIF(LTRIM(RTRIM(ISNULL(o.OrderId, ''))), '') IS NOT NULL
                   AND t.CreatedOn >= DATEADD(HOUR, -@LookbackHours, SYSUTCDATETIME())
-                  AND ISNULL(t.ReconcileAttemptCount, 0) < @MaxAttempts
+                  AND (v.IsV1App = 1 OR ISNULL(t.ReconcileAttemptCount, 0) < @MaxAttempts)
             ) pending
-            ORDER BY CreatedOn ASC;
+            ORDER BY ReconcilePriority ASC, CreatedOn ASC, TransactionPkId ASC;
             """;
 
         using var connection = _mealDbConnectionFactory.CreateConnection();
@@ -479,6 +581,10 @@ public sealed class TransactionRepository : ITransactionRepository
                 LookbackHours = lookbackHours,
                 MaxAttempts = maxAttempts,
                 BatchSize = batchSize,
+                ApiChannel = TransactionSourceChannel.Api.ToDbValue(),
+                UnknownMethod = (int)PaymentMethodEnum.Unknown,
+                HostedMethod = (int)PaymentMethodEnum.WebRedirect,
+                StatusCaptured = (int)TransactionStatusEnum.Success,
                 StatusInitiated = (int)TransactionStatusEnum.Initiated,
                 StatusPending = (int)TransactionStatusEnum.Pending
             },
@@ -487,7 +593,6 @@ public sealed class TransactionRepository : ITransactionRepository
             cancellationToken: cancellationToken));
 
         return rows
-            .Where(r => r.StatusId is (int)TransactionStatusEnum.Initiated or (int)TransactionStatusEnum.Pending)
             .Select(r => new PendingPaymentReconcileItem
             {
                 Kind = r.Kind == 2 ? PendingPaymentReconcileKind.Order : PendingPaymentReconcileKind.Topup,
@@ -511,8 +616,10 @@ public sealed class TransactionRepository : ITransactionRepository
                 LastReconcileOn = SYSUTCDATETIME(),
                 UpdatedOn = GETDATE()
             WHERE Id = @TransactionPkId
-              AND StatusId IN (@StatusInitiated, @StatusPending)
-              AND ISNULL(IsTransactionCompleted, 0) = 0;
+              AND ISNULL(IsTransactionCompleted, 0) = 0
+              AND (StatusId IN (@StatusInitiated, @StatusPending)
+                OR (StatusId = @StatusCaptured AND SourceChannel = @ApiChannel
+                  AND ISNULL(PaymentMethod, 0) IN (@UnknownMethod, @HostedMethod)));
             """;
 
         using var connection = _mealDbConnectionFactory.CreateConnection();
@@ -521,6 +628,10 @@ public sealed class TransactionRepository : ITransactionRepository
             new
             {
                 TransactionPkId = transactionPkId,
+                ApiChannel = TransactionSourceChannel.Api.ToDbValue(),
+                UnknownMethod = (int)PaymentMethodEnum.Unknown,
+                HostedMethod = (int)PaymentMethodEnum.WebRedirect,
+                StatusCaptured = (int)TransactionStatusEnum.Success,
                 StatusInitiated = (int)TransactionStatusEnum.Initiated,
                 StatusPending = (int)TransactionStatusEnum.Pending
             },
@@ -853,7 +964,11 @@ public sealed class TransactionRepository : ITransactionRepository
                 t.Amount,
                 Remarks = ISNULL(t.Remarks, ''),
                 IsTransactionCompleted = ISNULL(t.IsTransactionCompleted, 0),
-                t.StatusId,
+                StatusId = CASE
+                    WHEN o.Id IS NULL AND t.SourceChannel = 'Api' AND ISNULL(t.PaymentMethod, 0) IN (0, 4)
+                        AND t.StatusId = 21 AND ISNULL(t.IsTransactionCompleted, 0) = 0 THEN 20
+                    ELSE t.StatusId
+                END,
                 t.CreatedOn,
                 t.UpdatedOn,
                 PaymentMethod = CASE ISNULL(t.PaymentMethod, 0)

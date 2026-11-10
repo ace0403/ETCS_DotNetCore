@@ -1,6 +1,7 @@
 using ETCS.PaymentGateway.Abstractions;
 using ETCS.PaymentGateway.Models;
 using ETCS.Shared.Application.Background;
+using ETCS.Shared.Application.Payment;
 using ETCS.Shared.Application.Students;
 using ETCS.Shared.Enumeration;
 using ETCS.Shared.Helpers;
@@ -164,7 +165,10 @@ public sealed class OrderInitiateService : IOrderInitiateService
                 GuardianId = request.GuardianId,
                 OrderId = generatedOrderId,
                 Total = request.Total,
-                Notes = request.Notes
+                Notes = request.Notes,
+                ReturnUrl = request.SourceChannel == TransactionSourceChannel.Api.ToDbValue()
+                    ? V1HostedCheckout.ReturnUrl
+                    : null
             },
             cancellationToken);
 

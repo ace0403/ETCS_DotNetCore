@@ -1,6 +1,7 @@
 using ETCS.API.Features.Payment;
 using ETCS.API.Infrastructure.Auth;
 using ETCS.Shared.Application.History;
+using ETCS.Shared.Application.Payment;
 using ETCS.Shared.Application.Topup;
 using ETCS.Shared.Enumeration;
 using ETCS.PaymentGateway.Models;
@@ -108,7 +109,8 @@ public sealed class PaymentController : ControllerBase
                 GuardianId = guardianId,
                 StudentId = request.StudentId,
                 Amount = request.Amount,
-                SourceChannel = TransactionSourceChannel.Api.ToDbValue()
+                SourceChannel = TransactionSourceChannel.Api.ToDbValue(),
+                ReturnUrl = V1HostedCheckout.ReturnUrl
             },
             cancellationToken);
 
@@ -181,7 +183,7 @@ public sealed class PaymentController : ControllerBase
     }
 
     /// <summary>
-    /// Read-only payment status check. Does not finalize wallet or order; use complete/update for that.
+    /// Checks payment status and records confirmed top-up capture. Use complete/update to apply the credit.
     /// </summary>
     [HttpGet("status")]
     public async Task<IActionResult> GetPaymentStatus(

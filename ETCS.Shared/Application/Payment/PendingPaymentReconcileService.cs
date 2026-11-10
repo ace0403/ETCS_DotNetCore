@@ -111,7 +111,10 @@ public sealed class PendingPaymentReconcileService : IPendingPaymentReconcileSer
 
     private async Task ReconcileOneAsync(PendingPaymentReconcileItem item, CancellationToken cancellationToken)
     {
-        if (item.StatusId is not ((int)TransactionStatusEnum.Initiated or (int)TransactionStatusEnum.Pending))
+        var isCapturedV1Topup = item.Kind == PendingPaymentReconcileKind.Topup &&
+            item.StatusId == (int)TransactionStatusEnum.Success && !UsesNativeCredentials(item.PaymentMethod);
+        if (!isCapturedV1Topup &&
+            item.StatusId is not ((int)TransactionStatusEnum.Initiated or (int)TransactionStatusEnum.Pending))
         {
             _logger.LogInformation(
                 "Skipping {Kind} OrderId={OrderId}: StatusId={StatusId} is not pending/initiated.",
@@ -158,10 +161,9 @@ public sealed class PendingPaymentReconcileService : IPendingPaymentReconcileSer
 
             await _transactionRepository.BumpReconcileAttemptAsync(item.TransactionPkId, cancellationToken);
             _logger.LogInformation(
-                "Top-up OrderId={OrderId} still pending/failed after reconcile (Attempt {Attempt}/{Max}). Message={Message}",
+                "Top-up OrderId={OrderId} still pending/failed after reconcile (Attempt {Attempt}). Message={Message}",
                 item.OrderId,
                 item.ReconcileAttemptCount + 1,
-                _options.MaxAttempts,
                 result.Message);
             return;
         }
@@ -196,10 +198,9 @@ public sealed class PendingPaymentReconcileService : IPendingPaymentReconcileSer
 
         await _transactionRepository.BumpReconcileAttemptAsync(item.TransactionPkId, cancellationToken);
         _logger.LogInformation(
-            "Order OrderId={OrderId} still pending/failed after reconcile (Attempt {Attempt}/{Max}). Message={Message}",
+            "Order OrderId={OrderId} still pending/failed after reconcile (Attempt {Attempt}). Message={Message}",
             item.OrderId,
             item.ReconcileAttemptCount + 1,
-            _options.MaxAttempts,
             orderResult.Message);
     }
 

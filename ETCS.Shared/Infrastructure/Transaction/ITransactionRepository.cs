@@ -23,6 +23,12 @@ public interface ITransactionRepository
 
     Task UpdateTopupTransactionStatusAsync(TopupTransactionUpdateRequest request, CancellationToken cancellationToken);
 
+    Task RecordV1TopupCaptureAsync(int transactionPkId, CancellationToken cancellationToken);
+
+    Task<bool> FinishV1TopupCreditAsync(int transactionPkId, long accessLogId, CancellationToken cancellationToken);
+
+    Task ApplyV1TopupCreditAsync(UpdatePendingTransactionRequest pendingRequest, CancellationToken cancellationToken);
+
     Task<TopupPendingTransactionState?> GetTopupPendingByOrderIdAsync(
         string orderId,
         string? gatewayTransactionId,

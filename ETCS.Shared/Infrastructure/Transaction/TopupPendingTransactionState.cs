@@ -19,4 +19,15 @@ public sealed class TopupPendingTransactionState
     public string GatewayTransactionId { get; init; } = string.Empty;
 
     public long? AccessLogId { get; init; }
+
+    public string? SourceChannel { get; init; }
+
+    public int PaymentMethod { get; init; }
+
+    public bool IsV1AppTopup =>
+        SourceChannel == "Api" &&
+        PaymentMethod is (int)Enumeration.PaymentMethodEnum.Unknown or (int)Enumeration.PaymentMethodEnum.WebRedirect;
+
+    public bool HasUncreditedV1Capture => IsV1AppTopup && !IsTransactionCompleted &&
+        StatusId == (int)Enumeration.TransactionStatusEnum.Success;
 }
