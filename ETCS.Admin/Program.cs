@@ -1,3 +1,10 @@
+using ETCS.Admin.Infrastructure.Payments;
+using ETCS.PaymentGateway.DependencyInjection;
+using ETCS.Shared.Application.Background;
+using ETCS.Shared.Application.Payment;
+using ETCS.Shared.Application.Topup;
+using ETCS.Shared.Infrastructure.Orders;
+using ETCS.Shared.Infrastructure.Meals;
 using ETCS.Admin.Infrastructure.Auth;
 using ETCS.Admin.Infrastructure.MealItems;
 using ETCS.Admin.Infrastructure.Reports;
@@ -96,6 +103,22 @@ builder.Services.AddScoped<IMealOrderPaymentReportRepository, MealOrderPaymentRe
 builder.Services.AddScoped<IMealOrderPaymentMealDbReportRepository, MealOrderPaymentMealDbReportRepository>();
 builder.Services.AddScoped<MealOrderPaymentReportDateRules>();
 builder.Services.AddScoped<IAdminDashboardRepository, AdminDashboardRepository>();
+
+// Admin-triggered V1 recovery only; no native services or reconciliation worker.
+builder.Services.Configure<V1TopupRecoveryOptions>(builder.Configuration.GetSection(V1TopupRecoveryOptions.SectionName));
+builder.Services.Configure<ParentPortalOptions>(builder.Configuration.GetSection(ParentPortalOptions.SectionName));
+builder.Services.AddPaymentGateway(builder.Configuration);
+builder.Services.AddScoped<IV1TopupRecoveryRepository, V1TopupRecoveryRepository>();
+builder.Services.AddScoped<V1TopupRecoveryService>();
+builder.Services.AddScoped<AdminPaymentLogBuffer>();
+builder.Services.AddScoped<IPaymentBackgroundQueue>(sp => sp.GetRequiredService<AdminPaymentLogBuffer>());
+builder.Services.AddScoped<ITopupPaymentCompleteService, TopupPaymentCompleteService>();
+builder.Services.AddSingleton<PaymentCompletionCancellation>();
+builder.Services.AddScoped<IMainOrderRepository, MainOrderRepository>();
+builder.Services.AddScoped<IMealOrderRepository, MealOrderRepository>();
+builder.Services.AddScoped<IMealRepository, MealRepository>();
+builder.Services.AddGuardianEmailServices();
+
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {

@@ -24,8 +24,10 @@ public sealed class TopupPendingTransactionState
 
     public int PaymentMethod { get; init; }
 
+    // Api is the current V1 app channel. Empty/null SourceChannel covers legacy hosted
+    // rows created before SourceChannel was persisted. Web/Pos/native methods are excluded.
     public bool IsV1AppTopup =>
-        SourceChannel == "Api" &&
+        (string.IsNullOrWhiteSpace(SourceChannel) || SourceChannel == "Api") &&
         PaymentMethod is (int)Enumeration.PaymentMethodEnum.Unknown or (int)Enumeration.PaymentMethodEnum.WebRedirect;
 
     public bool HasUncreditedV1Capture => IsV1AppTopup && !IsTransactionCompleted &&

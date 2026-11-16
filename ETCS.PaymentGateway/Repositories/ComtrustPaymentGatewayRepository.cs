@@ -122,6 +122,9 @@ public sealed partial class ComtrustPaymentGatewayRepository : IPaymentGatewayRe
                     (int)httpResponse.StatusCode);
             }
 
+            if (!request.UseNativeCredentials)
+                return ValidateV1Finalization(rawResponse, request, httpResponse.IsSuccessStatusCode);
+
             ComtrustRegistrationResponse? parsed = null;
             if (!string.IsNullOrWhiteSpace(rawResponse))
             {
@@ -135,23 +138,6 @@ public sealed partial class ComtrustPaymentGatewayRepository : IPaymentGatewayRe
             var responseClass = parsed?.Transaction?.ResponseClassDescription ?? string.Empty;
             var normalizedClass = responseClass.Trim().ToLowerInvariant();
 
-            // V1 hosted checkout: EPG Finalization 6824 confirms cancellation.
-            // Preserve this terminal state for V1 recovery; native SDK handling is unchanged.
-            if (!request.UseNativeCredentials
-                && httpResponse.IsSuccessStatusCode
-                && parsed?.Transaction?.ResponseCode?.Trim() == "6824"
-                && (string.IsNullOrWhiteSpace(parsed?.Transaction?.TransactionId)
-                    || string.Equals(parsed.Transaction.TransactionId, request.TransactionId, StringComparison.Ordinal)))
-            {
-                return new PaymentCaptureResult
-                {
-                    IsSuccess = false,
-                    IsPending = false,
-                    TransactionId = request.TransactionId,
-                    Status = "cancelled-confirmed",
-                    Message = "Payment cancelled by the gateway."
-                };
-            }
             var isSuccess = normalizedClass is "success" or "closed";
             var isPending = normalizedClass == "pending";
             if (isPending)
@@ -159,17 +145,6 @@ public sealed partial class ComtrustPaymentGatewayRepository : IPaymentGatewayRe
                 isSuccess = true;
             }
 
-            // Hosted V1 checkout must have positive, matching gateway evidence.
-            // Keep native SDK behavior in its existing validation path.
-            if (!request.UseNativeCredentials)
-            {
-                var matches = !string.IsNullOrWhiteSpace(parsed?.Transaction?.TransactionId)
-                    && string.Equals(parsed.Transaction.TransactionId, request.TransactionId, StringComparison.Ordinal);
-                isPending = httpResponse.IsSuccessStatusCode && matches && normalizedClass == "pending";
-                isSuccess = httpResponse.IsSuccessStatusCode && matches
-                    && parsed?.Transaction?.ResponseCode?.Trim() == "0"
-                    && normalizedClass is "success" or "closed";
-            }
             if (!httpResponse.IsSuccessStatusCode && !isSuccess && !isPending)
             {
                 _logger.LogWarning(

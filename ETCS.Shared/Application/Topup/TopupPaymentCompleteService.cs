@@ -166,21 +166,33 @@ public sealed class TopupPaymentCompleteService : ITopupPaymentCompleteService
             transactionId,
             request.OrderId,
             request.StudentId > 0 ? request.StudentId : topupState?.StudentId ?? 0,
-            request.UseNativeCredentials);
+            request.UseNativeCredentials)
+        {
+            // Only compare when MealDB has a positive original amount.
+            ExpectedAmount = topupState?.Amount is > 0 ? topupState.Amount : null
+        };
 
         var result = await _paymentGatewayRepository.CapturePaymentAsync(
             captureRequest,
             cancellationToken);
 
-        if (!result.IsSuccess && !result.IsPending)
-        {
-            return Fail(string.IsNullOrWhiteSpace(result.Message)
-                ? "Unable to capture payment status."
-                : result.Message);
-        }
-
+        // Log every Finalization outcome (including failures) for recovery diagnostics.
         var pgResponse = JsonSerializer.Serialize(result, JsonOptions);
         _paymentBackgroundQueue.EnqueuePaymentLog(request.OrderId, pgResponse ?? string.Empty);
+
+        if (!result.IsSuccess && !result.IsPending)
+        {
+            // Keep Amount/Status/OrderId so audits are diagnosable (do not use bare Fail()).
+            return new TopupCompleteResponse
+            {
+                IsSuccess = false,
+                Message = string.IsNullOrWhiteSpace(result.Message) ? "Unable to capture payment status." : result.Message,
+                OrderId = request.OrderId,
+                TransactionId = transactionId,
+                Amount = topupState?.Amount ?? 0,
+                Status = string.IsNullOrWhiteSpace(result.Status) ? "capture-failed" : result.Status
+            };
+        }
 
         var paymentCompleted = result.IsSuccess && !result.IsPending;
         var gatewayTransactionId = string.IsNullOrWhiteSpace(result.TransactionId)
@@ -489,5 +501,5 @@ public sealed class TopupPaymentCompleteService : ITopupPaymentCompleteService
     }
 
     private static TopupCompleteResponse Fail(string message) =>
-        new() { IsSuccess = false, Message = message };
+        new() { IsSuccess = false, Message = message, Status = "failed" };
 }

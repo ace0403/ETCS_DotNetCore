@@ -136,13 +136,18 @@ public sealed class PaymentStatusService : IPaymentStatusService
         }
 
         var captureResult = await _paymentGatewayRepository.CapturePaymentAsync(
-            new PaymentCaptureRequest(transactionId, orderId, studentId),
+            new PaymentCaptureRequest(transactionId, orderId, studentId)
+            {
+                ExpectedAmount = topupState?.Amount is > 0 ? topupState.Amount : null
+            },
             cancellationToken);
 
         if (topupState is { IsV1AppTopup: true } && captureResult.IsSuccess && !captureResult.IsPending
-            && string.Equals(captureResult.TransactionId, transactionId, StringComparison.Ordinal))
+            && (string.IsNullOrWhiteSpace(captureResult.TransactionId)
+                || string.Equals(captureResult.TransactionId, transactionId, StringComparison.Ordinal)))
         {
             // Gateway finalization can finish even if the app closes before posting topup/update.
+            // Record capture marker so Complete/reconcile can credit without re-finalizing.
             using var dbTimeout = _completionCancellation.CreateDbTimeoutSource();
             await _transactionRepository.RecordV1TopupCaptureAsync(topupState.TransactionPkId, dbTimeout.Token);
         }

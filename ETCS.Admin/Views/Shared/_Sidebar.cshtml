@@ -204,6 +204,12 @@
                             <span class="pc-mtext">Report on Transactions</span>
                         </a>
                     </li>
+                    <li class="pc-item">
+                        <a asp-controller="TopupRecovery" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-refresh"></i></span>
+                            <span class="pc-mtext">Top-up recovery</span>
+                        </a>
+                    </li>
                 }
                 @if (AdminPermissionViewHelper.CanView(User, "Report.TerminalSalesSummary"))
                 {
@@ -291,6 +297,15 @@
                         </a>
                     </li>
                 }
+               @*  @if (AdminPermissionViewHelper.CanView(User, "Report.AdminTransaction"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="TopupRecovery" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-refresh"></i></span>
+                            <span class="pc-mtext">Top-up recovery</span>
+                        </a>
+                    </li>
+                } *@
             </ul>
         </div>
     </div>

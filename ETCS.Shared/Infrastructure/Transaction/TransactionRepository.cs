@@ -528,7 +528,7 @@ public sealed class TransactionRepository : ITransactionRepository
                         ELSE t.CreatedOn END AS ReconcilePriority
                 FROM [Transaction] t
                 LEFT JOIN [Order] o ON o.TransactionId = t.Id
-                CROSS APPLY (VALUES (CASE WHEN t.SourceChannel = @ApiChannel
+                CROSS APPLY (VALUES (CASE WHEN (t.SourceChannel = @ApiChannel OR NULLIF(LTRIM(RTRIM(ISNULL(t.SourceChannel, ''))), '') IS NULL)
                     AND ISNULL(t.PaymentMethod, 0) IN (@UnknownMethod, @HostedMethod) THEN 1 ELSE 0 END)) v(IsV1App)
                 WHERE o.Id IS NULL
                   AND ISNULL(t.IsTransactionCompleted, 0) = 0
@@ -560,7 +560,7 @@ public sealed class TransactionRepository : ITransactionRepository
                         ELSE t.CreatedOn END AS ReconcilePriority
                 FROM [Order] o
                 INNER JOIN [Transaction] t ON t.Id = o.TransactionId
-                CROSS APPLY (VALUES (CASE WHEN t.SourceChannel = @ApiChannel
+                CROSS APPLY (VALUES (CASE WHEN (t.SourceChannel = @ApiChannel OR NULLIF(LTRIM(RTRIM(ISNULL(t.SourceChannel, ''))), '') IS NULL)
                     AND ISNULL(t.PaymentMethod, 0) IN (@UnknownMethod, @HostedMethod) THEN 1 ELSE 0 END)) v(IsV1App)
                 WHERE ISNULL(o.IsPaid, 0) = 0
                   AND ISNULL(t.IsTransactionCompleted, 0) = 0
@@ -618,7 +618,8 @@ public sealed class TransactionRepository : ITransactionRepository
             WHERE Id = @TransactionPkId
               AND ISNULL(IsTransactionCompleted, 0) = 0
               AND (StatusId IN (@StatusInitiated, @StatusPending)
-                OR (StatusId = @StatusCaptured AND SourceChannel = @ApiChannel
+                OR (StatusId = @StatusCaptured
+                  AND (SourceChannel = @ApiChannel OR NULLIF(LTRIM(RTRIM(ISNULL(SourceChannel, ''))), '') IS NULL)
                   AND ISNULL(PaymentMethod, 0) IN (@UnknownMethod, @HostedMethod)));
             """;
 
@@ -965,7 +966,9 @@ public sealed class TransactionRepository : ITransactionRepository
                 Remarks = ISNULL(t.Remarks, ''),
                 IsTransactionCompleted = ISNULL(t.IsTransactionCompleted, 0),
                 StatusId = CASE
-                    WHEN o.Id IS NULL AND t.SourceChannel = 'Api' AND ISNULL(t.PaymentMethod, 0) IN (0, 4)
+                    WHEN o.Id IS NULL
+                        AND (t.SourceChannel = 'Api' OR NULLIF(LTRIM(RTRIM(ISNULL(t.SourceChannel, ''))), '') IS NULL)
+                        AND ISNULL(t.PaymentMethod, 0) IN (0, 4)
                         AND t.StatusId = 21 AND ISNULL(t.IsTransactionCompleted, 0) = 0 THEN 20
                     ELSE t.StatusId
                 END,
