@@ -56,9 +56,13 @@ public sealed class ReceiptPrintRequest
     public string VatRegNoLine { get; set; } = "VAT Reg No: 100355890300003";
     public string LocationLine { get; set; } = string.Empty;
     public string TerminalLine { get; set; } = string.Empty;
+    public string PaymentMode { get; set; } = string.Empty;
+    public string TransactionId { get; set; } = string.Empty;
     public string? LogoBase64 { get; set; }
     public DateTime? PrintedAt { get; set; }
+    public DateTime? ReprintedAt { get; set; }
     public bool IsUndo { get; set; }
+    public bool IsReprint { get; set; }
     public ReceiptAllergenNotice? AllergenNotice { get; set; }
 }
 

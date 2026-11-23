@@ -96,6 +96,8 @@ public sealed class PosCashPurchaseRequest
     public int TerminalCodeNumeric { get; init; }
     public string TransactionId { get; init; } = string.Empty;
     public string Description { get; init; } = "Cash Purchase";
+    public string IpAddress { get; init; } = string.Empty;
+    public IReadOnlyList<PosPostPurchaseLineRequest> Lines { get; init; } = [];
 }
 
 public sealed class PosPostPurchaseLineRequest
@@ -123,6 +125,8 @@ public sealed class PosLegacyOperationResponse
 {
     public bool IsSuccess { get; init; }
     public string Message { get; init; } = string.Empty;
+    public string TransactionId { get; init; } = string.Empty;
+    public string CustomerId { get; init; } = string.Empty;
 }
 
 public sealed class PosManualTopupRequest

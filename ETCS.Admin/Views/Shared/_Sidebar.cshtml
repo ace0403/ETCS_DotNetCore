@@ -180,6 +180,7 @@
                     || AdminPermissionViewHelper.CanView(User, "Report.TerminalSalesSummary")
                     || AdminPermissionViewHelper.CanView(User, "Report.StudentConsumption")
                     || AdminPermissionViewHelper.CanView(User, "Report.StudentPurchaseHistory")
+                    || AdminPermissionViewHelper.CanView(User, "Report.PosReceiptReprint")
                     || AdminPermissionViewHelper.CanView(User, "Report.MealOrdersMealDb")
                     || AdminPermissionViewHelper.CanView(User, "Report.MealOrders")
                     || AdminPermissionViewHelper.CanView(User, "Report.MealOrderPaymentsMealDb")
@@ -204,12 +205,12 @@
                             <span class="pc-mtext">Report on Transactions</span>
                         </a>
                     </li>
-                    <li class="pc-item">
+                    @* <li class="pc-item">
                         <a asp-controller="TopupRecovery" asp-action="Index" class="pc-link">
                             <span class="pc-micon"><i class="ti ti-refresh"></i></span>
                             <span class="pc-mtext">Top-up recovery</span>
                         </a>
-                    </li>
+                    </li> *@
                 }
                 @if (AdminPermissionViewHelper.CanView(User, "Report.TerminalSalesSummary"))
                 {
@@ -267,17 +268,26 @@
                 }
                 @if (AdminPermissionViewHelper.CanView(User, "Report.MealOrderPayments"))
                 {
-                    <li class="pc-item mb-3">
+                    <li class="pc-item">
                         <a asp-controller="Report" asp-action="MealOrderPayments" class="pc-link">
                             <span class="pc-micon"><i class="ti ti-receipt"></i></span>
                             <span class="pc-mtext">Meal Order Payment Report <small class="text-red-600"><i>(OLD)</i></small></span>
                         </a>
                     </li>
                 }
+                @if (AdminPermissionViewHelper.CanView(User, "Report.PosReceiptReprint"))
+                {
+                    <li class="pc-item">
+                        <a asp-controller="PosReceiptReprint" asp-action="Index" class="pc-link">
+                            <span class="pc-micon"><i class="ti ti-printer"></i></span>
+                            <span class="pc-mtext">POS Receipt Reprint</span>
+                        </a>
+                    </li>
+                }
                 @if (AdminPermissionViewHelper.CanView(User, "Role")
                     || AdminPermissionViewHelper.CanView(User, "AuditLog"))
                 {
-                    <li class="pc-item pc-caption"><label>Settings</label></li>
+                    <li class="pc-item pc-caption mt-3"><label>Settings</label></li>
                 }
                 @if (AdminPermissionViewHelper.CanView(User, "Role"))
                 {
@@ -290,14 +300,14 @@
                 }
                 @if (AdminPermissionViewHelper.CanView(User, "AuditLog"))
                 {
-                    <li class="pc-item mb-5">
+                    <li class="pc-item">
                         <a asp-controller="AuditLog" asp-action="Index" class="pc-link">
                             <span class="pc-micon"><i class="ti ti-history"></i></span>
                             <span class="pc-mtext">Audit Log</span>
                         </a>
                     </li>
                 }
-               @*  @if (AdminPermissionViewHelper.CanView(User, "Report.AdminTransaction"))
+                @*  @if (AdminPermissionViewHelper.CanView(User, "Report.AdminTransaction"))
                 {
                     <li class="pc-item">
                         <a asp-controller="TopupRecovery" asp-action="Index" class="pc-link">

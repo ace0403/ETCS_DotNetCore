@@ -144,7 +144,7 @@
                     cashlessSuccessMessage,
                     App.allergen.getCartDeclaredAllergenNames());
                 try {
-                    await App.cart.printCurrentReceipt();
+                    await App.cart.printCurrentReceipt({ paymentMode: 'Student Card' });
                 } catch (printError) {
                     console.warn('Receipt print failed:', printError);
                 }
@@ -285,7 +285,7 @@
                     nfcSuccessMessage,
                     App.allergen.getCartDeclaredAllergenNames());
                 try {
-                    await App.cart.printCurrentReceipt();
+                    await App.cart.printCurrentReceipt({ paymentMode: 'NFC' });
                 } catch (printError) {
                     console.warn('Receipt print failed:', printError);
                 }
@@ -375,6 +375,7 @@
 
             await App.ui.runPosAction('Processing cash payment', 'Please wait…', async () => {
                 const legacy = buildLegacyPurchasePayload();
+                const meta = App.helpers.getTerminalMeta();
                 const payable = App.cart.getPayableAmount();
                 const result = await PosApiClient.cashPurchase({
                     customerId: 'CASH',
@@ -383,7 +384,9 @@
                     terminalCode: legacy.terminalCode,
                     terminalCodeNumeric: legacy.terminalCodeNumeric,
                     transactionId: makeTransactionId(),
-                    description: 'Cash Purchase'
+                    description: 'Cash Purchase',
+                    ipAddress: meta.ip,
+                    lines: App.cart.buildPostPurchaseLines()
                 });
                 if (!result.ok || !apiIsSuccess(result.data)) {
                     await App.ui.error(apiMessage(result.data, 'Cash transaction failed.'));
@@ -393,7 +396,7 @@
                     apiMessage(result.data, 'Cash transaction successful.'),
                     App.allergen.getCartDeclaredAllergenNames());
                 try {
-                    await App.cart.printCurrentReceipt();
+                    await App.cart.printCurrentReceipt({ paymentMode: 'Cash' });
                 } catch (printError) {
                     console.warn('Receipt print failed:', printError);
                 }
@@ -448,6 +451,7 @@
 
             await App.ui.runPosAction('Processing card payment', 'Please wait…', async () => {
                 const legacy = buildLegacyPurchasePayload();
+                const meta = App.helpers.getTerminalMeta();
                 const payable = App.cart.getPayableAmount();
                 const result = await PosApiClient.cardPurchase({
                     customerId: '',
@@ -457,7 +461,9 @@
                     terminalCode: legacy.terminalCode,
                     terminalCodeNumeric: legacy.terminalCodeNumeric,
                     transactionId: makeTransactionId(),
-                    description: 'Card Purchase'
+                    description: 'Card Purchase',
+                    ipAddress: meta.ip,
+                    lines: App.cart.buildPostPurchaseLines()
                 });
                 if (!result.ok || !apiIsSuccess(result.data)) {
                     await App.ui.error(apiMessage(result.data, 'Card purchase failed.'));
@@ -467,7 +473,7 @@
                     apiMessage(result.data, 'Card transaction successful.'),
                     App.allergen.getCartDeclaredAllergenNames());
                 try {
-                    await App.cart.printCurrentReceipt();
+                    await App.cart.printCurrentReceipt({ paymentMode: 'Card' });
                 } catch (printError) {
                     console.warn('Receipt print failed:', printError);
                 }

@@ -118,6 +118,16 @@ public class MyKidsController : Controller
         }
 
         request.GuardianId = guardianId;
+
+        // Student Id No is not editable in the parent portal; keep the stored card number.
+        var existing = await _repository.GetEditStudentViewAsync(guardianId, request.UserId, cancellationToken);
+        if (existing?.Student is null)
+        {
+            return Json(new { Success = false, Message = "Student was not found." });
+        }
+
+        request.StudentCardNo = existing.Student.StudentCardNo;
+
         var result = await _repository.EditStudentAsync(request, cancellationToken);
         return Json(new { Success = result.Success, Message = result.Message });
     }

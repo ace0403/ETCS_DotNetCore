@@ -85,6 +85,11 @@ public sealed class AdminPermissionAuthorizationFilter : IAsyncActionFilter
 
     private static string ResolveModuleKey(ControllerActionDescriptor descriptor)
     {
+        if (string.Equals(descriptor.ControllerName, "PosReceiptReprint", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Report.PosReceiptReprint";
+        }
+
         if (!string.Equals(descriptor.ControllerName, "Report", StringComparison.OrdinalIgnoreCase))
         {
             return descriptor.ControllerName;

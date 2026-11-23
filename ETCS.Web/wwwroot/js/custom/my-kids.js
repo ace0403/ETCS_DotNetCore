@@ -62,9 +62,8 @@ function openEditKid(userId) {
         prepareKidModal($modal, '#div_edit_kid');
         $modal.modal('show');
         initAllergyMultiselect('#div_edit_kid');
-        initStudentCardNo($('#frmEditStudent'));
         bindAdminFormSave('#frmEditStudent', function ($form) {
-            $.post(SiteUrl + 'mykids/editstudent', serializeStudentCardForm($form), function (r) {
+            $.post(SiteUrl + 'mykids/editstudent', $form.serialize(), function (r) {
                 var result = readAdminResult(r);
                 if (result.success) {
                     // Show toast after close so it isn't trapped under the modal backdrop.

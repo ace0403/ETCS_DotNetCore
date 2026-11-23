@@ -1,5 +1,6 @@
 using ETCS.Shared.Application.Pos;
 using ETCS.Shared.Application.Topup;
+using ETCS.Shared.Infrastructure.History;
 using ETCS.Shared.Infrastructure.Pos;
 using ETCS.Shared.Options;
 using Asp.Versioning;
@@ -289,6 +290,7 @@ public sealed class PosApiController : ControllerBase
         var transactionId = string.IsNullOrWhiteSpace(request.TransactionId)
             ? BuildLegacyTransactionId(terminalNumeric)
             : request.TransactionId.Trim();
+        var customerId = HistoryConstants.PosCashCustomerId;
 
         var ok = await _legacyRepository.InsertCashPurchaseAsync(
             request.Amount,
@@ -297,10 +299,22 @@ public sealed class PosApiController : ControllerBase
             transactionId,
             cancellationToken);
 
+        if (ok)
+        {
+            await InsertPurchaseLinesAsync(
+                customerId,
+                transactionId,
+                request.IpAddress,
+                request.Lines,
+                cancellationToken);
+        }
+
         return Ok(new PosLegacyOperationResponse
         {
             IsSuccess = ok,
-            Message = ok ? "Cash purchase recorded." : "Cash purchase failed."
+            Message = ok ? "Cash purchase recorded." : "Cash purchase failed.",
+            TransactionId = transactionId,
+            CustomerId = customerId
         });
     }
 
@@ -354,6 +368,7 @@ public sealed class PosApiController : ControllerBase
         var transactionId = string.IsNullOrWhiteSpace(request.TransactionId)
             ? BuildLegacyTransactionId(terminalNumeric)
             : request.TransactionId.Trim();
+        var customerId = HistoryConstants.PosCardCustomerId;
 
         var ok = await _legacyRepository.InsertCardPurchaseAsync(
             request.Amount,
@@ -363,10 +378,22 @@ public sealed class PosApiController : ControllerBase
             request.CreditCardNumber.Trim(),
             cancellationToken);
 
+        if (ok)
+        {
+            await InsertPurchaseLinesAsync(
+                customerId,
+                transactionId,
+                request.IpAddress,
+                request.Lines,
+                cancellationToken);
+        }
+
         return Ok(new PosLegacyOperationResponse
         {
             IsSuccess = ok,
-            Message = ok ? "Card purchase recorded." : "Card purchase failed."
+            Message = ok ? "Card purchase recorded." : "Card purchase failed.",
+            TransactionId = transactionId,
+            CustomerId = customerId
         });
     }
 
@@ -430,6 +457,39 @@ public sealed class PosApiController : ControllerBase
         }
 
         return Ok(result);
+    }
+
+    private async Task InsertPurchaseLinesAsync(
+        string customerId,
+        string transactionId,
+        string? ipAddress,
+        IReadOnlyList<PosPostPurchaseLineRequest>? lines,
+        CancellationToken cancellationToken)
+    {
+        if (lines is null || lines.Count == 0)
+        {
+            return;
+        }
+
+        var now = DateTime.Now;
+        var ip = ipAddress?.Trim() ?? string.Empty;
+
+        foreach (var line in lines)
+        {
+            if (string.IsNullOrWhiteSpace(line.SkuCode) || line.Amount <= 0)
+            {
+                continue;
+            }
+
+            await _legacyRepository.InsertPosPurchaseLineAsync(
+                customerId,
+                line.SkuCode.Trim(),
+                line.Amount,
+                now,
+                transactionId,
+                ip,
+                cancellationToken);
+        }
     }
 
     private string ResolveBranchCode(string? branchCode) =>

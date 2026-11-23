@@ -145,7 +145,13 @@
             vatRegNoLine: normalizeReceiptText(App.config.receiptVatRegNoLine),
             locationLine: normalizeReceiptText(App.helpers.getSelectedSchoolName()),
             terminalLine: normalizeReceiptText(App.helpers.getSelectedTerminalLabel()),
-            logoBase64: App.config.receiptLogoBase64 || ''
+            paymentMode: normalizeReceiptText(
+                (overrides && overrides.paymentMode) || App.state.lastPaymentMode || ''),
+            logoBase64: App.config.receiptLogoBase64 || '',
+            isReprint: !!(overrides && overrides.isReprint),
+            printedAt: overrides && overrides.printedAt ? overrides.printedAt : undefined,
+            transactionId: normalizeReceiptText(
+                (overrides && overrides.transactionId) || '')
         };
 
         if (allergenCtx && allergenCtx.hasConflict) {
@@ -232,8 +238,11 @@
             return result;
         },
 
-        async printCurrentReceipt() {
-            return App.cart.dispatchReceiptPrint();
+        async printCurrentReceipt(overrides) {
+            if (overrides && overrides.paymentMode) {
+                App.state.lastPaymentMode = overrides.paymentMode;
+            }
+            return App.cart.dispatchReceiptPrint({ overrides: overrides || {} });
         },
 
         async previewCurrentReceipt() {

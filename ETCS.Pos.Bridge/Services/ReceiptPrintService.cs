@@ -187,16 +187,46 @@ public sealed class ReceiptPrintService
                 DrawCenteredLine(graphics, _request.LocationLine.Trim(), _regular);
             }
 
+            if (!string.IsNullOrWhiteSpace(_request.TerminalLine))
+            {
+                DrawLeftLine(graphics, "Terminal: " + _request.TerminalLine.Trim(), _regular);
+            }
+
+            if (!string.IsNullOrWhiteSpace(_request.PaymentMode))
+            {
+                DrawLeftLine(graphics, "Payment Mode: " + _request.PaymentMode.Trim(), _bold);
+            }
+
             _y += SectionSpacing;
             var docTitle = _request.IsUndo ? "UNDO RECEIPT" : "TAX INVOICE";
             DrawCenteredLine(graphics, docTitle, _title);
             _y += LineSpacing;
 
-            // Always use Bridge PC local time; client toISOString() was UTC and printed wrong.
-            DrawLeftLine(graphics, DateTime.Now.ToString("dd/MM/yyyy hh:mm:ss tt", CultureInfo.InvariantCulture), _regular);
-            if (!string.IsNullOrWhiteSpace(_request.TerminalLine))
+            var saleTime = _request.PrintedAt ?? DateTime.Now;
+            if (_request.IsReprint)
             {
-                DrawLeftLine(graphics, "Terminal: " + _request.TerminalLine.Trim(), _regular);
+                DrawLeftLine(
+                    graphics,
+                    "Original Sale: " + saleTime.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture),
+                    _regular);
+                var reprintedAt = _request.ReprintedAt ?? DateTime.Now;
+                DrawLeftLine(
+                    graphics,
+                    "Reprinted at: " + reprintedAt.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture),
+                    _regular);
+            }
+            else
+            {
+                // Live sales use Bridge PC local time; client UTC was previously wrong.
+                DrawLeftLine(
+                    graphics,
+                    DateTime.Now.ToString("dd/MM/yyyy hh:mm:ss tt", CultureInfo.InvariantCulture),
+                    _regular);
+            }
+
+            if (!string.IsNullOrWhiteSpace(_request.TransactionId))
+            {
+                DrawLeftLine(graphics, "Transaction ID: " + _request.TransactionId.Trim(), _regular);
             }
 
             DrawDashedRule(graphics);
@@ -222,6 +252,12 @@ public sealed class ReceiptPrintService
 
             DrawCenteredLine(graphics, "Thank You!", _regular);
             DrawCenteredLine(graphics, "Visit Again.", _regular);
+
+            if (_request.IsReprint)
+            {
+                _y += SectionSpacing;
+                DrawCenteredLine(graphics, "REPRINT", _title);
+            }
         }
         finally
         {

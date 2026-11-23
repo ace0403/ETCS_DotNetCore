@@ -382,6 +382,10 @@ function validateStudentCardNo($form) {
         return true;
     }
 
+    if ($input.prop('readonly') || $input.prop('disabled')) {
+        return true;
+    }
+
     if ($input.hasClass('js-student-card-suffix')) {
         var prefix = getStudentCardPrefix($form);
         if (!isNumericSchoolCode(prefix)) {
@@ -470,7 +474,8 @@ function runAdminFormCustomRules(formSelector) {
         }
     }
 
-    if ($form.is('#frmStudent, #frmAddStudent, #frmEditStudent')) {
+    // Edit Child locks Student Id No as readonly; skip card rebuild/validation there.
+    if ($form.is('#frmStudent, #frmAddStudent')) {
         if (!validateStudentCardNo($form)) {
             return false;
         }

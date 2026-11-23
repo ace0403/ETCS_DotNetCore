@@ -2090,3 +2090,91 @@ div.dt-scroll-body thead tr th, div.dt-scroll-body thead tr td, div.dt-scroll-bo
     padding-top: 0.65rem !important;
     padding-bottom: 0.65rem !important;
 }
+
+.pos-receipt-preview-host {
+    border: 1px dashed #c5d0dc;
+    border-radius: 8px;
+    padding: 1rem;
+    background: #f8fafc;
+    min-height: 280px;
+}
+
+.pos-receipt-slip {
+    width: 280px;
+    margin: 0 auto;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 12px;
+    color: #111;
+    background: #fff;
+    padding: 10px 8px;
+}
+
+.pos-receipt-logo {
+    display: block;
+    max-width: 120px;
+    max-height: 60px;
+    margin: 0 auto 8px;
+}
+
+.pos-receipt-center {
+    text-align: center;
+}
+
+.pos-receipt-bold {
+    font-weight: 700;
+}
+
+.pos-receipt-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 8px 0;
+}
+
+.pos-receipt-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.pos-receipt-rule {
+    border: none;
+    border-top: 1px dashed #999;
+    margin: 8px 0;
+}
+
+.pos-receipt-reprint {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    margin-top: 10px;
+}
+
+.pos-receipt-print-root {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+}
+
+@media print {
+    body.pos-receipt-printing * {
+        visibility: hidden !important;
+    }
+
+    body.pos-receipt-printing .pos-receipt-print-root,
+    body.pos-receipt-printing .pos-receipt-print-root * {
+        visibility: visible !important;
+    }
+
+    body.pos-receipt-printing .pos-receipt-print-root {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100%;
+        display: block !important;
+    }
+
+    body.pos-receipt-printing .pos-receipt-slip {
+        width: 280px;
+        margin: 0 auto;
+    }
+}
